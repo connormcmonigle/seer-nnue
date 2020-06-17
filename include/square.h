@@ -9,8 +9,12 @@
 
 namespace chess{
 
-constexpr std::uint64_t popcnt(std::uint64_t x){
+constexpr std::uint64_t pop_count(std::uint64_t x){
   return static_cast<std::uint64_t>(__builtin_popcountll(x));
+}
+
+constexpr std::uint64_t count_trailing_zeros(std::uint64_t x){
+  return static_cast<std::uint64_t>(__builtin_ctzll(x));
 }
 
 struct square_set;
@@ -19,7 +23,7 @@ struct square{
   std::uint64_t data;
   
   constexpr std::uint64_t bit_board() const { return data; }
-  constexpr int index() const { return std::ilogb(data); }
+  constexpr int index() const { return count_trailing_zeros(data); }
   constexpr int file() const { return index() % 8; }
   constexpr int rank() const { return index() / 8; }
 
@@ -183,7 +187,7 @@ struct square_set{
   }
   
   constexpr size_t count() const {
-    return popcnt(data);
+    return pop_count(data);
   }
 
   constexpr size_t any() const {

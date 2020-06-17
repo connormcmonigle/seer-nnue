@@ -11,15 +11,15 @@
 #include <type_traits>
 #include <algorithm>
 
+#include <immintrin.h>
+
 #include <enum_util.h>
 #include <square.h>
 
+
 namespace chess{
 
-constexpr std::uint64_t pext(std::uint64_t src, std::uint64_t mask){
-  #ifdef __BMI__
-  return _pext_u64(src, mask);
-  #else
+constexpr std::uint64_t pext_compile_time(std::uint64_t src, std::uint64_t mask){
   std::uint64_t res{0};
   for(std::uint64_t bb{1}; mask; bb += bb) {
     if(src & (mask & -mask)){
@@ -28,13 +28,17 @@ constexpr std::uint64_t pext(std::uint64_t src, std::uint64_t mask){
     mask &= mask - static_cast<uint64_t>(1);
   }
   return res;
+}
+
+std::uint64_t pext(std::uint64_t src, std::uint64_t mask){
+  #ifdef __BMI__
+  return _pext_u64(src, mask);
+  #else
+  return pext_compile_time(src, mask);
   #endif
 }
 
-constexpr std::uint64_t pdep(std::uint64_t src, std::uint64_t mask){
-  #ifdef __BMI__
-  return _pdep_u64(src, mask);
-  #else
+constexpr std::uint64_t pdep_compile_time(std::uint64_t src, std::uint64_t mask){
   std::uint64_t res{0};
   for(std::uint64_t bb{1}; mask; bb += bb) {
     if(src & bb){
@@ -43,6 +47,13 @@ constexpr std::uint64_t pdep(std::uint64_t src, std::uint64_t mask){
     mask &= mask - static_cast<uint64_t>(1);
   }
   return res;
+}
+
+std::uint64_t pdep(std::uint64_t src, std::uint64_t mask){
+  #ifdef __BMI__
+  return _pdep_u64(src, mask);
+  #else
+  return pdep_compile_time(src, mask);
   #endif
 }
 
@@ -308,11 +319,10 @@ struct slider_attack_tbl{
   std::array<square_set, minor*major> data{};
 
   template<typename T>
-  constexpr const square_set& look_up(const T& sq, const square_set& blockers) const {
+  const square_set& look_up(const T& sq, const square_set& blockers) const {
     static_assert(is_square_v<T>, "can only look up squares");
     const square_set mask = mask_tbl.look_up(sq);
-    const uint64_t idx = sq.index() * major + pext(blockers.data, mask.data);
-    return data[idx];
+    return data[sq.index() * major + pext(blockers.data, mask.data)];
   }
   
   template<typename D>
@@ -331,9 +341,9 @@ struct slider_attack_tbl{
   constexpr slider_attack_tbl(const piece_type pt, const D& deltas) : type{pt}, mask_tbl(pt, deltas) {
     over_all([&, this](const tbl_square from){
       const square_set mask = mask_tbl.look_up(from);
-      const std::uint64_t max_blocker = one << popcnt(mask.data);
+      const std::uint64_t max_blocker = one << pop_count(mask.data);
       for(std::uint64_t blocker_data(0); blocker_data < max_blocker; ++blocker_data){
-        const square_set blocker(pdep(blocker_data, mask.data));
+        const square_set blocker(pdep_compile_time(blocker_data, mask.data));
         data[major * from.index() + blocker_data] = compute_rays(from, blocker, deltas);
       }
     });
