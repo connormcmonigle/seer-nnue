@@ -1,0 +1,23 @@
+device: 'cuda'
+model_save_path: 'model/save.pt'
+bin_model_save_path: 'model/save.bin'
+#CONFIGURE DATASET PATH SPECIFIC TO YOUR SETUP:
+dataset_path: '/media/connor/7F35A067038168A9/nnue_data'
+visual_directory: 'visual'
+
+epochs: 100000
+epoch_length: 1000
+report_rate: 4
+test_rate: 12
+batch_size: 48
+
+learning_rate: 1.0
+
+max_fullmoves: 256
+uci_engine_path: '/usr/games/stockfish'
+uci_engine_time: 0.01
+interpolation_factor: 0.4
+num_positions: 1000000
+
+
+
