@@ -12,7 +12,7 @@ int main(){
     const chess::move_list mv_ls = bd.generate_moves();
     std::cout << mv_ls << std::endl;
     size_t i; std::cin >> i;
-    bd.forward(mv_ls.data[i]);
+    bd = bd.forward(mv_ls.data[i]);
     std::cout << bd << std::endl;
   }
 }

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(nnue)
 
 set (CMAKE_CXX_STANDARD 17)
-set (CMAKE_CXX_FLAGS "-O3 -march=native -fopenmp -fconstexpr-steps=100000000 -Wall -Wextra")
+set (CMAKE_CXX_FLAGS "-O3 -march=native -fopenmp -Wall -Wextra")
 
 include_directories (include)
 
