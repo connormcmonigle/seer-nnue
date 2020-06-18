@@ -10,7 +10,7 @@
 #include <vector>
 #include <tuple>
 
-
+#include <zobrist_util.h>
 #include <enum_util.h>
 #include <square.h>
 #include <move.h>
@@ -22,17 +22,27 @@
 namespace chess{
 
 struct sided_manifest : sided<sided_manifest, manifest> {
-  manifest white{};
-  manifest black{};
-  sided_manifest(){}
+  manifest white;
+  manifest black;
+
+  zobrist::hash_type hash() const {
+    return white.hash() ^ black.hash();
+  }
+
+  sided_manifest() : white(&w_manifest_src), black(&b_manifest_src) {}
 };
 
 struct sided_latent : sided<sided_latent, latent> {
   size_t half_clock{0};
   size_t move_count{0};
-  latent white{};
-  latent black{};
-  sided_latent(){}
+  latent white;
+  latent black;
+
+  zobrist::hash_type hash() const {
+    return white.hash() ^ black.hash();
+  }
+
+  sided_latent() : white(&w_latent_src), black(&b_latent_src) {}
 };
 
 struct board{
@@ -41,6 +51,10 @@ struct board{
 
   bool turn() const {
     return lat_.move_count % 2 == 0;
+  }
+
+  zobrist::hash_type hash() const {
+    return man_.hash() ^ lat_.hash();
   }
 
   template<color c>

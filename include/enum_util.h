@@ -132,4 +132,30 @@ constexpr void over_types(F&& f){
   f(piece_type::pawn);
 }
 
+template<typename T>
+auto get_member(const piece_type& idx, T& set) -> decltype(set.pawn_)& {
+  switch(idx){
+    case piece_type::pawn: return set.pawn_;
+    case piece_type::knight: return set.knight_;
+    case piece_type::bishop: return set.bishop_;
+    case piece_type::rook: return set.rook_;
+    case piece_type::queen: return set.queen_;
+    case piece_type::king: return set.king_;
+    default: return set.king_;
+  }
+}
+
+template<typename T>
+auto get_member(const piece_type& idx, const T& set) -> const decltype(set.pawn_)& {
+  switch(idx){
+    case piece_type::pawn: return set.pawn_;
+    case piece_type::knight: return set.knight_;
+    case piece_type::bishop: return set.bishop_;
+    case piece_type::rook: return set.rook_;
+    case piece_type::queen: return set.queen_;
+    case piece_type::king: return set.king_;
+    default: return set.king_;
+  }
+}
+
 }

@@ -5,6 +5,7 @@
 #include <vector>
 #include <tuple>
 
+#include <zobrist_util.h>
 #include <enum_util.h>
 #include <square.h>
 #include <move.h>
@@ -12,9 +13,46 @@
 
 namespace chess{
 
+struct manifest_zobrist_src{
+  static constexpr size_t num_squares = 64;
+  using plane_t = std::array<zobrist::hash_type, num_squares>;
+  plane_t pawn_{};
+  plane_t knight_{};
+  plane_t bishop_{};
+  plane_t rook_{};
+  plane_t queen_{};
+  plane_t king_{};
+
+  std::array<zobrist::hash_type, num_squares>& get_plane(const piece_type& pt){
+    return get_member(pt, *this);
+  }
+
+  const std::array<zobrist::hash_type, num_squares>& get_plane(const piece_type& pt) const {
+    return get_member(pt, *this);
+  }
+
+  template<typename S>
+  zobrist::hash_type get(const piece_type& pt, const S& at) const {
+    static_assert(is_square_v<S>, "at must be of square type");
+    return get_plane(pt)[at.index()];
+  }
+
+  manifest_zobrist_src(){
+    over_types([this](const piece_type pt){
+      plane_t& pt_plane = get_plane(pt);
+      std::transform(pt_plane.begin(), pt_plane.begin(), pt_plane.end(), [](auto...){ return zobrist::random_bit_string(); });
+    });
+  }
+};
+
+inline const manifest_zobrist_src w_manifest_src{};
+inline const manifest_zobrist_src b_manifest_src{};
+
 struct manifest{
   static constexpr size_t num_squares = 64;
- private:
+
+  const manifest_zobrist_src* zobrist_src_;
+  zobrist::hash_type hash_{};
   std::array<piece_type, num_squares> occ_table{};
   square_set pawn_{};
   square_set knight_{};
@@ -24,6 +62,10 @@ struct manifest{
   square_set king_{};
   square_set all_{};
 
+  zobrist::hash_type hash() const {
+    return hash_;
+  }
+
   template<typename S>
   piece_type& occ(const S& sq){
     static_assert(is_square_v<S>, "at must be of square type");
@@ -31,18 +73,9 @@ struct manifest{
   }
 
   square_set& get_plane(const piece_type pt){
-    switch(pt){
-      case piece_type::pawn: return pawn_;
-      case piece_type::knight: return knight_;
-      case piece_type::bishop: return bishop_;
-      case piece_type::rook: return rook_;
-      case piece_type::queen: return queen_;
-      case piece_type::king: return king_;
-      default: return king_;
-    }
+    return get_member(pt, *this);
   }
 
- public:
   template<typename S>
   const piece_type& occ(const S& at) const {
     static_assert(is_square_v<S>, "at must be of square type");
@@ -58,20 +91,13 @@ struct manifest{
   const square_set& king() const { return king_; }
 
   const square_set& get_plane(const piece_type pt) const {
-    switch(pt){
-      case piece_type::pawn: return pawn_;
-      case piece_type::knight: return knight_;
-      case piece_type::bishop: return bishop_;
-      case piece_type::rook: return rook_;
-      case piece_type::queen: return queen_;
-      case piece_type::king: return king_;
-      default: return king_;
-    }
+    return get_member(pt, *this);
   }
 
   template<typename S>
   manifest& add_piece(const piece_type& pt, const S& at){
     static_assert(is_square_v<S>, "at must be of square type");
+    hash_ ^= zobrist_src_ -> get(pt, at);
     all_ |= at.bit_board();
     get_plane(pt) |= at.bit_board();
     occ(at) = pt;
@@ -81,10 +107,13 @@ struct manifest{
   template<typename S>
   manifest& remove_piece(const piece_type& pt, const S& at){
     static_assert(is_square_v<S>, "at must be of square type");
+    hash_ ^= zobrist_src_ -> get(pt, at);
     all_ &= ~at.bit_board();
     get_plane(pt) &= ~at.bit_board();
     return *this;
   }
+
+  manifest(const manifest_zobrist_src* src) : zobrist_src_{src} {}
 };
 
 }
