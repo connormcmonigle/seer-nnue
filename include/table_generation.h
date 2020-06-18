@@ -311,7 +311,7 @@ struct slider_mask_tbl{
 template<size_t max_num_blockers>
 struct slider_attack_tbl{
   static constexpr size_t minor = 64;
-  static constexpr size_t major = 1 << max_num_blockers;
+  static constexpr size_t major = static_cast<size_t>(1) << max_num_blockers;
   static constexpr std::uint64_t one = static_cast<std::uint64_t>(1);
 
   piece_type type;
@@ -351,18 +351,18 @@ struct slider_attack_tbl{
 };
 
 template<color c>
-constexpr castle_info_<c> castle_info = castle_info_<c>{};
+inline constexpr castle_info_<c> castle_info = castle_info_<c>{};
 
 template<color c>
-constexpr pawn_push_tbl_<c> pawn_push_tbl = pawn_push_tbl_<c>{};
+inline constexpr pawn_push_tbl_<c> pawn_push_tbl = pawn_push_tbl_<c>{};
 
 template<color c>
-constexpr stepper_attack_tbl pawn_attack_tbl = stepper_attack_tbl{piece_type::pawn, pawn_delta<c>::attack};
+inline constexpr stepper_attack_tbl pawn_attack_tbl = stepper_attack_tbl{piece_type::pawn, pawn_delta<c>::attack};
 
-constexpr stepper_attack_tbl knight_attack_tbl{piece_type::knight, knight_deltas()};
-constexpr stepper_attack_tbl king_attack_tbl{piece_type::king, king_deltas()};
-constexpr slider_attack_tbl<9> bishop_attack_tbl{piece_type::bishop, bishop_deltas()};
-constexpr slider_attack_tbl<12> rook_attack_tbl{piece_type::rook, rook_deltas()};
+inline constexpr stepper_attack_tbl knight_attack_tbl{piece_type::knight, knight_deltas()};
+inline constexpr stepper_attack_tbl king_attack_tbl{piece_type::king, king_deltas()};
+inline constexpr slider_attack_tbl<9> bishop_attack_tbl{piece_type::bishop, bishop_deltas()};
+inline constexpr slider_attack_tbl<12> rook_attack_tbl{piece_type::rook, rook_deltas()};
 
 
 }
