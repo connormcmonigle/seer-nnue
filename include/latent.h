@@ -37,9 +37,6 @@ struct latent_zobrist_src{
   }
 };
 
-inline const latent_zobrist_src w_latent_src{};
-inline const latent_zobrist_src b_latent_src{};
-
 struct latent{
   const latent_zobrist_src* zobrist_src_;
   zobrist::hash_type hash_{0};
@@ -91,6 +88,22 @@ struct latent{
   }
 
   latent(const latent_zobrist_src* src) : zobrist_src_{src} {}
+};
+
+struct sided_latent : sided<sided_latent, latent> {
+  static inline const latent_zobrist_src w_latent_src{};
+  static inline const latent_zobrist_src b_latent_src{};
+
+  size_t half_clock{0};
+  size_t move_count{0};
+  latent white;
+  latent black;
+
+  zobrist::hash_type hash() const {
+    return white.hash() ^ black.hash();
+  }
+
+  sided_latent() : white(&w_latent_src), black(&b_latent_src) {}
 };
 
 }

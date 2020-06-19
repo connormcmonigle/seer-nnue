@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(nnue)
 
 set (CMAKE_CXX_STANDARD 17)
-set (CMAKE_CXX_FLAGS "-O3 -march=native -fopenmp -Wall -Wextra")
+set (CMAKE_CXX_FLAGS "-O3 -fconstexpr-ops-limit=1000000000 -march=native -fopenmp -Wall -Wextra")
 
 include_directories (include)
 
@@ -13,3 +13,6 @@ add_executable (test_board test/test_board.cc)
 add_executable (test_perft test/perft.cc)
 add_executable (test_hash test/test_hash.cc)
 add_executable (test_parse_fen test/test_parse_fen.cc)
+
+add_executable (test_tt test/test_tt.cc)
+target_link_libraries (test_tt pthread)

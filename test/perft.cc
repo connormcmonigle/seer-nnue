@@ -50,7 +50,7 @@ void perft_divide(chess::board bd, int depth){
 }
 
 int main(){
-  int depth = 5;
+  int depth = 6;
   auto bd = chess::board::start_pos();
   std::cout << perft_timed(bd, depth) << std::endl;
 }

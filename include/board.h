@@ -21,30 +21,6 @@
 
 namespace chess{
 
-struct sided_manifest : sided<sided_manifest, manifest> {
-  manifest white;
-  manifest black;
-
-  zobrist::hash_type hash() const {
-    return white.hash() ^ black.hash();
-  }
-
-  sided_manifest() : white(&w_manifest_src), black(&b_manifest_src) {}
-};
-
-struct sided_latent : sided<sided_latent, latent> {
-  size_t half_clock{0};
-  size_t move_count{0};
-  latent white;
-  latent black;
-
-  zobrist::hash_type hash() const {
-    return white.hash() ^ black.hash();
-  }
-
-  sided_latent() : white(&w_latent_src), black(&b_latent_src) {}
-};
-
 struct board{
   sided_manifest man_{};
   sided_latent lat_{};

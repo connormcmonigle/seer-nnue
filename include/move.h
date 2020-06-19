@@ -4,39 +4,12 @@
 #include <utility>
 #include <cstdint>
 
+#include <bit_field.h>
 #include <enum_util.h>
 #include <square.h>
 #include <table_generation.h>
 
 namespace chess{
-
-template<typename T, size_t B0, size_t B1>
-struct bit_field{
-  static_assert(B0 < B1, "wrong bit order");
-  using field_type = T;
-  static constexpr size_t first = B0;
-  static constexpr size_t last = B1;
-  
-  template<typename I>
-  static constexpr T get(const I i){
-    constexpr I one = static_cast<I>(1);
-    constexpr I b0 = static_cast<I>(first);
-    constexpr I b1 = static_cast<I>(last);
-    constexpr I mask = ((one << (b1 - b0)) - one) << b0;
-    return static_cast<T>((mask & i) >> b0);
-  }
-  
-  template<typename I>
-  static void set(I& i, const T info){
-    constexpr I one = static_cast<I>(1);
-    constexpr I b0 = static_cast<I>(first);
-    constexpr I b1 = static_cast<I>(last);
-    const I info_ = static_cast<I>(info);
-    constexpr I mask = ((one << (b1 - b0)) - one) << b0;
-    i &= ~mask;
-    i |= info_ << b0;
-  }
-};
 
 struct move{
   std::uint32_t data{0};
@@ -50,23 +23,23 @@ struct move{
   using enpassant_sq_ = bit_field<std::uint8_t, 22, 28>;
 
   template<typename B>
-  typename B::field_type _get_field() const {
+  typename B::field_type get_field_() const {
     return B::get(data);
   }
 
   template<typename B>
-  move& _set_field(const typename B::field_type info){
+  move& set_field_(const typename B::field_type info){
     B::set(data, info);
     return *this;
   }
 
-  square from() const { return square::from_index(_get_field<from_>()); }
-  square to() const { return square::from_index(_get_field<to_>()); }
-  piece_type piece() const { return _get_field<piece_>(); }
-  bool is_capture() const { return _get_field<is_capture_>(); }
-  bool is_enpassant() const { return _get_field<is_enpassant_>(); }
-  piece_type captured() const { return _get_field<captured_>(); }
-  square enpassant_sq() const { return square::from_index(_get_field<enpassant_sq_>()); }
+  square from() const { return square::from_index(get_field_<from_>()); }
+  square to() const { return square::from_index(get_field_<to_>()); }
+  piece_type piece() const { return get_field_<piece_>(); }
+  bool is_capture() const { return get_field_<is_capture_>(); }
+  bool is_enpassant() const { return get_field_<is_enpassant_>(); }
+  piece_type captured() const { return get_field_<captured_>(); }
+  square enpassant_sq() const { return square::from_index(get_field_<enpassant_sq_>()); }
 
   template<color c>
   bool is_castle_oo() const {
@@ -115,9 +88,9 @@ struct move{
     const auto from_idx = static_cast<std::uint8_t>(from.index());
     const auto to_idx = static_cast<std::uint8_t>(to.index());
     const auto ep_sq_idx = static_cast<std::uint8_t>(enpassant_sq.index());
-    _set_field<from_>(from_idx)._set_field<to_>(to_idx)._set_field<piece_>(piece).
-    _set_field<is_capture_>(is_capture)._set_field<is_enpassant_>(is_enpassant).
-    _set_field<captured_>(captured)._set_field<enpassant_sq_>(ep_sq_idx);
+    set_field_<from_>(from_idx).set_field_<to_>(to_idx).set_field_<piece_>(piece).
+    set_field_<is_capture_>(is_capture).set_field_<is_enpassant_>(is_enpassant).
+    set_field_<captured_>(captured).set_field_<enpassant_sq_>(ep_sq_idx);
   }
 
 };

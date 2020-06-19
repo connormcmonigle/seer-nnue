@@ -45,9 +45,6 @@ struct manifest_zobrist_src{
   }
 };
 
-inline const manifest_zobrist_src w_manifest_src{};
-inline const manifest_zobrist_src b_manifest_src{};
-
 struct manifest{
   static constexpr size_t num_squares = 64;
 
@@ -114,6 +111,20 @@ struct manifest{
   }
 
   manifest(const manifest_zobrist_src* src) : zobrist_src_{src} {}
+};
+
+struct sided_manifest : sided<sided_manifest, manifest> {
+  static inline const manifest_zobrist_src w_manifest_src{};
+  static inline const manifest_zobrist_src b_manifest_src{};
+  
+  manifest white;
+  manifest black;
+
+  zobrist::hash_type hash() const {
+    return white.hash() ^ black.hash();
+  }
+
+  sided_manifest() : white(&w_manifest_src), black(&b_manifest_src) {}
 };
 
 }
