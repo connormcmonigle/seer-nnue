@@ -40,7 +40,7 @@ struct manifest_zobrist_src{
   manifest_zobrist_src(){
     over_types([this](const piece_type pt){
       plane_t& pt_plane = get_plane(pt);
-      std::transform(pt_plane.begin(), pt_plane.begin(), pt_plane.end(), [](auto...){ return zobrist::random_bit_string(); });
+      std::transform(pt_plane.begin(), pt_plane.end(), pt_plane.begin(), [](auto...){ return zobrist::random_bit_string(); });
     });
   }
 };
@@ -52,7 +52,7 @@ struct manifest{
   static constexpr size_t num_squares = 64;
 
   const manifest_zobrist_src* zobrist_src_;
-  zobrist::hash_type hash_{};
+  zobrist::hash_type hash_{0};
   std::array<piece_type, num_squares> occ_table{};
   square_set pawn_{};
   square_set knight_{};

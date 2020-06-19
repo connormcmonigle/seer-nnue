@@ -362,6 +362,50 @@ struct board{
     const std::uint64_t king_idx = man_.us<c>().index();
   }*/
 
+  std::string fen() const {
+    std::string fen{};
+    constexpr size_t num_ranks = 8;
+    for(size_t i{0}; i < num_ranks; ++i){
+      size_t j{0};
+      over_rank(i, [&, this](const tbl_square& at_r){
+        const tbl_square at = at_r.rotated();
+        if(man_.white.all().occ(at.index())){
+          const char letter = piece_letter(color::white, man_.white.occ(at));
+          if(j != 0){ fen.append(std::to_string(j)); }
+          fen.push_back(letter);
+          j = 0;
+        }else if(man_.black.all().occ(at.index())){
+          const char letter = piece_letter(color::black, man_.black.occ(at));
+          if(j != 0){
+            fen.append(std::to_string(j));
+          }
+          fen.push_back(letter);
+          j = 0;
+        }else{
+          ++j;
+        }
+      });
+      if(j != 0){ fen.append(std::to_string(j)); }
+      if(i != (num_ranks - 1)){ fen.push_back('/'); }
+    }
+    fen.push_back(' ');
+    fen.push_back(turn() ? 'w' : 'b');
+    fen.push_back(' ');
+    std::string castle_rights{};
+    if(lat_.white.oo()){ castle_rights.push_back('K'); }
+    if(lat_.white.ooo()){ castle_rights.push_back('Q'); }
+    if(lat_.black.oo()){ castle_rights.push_back('k'); }
+    if(lat_.black.ooo()){ castle_rights.push_back('q'); }
+    fen.append(castle_rights.empty() ? "-" : castle_rights);
+    fen.push_back(' ');
+    fen.append(lat_.them(turn()).ep_mask().any() ? lat_.them(turn()).ep_mask().item().name() : "-");
+    fen.push_back(' ');
+    fen.append(std::to_string(lat_.half_clock));
+    fen.push_back(' ');
+    fen.append(std::to_string(1 + (lat_.move_count / 2)));
+    return fen;
+  }
+
   static board start_pos(){
     return parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
   }
@@ -426,6 +470,7 @@ std::ostream& operator<<(std::ostream& ostr, const board& bd){
   over_all([&ostr, bd](const tbl_square& sq){
     ostr << piece_name(bd.man_.black.occ(sq)) << ", ";
   });
+  ostr << "}\n";
   over_types([&ostr, bd](const piece_type& pt){
     ostr << "white." << piece_name(pt) << "=" << bd.man_.white.get_plane(pt) << ",\n";
   });

@@ -98,7 +98,7 @@ enum class piece_type{
   king
 };
 
-piece_type type_from(char ch){
+piece_type type_from(const char& ch){
   switch(std::tolower(ch)){
     case 'p': return piece_type::pawn;
     case 'n': return piece_type::knight;
@@ -110,7 +110,28 @@ piece_type type_from(char ch){
   }
 }
 
-constexpr std::string_view piece_name(piece_type p){
+constexpr char piece_letter(const piece_type& p){
+  switch(p){
+    case piece_type::pawn: return 'p';
+    case piece_type::knight: return 'n';
+    case piece_type::bishop: return 'b';
+    case piece_type::rook: return 'r';
+    case piece_type::queen: return 'q';
+    case piece_type::king: return 'k';
+    default: return '?';
+  }
+}
+
+constexpr char piece_letter(const color& c, const piece_type& p){
+  const char p_letter = piece_letter(p);
+  switch(c){
+    case color::white: return std::toupper(p_letter);
+    case color::black: return std::tolower(p_letter);
+    default: return p_letter;
+  }
+}
+
+constexpr std::string_view piece_name(const piece_type& p){
   switch(p){
     case piece_type::pawn: return "pawn";
     case piece_type::knight: return "knight";

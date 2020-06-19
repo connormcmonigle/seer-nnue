@@ -31,7 +31,7 @@ struct latent_zobrist_src{
   latent_zobrist_src(){
     oo_ = zobrist::random_bit_string();
     ooo_ = zobrist::random_bit_string();
-    std::transform(ep_mask_.begin(), ep_mask_.begin(), ep_mask_.end(), [](auto...){
+    std::transform(ep_mask_.begin(), ep_mask_.end(), ep_mask_.begin(), [](auto...){
       return zobrist::random_bit_string();
     });
   }
@@ -42,7 +42,7 @@ inline const latent_zobrist_src b_latent_src{};
 
 struct latent{
   const latent_zobrist_src* zobrist_src_;
-  zobrist::hash_type hash_{};
+  zobrist::hash_type hash_{0};
   bool oo_{true};
   bool ooo_{true};
   square_set ep_mask_{};
@@ -71,7 +71,7 @@ struct latent{
 
   latent& set_ooo(bool val){
     if(val ^ ooo_){ hash_ ^= zobrist_src_ -> get_ooo(); }
-    oo_ = val;
+    ooo_ = val;
     return *this;
   }
 
