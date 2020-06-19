@@ -334,7 +334,7 @@ struct board{
       if(mv.from() == castle_info<c>.start_king){
         cpy.lat_.us<c>().set_ooo(false).set_oo(false);
       }else if(mv.from() == castle_info<c>.oo_rook){
-        cpy.lat_.us<c>().set_ooo(false);
+        cpy.lat_.us<c>().set_oo(false);
       }else if(mv.from() == castle_info<c>.ooo_rook){
         cpy.lat_.us<c>().set_ooo(false);
       }
@@ -427,7 +427,7 @@ struct board{
         int file_idx{0};
         for(const char c : rank){
           if(std::isdigit(c)){
-            file_idx += std::atoi(&c);
+            file_idx += static_cast<int>(c - '0');
           }else{
             const color side = color_from(c);
             const piece_type type = type_from(c);
@@ -454,7 +454,8 @@ struct board{
 
 std::ostream& operator<<(std::ostream& ostr, const board& bd){
   ostr << std::boolalpha;
-  ostr << "board(half_clock=" << bd.lat_.half_clock;
+  ostr << "board(hash=" << bd.hash();
+  ostr << ", half_clock=" << bd.lat_.half_clock;
   ostr << ", move_count=" << bd.lat_.move_count;
   ostr << ", white.oo_=" << bd.lat_.white.oo();
   ostr << ", white.ooo_=" << bd.lat_.white.ooo();
