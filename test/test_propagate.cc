@@ -2,10 +2,10 @@
 #include <nnue_half_kp.h>
 
 int main(){
-  nnue::half_kp<float> model{};
-  std::cout << model.num_parameters() << std::endl;
-  model.load("../train/model/save.bin");
+  const auto weights = nnue::half_kp_weights<float>{}.load("../train/model/save.bin");
+  std::cout << weights.num_parameters() << std::endl;
+  nnue::half_kp_eval<float> eval(&weights);
   
-  const float result = model.propagate(true);
+  const float result = eval.propagate(true);
   std::cout << result << '\n';
 }

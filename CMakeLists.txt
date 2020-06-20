@@ -13,6 +13,8 @@ add_executable (test_board test/test_board.cc)
 add_executable (test_perft test/perft.cc)
 add_executable (test_hash test/test_hash.cc)
 add_executable (test_parse_fen test/test_parse_fen.cc)
+add_executable (test_half_kp_indices test/test_half_kp_indices.cc)
+
 
 add_executable (test_tt test/test_tt.cc)
 target_link_libraries (test_tt pthread)

@@ -21,6 +21,31 @@
 
 namespace chess{
 
+namespace feature_idx{
+
+constexpr size_t minor = 6 * 64;
+constexpr size_t major = 64;
+constexpr size_t pawn_offset = 0;
+constexpr size_t knight_offset = pawn_offset + major;
+constexpr size_t bishop_offset = knight_offset + major;
+constexpr size_t rook_offset = bishop_offset + major;
+constexpr size_t queen_offset = rook_offset + major;
+constexpr size_t king_offset = queen_offset + major;
+
+constexpr size_t offset(piece_type pt){
+  switch(pt){
+    case piece_type::pawn: return pawn_offset;
+    case piece_type::knight: return knight_offset;
+    case piece_type::bishop: return bishop_offset;
+    case piece_type::rook: return rook_offset;
+    case piece_type::queen: return queen_offset;
+    case piece_type::king: return king_offset;
+    default: return pawn_offset;
+  }
+}
+
+}
+
 struct board{
   sided_manifest man_{};
   sided_latent lat_{};
@@ -329,14 +354,54 @@ struct board{
     return turn() ? forward_<color::white>(mv) : forward_<color::black>(mv);
   }
 
-  /*template<color>
-  std::vector<std::uint64_t> indices() const {
-    constexpr std::uint64_t num_squares
-    constexpr std::uint64_t pawn_offset = 0;
-    constexpr std::uint64_t pawn_offset = pawn_offset + num_squares;
+  template<color c, typename U>
+  void do_half_kp_indices(U& updatable) const {
+    using namespace feature_idx;
+    const size_t king_idx = man_.us<c>().king().item().index();
+    for(const auto sq : man_.us<c>().pawn()){ updatable.template us<c>().insert(minor*king_idx + pawn_offset + sq.index()); }
+    for(const auto sq : man_.us<c>().knight()){ updatable.template us<c>().insert(minor*king_idx + knight_offset + sq.index()); }
+    for(const auto sq : man_.us<c>().bishop()){ updatable.template us<c>().insert(minor*king_idx + bishop_offset + sq.index()); }
+    for(const auto sq : man_.us<c>().rook()){ updatable.template us<c>().insert(minor*king_idx + rook_offset + sq.index()); }
+    for(const auto sq : man_.us<c>().queen()){ updatable.template us<c>().insert(minor*king_idx + queen_offset + sq.index()); }
+    for(const auto sq : man_.us<c>().king()){ updatable.template us<c>().insert(minor*king_idx + king_offset + sq.index()); }
+  }
 
-    const std::uint64_t king_idx = man_.us<c>().index();
-  }*/
+  template<color c, typename U>
+  void do_delta_(const move& mv, U& updatable) const {
+    using namespace feature_idx;
+    const size_t their_king_idx = man_.them<c>().king().item().index();
+    const size_t our_king_idx = man_.us<c>().king().item().index();
+    if(mv.piece() == piece_type::king){
+      updatable.template us<c>().clear();
+      forward_<c>(mv).template do_half_kp_indices<c>(updatable);
+    }else{
+      updatable.template us<c>().erase(minor * our_king_idx + mv.from().index() + offset(mv.piece()));
+      if(mv.is_promotion<c>()){
+        updatable.template us<c>().insert(minor * our_king_idx + mv.to().index() + queen_offset);
+      }else{
+        updatable.template us<c>().insert(minor * our_king_idx + mv.to().index() + offset(mv.piece()));
+      }
+      if(mv.is_enpassant()){
+        updatable.template them<c>().erase(minor * their_king_idx + mv.enpassant_sq().index() + pawn_offset);
+      }
+    }
+    if(mv.is_capture() && !mv.is_castle_oo<c>() && !mv.is_castle_ooo<c>()){
+      updatable.template them<c>().erase(minor * their_king_idx + mv.to().index() + offset(mv.captured()));
+    }
+  }
+
+  template<typename U>
+  void do_delta(const move& mv, U& u) const {
+    return turn() ? do_delta_<color::white, U>(mv, u) : do_delta_<color::black, U>(mv, u);
+  }
+
+  template<typename U>
+  void do_init(U& u) const {
+    u.white.clear();
+    u.black.clear();
+    do_half_kp_indices<color::white>(u);
+    do_half_kp_indices<color::black>(u);
+  }
 
   std::string fen() const {
     std::string fen{};

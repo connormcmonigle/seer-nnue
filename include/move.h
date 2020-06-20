@@ -105,12 +105,16 @@ std::ostream& operator<<(std::ostream& ostr, const move& mv){
 
 struct move_list{
   static constexpr size_t max_branching_factor = 192;
+  using iterator = std::array<move, max_branching_factor>::const_iterator;
   size_t size_{0};
   std::array<move, max_branching_factor> data{};
   
+  iterator begin() const { return data.begin(); }
+  iterator end() const { return data.begin() + size_; }
+
   size_t size() const {
     return size_;
-  }
+}
   
   move_list& add_(move mv){
     data[size_] = mv;

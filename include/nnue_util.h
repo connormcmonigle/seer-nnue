@@ -147,41 +147,23 @@ struct big_affine{
 
   T* W{nullptr};
   T b[b_numel];
-  T incremental[b_numel];
 
   size_t num_parameters() const {
     return W_numel + b_numel;
   }
 
-  big_affine<T, dim0, dim1>& restart(const size_t* start_indices, size_t count){
-    #pragma omp simd
-    for(size_t i = 0; i < b_numel; ++i){ incremental[i] = b[i]; }
-    for(size_t i = 0; i < count; ++i){ add_idx(start_indices[i]); }
-    return *this;
-  }
-
-  big_affine<T, dim0, dim1>& add_idx(const size_t idx){
+  void insert_idx(const size_t idx, stack_vector<T, b_numel>& x) const {
     const T* mem_region = W + idx * dim1;
-    #pragma omp simd
-    for(size_t i = 0; i < dim1; ++i){
-      incremental[i] += mem_region[i];
-    }
-    return *this;
+    x.add_(mem_region);
   }
   
-  big_affine<T, dim0, dim1>& remove_idx(const size_t idx){
+  void erase_idx(const size_t idx, stack_vector<T, b_numel>& x) const {
     const T* mem_region = W + idx * dim1;
-    #pragma omp simd
-    for(size_t i = 0; i < dim1; ++i){
-      incremental[i] -= mem_region[i];
-    }
-    return *this;
+    x.sub_(mem_region);
   }
 
   big_affine<T, dim0, dim1>& load_(weights_streamer<T>& ws){
     ws.stream(W, W_numel).stream(b, b_numel);
-    #pragma omp simd
-    for(size_t i = 0; i < b_numel; ++i){ incremental[i] = b[i]; }
     return *this;
   }
 
@@ -189,14 +171,12 @@ struct big_affine{
     #pragma omp simd
     for(size_t i = 0; i < W_numel; ++i){ W[i] = other.W[i]; }
     for(size_t i = 0; i < b_numel; ++i){ b[i] = other.b[i]; }
-    for(size_t i = 0; i < b_numel; ++i){ incremental[i] = other.incremental[i]; }
     return *this;
   }
 
   big_affine<T, dim0, dim1>& operator=(big_affine<T, dim0, dim1>&& other){
     std::swap(W, other.W);
     std::swap(b, other.b);
-    std::swap(incremental, other.incremental);
     return *this;
   }
 
@@ -205,13 +185,11 @@ struct big_affine{
     #pragma omp simd
     for(size_t i = 0; i < W_numel; ++i){ W[i] = other.W[i]; }
     for(size_t i = 0; i < b_numel; ++i){ b[i] = other.b[i]; }
-    for(size_t i = 0; i < b_numel; ++i){ incremental[i] = other.incremental[i]; }
   }
 
   big_affine(big_affine<T, dim0, dim1>&& other){
     std::swap(W, other.W);
     std::swap(b, other.b);
-    std::swap(incremental, other.incremental);
   }
   
   big_affine(){ W = new T[W_numel]; }
