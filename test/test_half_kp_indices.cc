@@ -16,6 +16,14 @@ bool operator!=(const tester& a, const tester& b){
   return a.white != b.white || a.black != b.black;
 }
 
+std::ostream& operator<<(std::ostream& ostr, const tester& test){
+  ostr << "tester(white={";
+  for(auto elem : test.white){ ostr << elem << ", "; }
+  ostr << "}, black={";
+  for(auto elem : test.black){ ostr << elem << ", "; }
+  return ostr << "})";
+}
+
 int main(){
 
   auto gen = std::mt19937(std::random_device()());
@@ -25,10 +33,11 @@ int main(){
   for(size_t n(0); n < game_count; ++n){
     auto bd = chess::board::start_pos();
     tester updatable{};
-    bd.do_init(updatable);
+    bd.show_init(updatable);
 
     for(;;){
       std::cout << bd.fen() << std::endl;
+      std::cout << updatable << std::endl;
       const chess::move_list mv_ls = bd.generate_moves();
     
       if(mv_ls.size() == 0 || bd.lat_.move_count > 500){
@@ -37,7 +46,7 @@ int main(){
       }
 
       tester foil{};
-      bd.do_init(foil);
+      bd.show_init(foil);
 
       if(foil != updatable){
         std::cout << "FAIL\n";
@@ -46,7 +55,7 @@ int main(){
 
       std::uniform_int_distribution<size_t> dist(0, mv_ls.size() - 1);
       const chess::move mv = mv_ls.data[dist(gen)];
-      bd.do_delta(mv, updatable);
+      updatable = bd.half_kp_updated(mv, updatable);
       bd = bd.forward(mv);
     }
   }

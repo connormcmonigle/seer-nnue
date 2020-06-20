@@ -23,8 +23,8 @@ namespace chess{
 
 namespace feature_idx{
 
-constexpr size_t minor = 6 * 64;
-constexpr size_t major = 64;
+constexpr size_t minor = 64;
+constexpr size_t major = 64 * 64;
 constexpr size_t pawn_offset = 0;
 constexpr size_t knight_offset = pawn_offset + major;
 constexpr size_t bishop_offset = knight_offset + major;
@@ -355,7 +355,7 @@ struct board{
   }
 
   template<color c, typename U>
-  void do_half_kp_indices(U& updatable) const {
+  void show_half_kp_indices(U& updatable) const {
     using namespace feature_idx;
     const size_t king_idx = man_.us<c>().king().item().index();
     for(const auto sq : man_.us<c>().pawn()){ updatable.template us<c>().insert(minor*king_idx + pawn_offset + sq.index()); }
@@ -367,13 +367,13 @@ struct board{
   }
 
   template<color c, typename U>
-  void do_delta_(const move& mv, U& updatable) const {
+  void show_delta(const move& mv, U& updatable) const {
     using namespace feature_idx;
     const size_t their_king_idx = man_.them<c>().king().item().index();
     const size_t our_king_idx = man_.us<c>().king().item().index();
     if(mv.piece() == piece_type::king){
       updatable.template us<c>().clear();
-      forward_<c>(mv).template do_half_kp_indices<c>(updatable);
+      forward_<c>(mv).template show_half_kp_indices<c>(updatable);
     }else{
       updatable.template us<c>().erase(minor * our_king_idx + mv.from().index() + offset(mv.piece()));
       if(mv.is_promotion<c>()){
@@ -391,16 +391,18 @@ struct board{
   }
 
   template<typename U>
-  void do_delta(const move& mv, U& u) const {
-    return turn() ? do_delta_<color::white, U>(mv, u) : do_delta_<color::black, U>(mv, u);
+  void show_init(U& u) const {
+    u.white.clear();
+    u.black.clear();
+    show_half_kp_indices<color::white>(u);
+    show_half_kp_indices<color::black>(u);
   }
 
   template<typename U>
-  void do_init(U& u) const {
-    u.white.clear();
-    u.black.clear();
-    do_half_kp_indices<color::white>(u);
-    do_half_kp_indices<color::black>(u);
+  U half_kp_updated(const move& mv, const U& updatable) const {
+    U u = updatable;
+    if(turn()){ show_delta<color::white, U>(mv, u); } else { show_delta<color::black, U>(mv, u); }
+    return u;
   }
 
   std::string fen() const {

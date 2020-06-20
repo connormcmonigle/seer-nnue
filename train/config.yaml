@@ -16,8 +16,8 @@ learning_rate: 1.0
 max_fullmoves: 256
 uci_engine_path: '/usr/games/stockfish'
 uci_engine_time: 0.01
-interpolation_factor: 0.4
-num_positions: 1000000
+interpolation_factor: 0.3
+num_positions: 10000000
 
 
 

@@ -40,13 +40,20 @@ def side_to_tensor(bd, color):
     for sq in bd.pieces(piece_type+1, color):
       plane[sq] = True;
     tensor[piece_type] = plane.reshape(8, 8)
-  return tensor if color else tensor.flip(dims=(1,))
+  return tensor.flip(dims=(-1, ))
 
 
 def to_tensors(bd):
   white = side_to_tensor(bd, color=chess.WHITE)
   black = side_to_tensor(bd, color=chess.BLACK)
   return white, black
+
+
+def half_kp_indices(bd):
+  w, b = to_tensors(bd)
+  w = half_kp(w.unsqueeze(0)).squeeze(0).nonzero().squeeze(0)
+  b = half_kp(b.unsqueeze(0)).squeeze(0).nonzero().squeeze(0)
+  return w, b
 
 
 def get_memmap_handlers(mode, config):

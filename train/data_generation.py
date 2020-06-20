@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import numpy as np
 import util
 
-def cp_conversion(x, alpha=0.005):
+def cp_conversion(x, alpha=0.012):
   return (x * alpha).sigmoid()
 
 
