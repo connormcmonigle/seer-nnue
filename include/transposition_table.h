@@ -8,62 +8,42 @@
 
 #include <bit_field.h>
 #include <zobrist_util.h>
+#include <move.h>
 
 namespace chess{
-
-enum class eval_type{
-  upper,
-  exact,
-  lower
-};
-
-constexpr std::string_view eval_type_name(const eval_type& eval){
-  switch(eval){
-    case eval_type::upper: return "upper";
-    case eval_type::exact: return "exact";
-    case eval_type::lower: return "lower";
-    default: return "exact";
-  }
-}
 
 struct tt_entry{
   static constexpr int score_byte_count = sizeof(float);
   static_assert(score_byte_count == 4, "system float type must be 32 bits");
 
-  using type_ = bit_field<eval_type, 0, 2>;
-  using score_ = bit_field<std::uint32_t, 2, 34>;
+  using best_move_ = bit_field<std::uint32_t, 0, move::width>;
 
   zobrist::hash_type key_;
   zobrist::hash_type value_;
+  int depth_;
 
   const zobrist::hash_type& key() const { return key_; }
   const zobrist::hash_type& value() const { return value_; }
+  int depth() const { return depth_; }
 
-  eval_type type() const {
-    return type_::get(value_);
+  move best_move() const {
+    std::uint32_t mv = best_move_::get(value_);
+    return move{mv};
   }
 
-  float score() const {
-    const std::uint32_t raw = score_::get(value_);
-    float result; std::memcpy(&result, &raw, score_byte_count);
-    return result;
+  tt_entry(const zobrist::hash_type& key, const chess::move& mv, const int depth) : key_{key}, value_{0}, depth_{depth} {
+    best_move_::set(value_, mv.data);
   }
 
-  tt_entry(const zobrist::hash_type& key, const eval_type& type, const float& score) : key_{key}, value_{0} {
-    type_::set(value_, type);
-    std::uint32_t raw; std::memcpy(&raw, &score, score_byte_count);
-    score_::set(value_, raw);
-  }
-
-  tt_entry(const zobrist::hash_type& k, const zobrist::hash_type& v) : key_{k}, value_{v} {}
-  tt_entry() : key_{0}, value_{0} {}
+  tt_entry(const zobrist::hash_type& k, const zobrist::hash_type& v, const int depth) : key_{k}, value_{v}, depth_{depth} {}
+  tt_entry() : key_{0}, value_{0}, depth_{0} {}
 };
 
 std::ostream& operator<<(std::ostream& ostr, const tt_entry& entry){
   ostr << "tt_entry(key=" << entry.key();
   ostr << ", key^value=" << (entry.key() ^ entry.value());
-  ostr << ", type=" << eval_type_name(entry.type());
-  return ostr << ", score=" << entry.score() << ')';
+  ostr << ", best_move=" << entry.best_move();
+  return ostr << ", depth=" << entry.depth() << ')';
 }
 
 struct table{

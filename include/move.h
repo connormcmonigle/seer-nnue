@@ -14,6 +14,7 @@ namespace chess{
 struct move{
   std::uint32_t data{0};
 
+  static constexpr size_t width = 28;
   using from_ = bit_field<std::uint8_t, 0, 6>;
   using to_ = bit_field<std::uint8_t, 6, 12>;
   using piece_ = bit_field<piece_type, 12, 16>;

@@ -93,6 +93,9 @@ struct latent{
 struct sided_latent : sided<sided_latent, latent> {
   static inline const latent_zobrist_src w_latent_src{};
   static inline const latent_zobrist_src b_latent_src{};
+  static inline const zobrist::hash_type turn_white_src = zobrist::random_bit_string();
+  static inline const zobrist::hash_type turn_black_src = zobrist::random_bit_string();
+
 
   size_t half_clock{0};
   size_t move_count{0};
@@ -100,7 +103,8 @@ struct sided_latent : sided<sided_latent, latent> {
   latent black;
 
   zobrist::hash_type hash() const {
-    return white.hash() ^ black.hash();
+    const zobrist::hash_type result = white.hash() ^ black.hash();
+    return ((move_count % 2) == 0) ? (result ^ turn_white_src) : (result ^ turn_black_src);
   }
 
   sided_latent() : white(&w_latent_src), black(&b_latent_src) {}
