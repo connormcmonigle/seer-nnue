@@ -48,7 +48,7 @@ struct thread_worker{
       score_.store(as_uint32);
       best_move_.store(mv.data);
 
-      depth_.store(depth_.load() + 1);
+      ++depth_;
     }
   }
 
