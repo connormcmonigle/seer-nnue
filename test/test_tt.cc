@@ -14,8 +14,8 @@ int main(){
     chess::table tt(tbl_size);
     const auto hash_0 = zobrist::random_bit_string();
     const auto hash_1 = zobrist::random_bit_string();
-    const auto entry_0 = chess::tt_entry(hash_0, mv, 10);
-    const auto entry_1 = chess::tt_entry(hash_1, mv, 5);
+    const auto entry_0 = chess::tt_entry(hash_0, chess::bound_type::lower, 0.1, mv, 10);
+    const auto entry_1 = chess::tt_entry(hash_1, chess::bound_type::upper, 0.3, mv, 5);
 
     std::thread t0([&tt, entry_0](){ tt.insert(entry_0); });
     std::thread t1([&tt, entry_1](){ tt.insert(entry_1); });
@@ -35,8 +35,8 @@ int main(){
     std::cout << "test collision single-thread:\n";
     chess::table tt(tbl_size);
     const auto hash = zobrist::random_bit_string();
-    const auto entry_0 = chess::tt_entry(hash, mv, 5);
-    const auto entry_1 = chess::tt_entry(hash, mv, 6);
+    const auto entry_0 = chess::tt_entry(hash, chess::bound_type::lower, 0.1, mv, 5);
+    const auto entry_1 = chess::tt_entry(hash, chess::bound_type::upper, 0.9, mv, 6);
 
     tt.insert(entry_0);
     tt.insert(entry_1);
@@ -50,8 +50,8 @@ int main(){
     std::cout << "test collision multithread:\n";
     chess::table tt(tbl_size);
     const auto hash = zobrist::random_bit_string();
-    const auto entry_0 = chess::tt_entry(hash, mv, 7);
-    const auto entry_1 = chess::tt_entry(hash, mv, 8);
+    const auto entry_0 = chess::tt_entry(hash, chess::bound_type::upper, 0.4, mv, 7);
+    const auto entry_1 = chess::tt_entry(hash, chess::bound_type::lower, 0.9, mv, 8);
 
     std::thread t0([&tt, entry_1](){ tt.insert(entry_1); });
     std::thread t1([&tt, entry_0](){ tt.insert(entry_0); });

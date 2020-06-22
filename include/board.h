@@ -294,13 +294,13 @@ struct board{
   }
 
   template<color c>
-  bool is_check_mate() const {
-    const bool is_check = std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).count() != 0;
-    return is_check && generate_moves_<c>().size() == 0;
+  bool is_check() const {
+    const bool is_check_ = std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).count() != 0;
+    return is_check_;
   }
 
-  bool is_check_mate() const {
-    return turn() ? is_check_mate<color::white>() : is_check_mate<color::black>();
+  bool is_check() const {
+    return turn() ? is_check<color::white>() : is_check<color::black>();
   }
 
   template<color c>

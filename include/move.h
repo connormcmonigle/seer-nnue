@@ -3,6 +3,7 @@
 #include <iostream>
 #include <utility>
 #include <cstdint>
+#include <algorithm>
 
 #include <bit_field.h>
 #include <enum_util.h>
@@ -96,6 +97,14 @@ struct move{
 
 };
 
+bool operator==(const move& a, const move& b){
+  return a.data == b.data;
+}
+
+bool operator!=(const move& a, const move& b){
+  return !(a == b);
+}
+
 std::ostream& operator<<(std::ostream& ostr, const move& mv){
   ostr << "move(from=" << mv.from().name() <<
   ", to=" << mv.to().name() << ", piece=" << piece_name(mv.piece()) <<
@@ -112,6 +121,10 @@ struct move_list{
   
   iterator begin() const { return data.begin(); }
   iterator end() const { return data.begin() + size_; }
+
+  bool has(const move& mv) const {
+    return end() == std::find(begin(), end(), mv);    
+  }
 
   size_t size() const {
     return size_;

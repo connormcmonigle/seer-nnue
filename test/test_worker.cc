@@ -1,3 +1,4 @@
+#include <board.h>
 #include <nnue_half_kp.h>
 #include <thread_worker.h>
 
