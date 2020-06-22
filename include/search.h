@@ -34,7 +34,7 @@ using pvs_result_t = typename pvs_result<T, is_root>::type;
 
 template<typename T, bool is_root=false>
 auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, const int depth) -> pvs_result_t<T, is_root> {
-  auto make_return = [](const T& score, const move& mv){
+  auto make_result = [](const T& score, const move& mv){
     if constexpr(is_root){
       return pvs_result_t<T, is_root>{score, mv};
     }else{
@@ -45,9 +45,9 @@ auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, con
   const auto list = bd.generate_moves();
   const auto empty_move = move{};
 
-  if(list.size() == 0 && bd.is_check()){ return make_return(mate_score<T>, empty_move); }
-  if(list.size() == 0) { return make_return(draw_score<T>, empty_move); }
-  if(depth <= 0) { return make_return(eval.propagate(bd.turn()), empty_move); }
+  if(list.size() == 0 && bd.is_check()){ return make_result(mate_score<T>, empty_move); }
+  if(list.size() == 0) { return make_result(draw_score<T>, empty_move); }
+  if(depth <= 0) { return make_result(eval.propagate(bd.turn()), empty_move); }
 
   T best_score = mate_score<T>;
   move best_move = *list.begin();
@@ -56,7 +56,7 @@ auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, con
     const tt_entry entry = *it;
     if(entry.depth() >= depth){
       if(entry.score() >= beta ? (entry.bound() == bound_type::lower) : (entry.bound() == bound_type::upper)){
-        return make_return(entry.score(), entry.best_move());
+        return make_result(entry.score(), entry.best_move());
       }
     }else if(list.has(entry.best_move())){
       best_move = entry.best_move();
@@ -98,7 +98,7 @@ auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, con
     tt -> insert(entry);
   }
 
-  return make_return(best_score, best_move);
+  return make_result(best_score, best_move);
 }
 
 template<typename T, bool is_root=false>

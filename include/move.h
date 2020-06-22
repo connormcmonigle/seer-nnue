@@ -70,8 +70,23 @@ struct move{
       pawn_delta<c>::double_rank.is_member(to());
   }
   
+  template<color c>
   std::string name() const {
-    return from().name() + to().name();
+    if(is_castle_oo<c>()){
+      return castle_info<c>.start_king.name() + castle_info<c>.after_oo_king.name();
+    }else if(is_castle_ooo<c>()){
+      return castle_info<c>.start_king.name() + castle_info<c>.after_oo_king.name();
+    }
+    std::string base = from().name() + to().name();
+    if(is_promotion<c>()){
+      return base + "q";
+    }else{
+      return base;
+    }
+  }
+
+  std::string name(bool pov) const {
+    return pov ? name<color::white>() : name<color::black>();
   }
 
   move() : data{0} {}
@@ -148,17 +163,5 @@ std::ostream& operator<<(std::ostream& ostr, const move_list& mv_ls){
   }
   return ostr;
 }
-
-/*std::vector<move> parse_uci_moves(const std::string& move_str){
-  std::stringstream ss(move_str);
-  std::vector<move> result{};
-  std::transform(
-    std::istream_iterator<std::string>(ss),
-    std::istream_iterator<std::string>(),
-    std::back_inserter(result),
-    [](const std::string& m){ return move::from_uci(m); }
-  );
-  return result;
-}*/
 
 }

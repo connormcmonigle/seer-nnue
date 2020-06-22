@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <cstdint>
+#include <cassert>
 #include <array>
 #include <string>
 #include <limits>
@@ -403,6 +404,21 @@ struct board{
     U u = updatable;
     if(turn()){ show_delta<color::white, U>(mv, u); } else { show_delta<color::black, U>(mv, u); }
     return u;
+  }
+
+  board after_uci_moves(const std::string& moves) const {
+    auto result = *this;
+    std::istringstream move_stream(moves);
+    std::string move_name;
+    while(move_stream >> move_name){
+      const move_list list = result.generate_moves();
+      const auto it = std::find_if(list.begin(), list.end(), [=](const move& mv){
+        return mv.name(result.turn()) == move_name;
+      });
+      assert((it != list.end()));
+      result = result.forward(*it);
+    }
+    return result;
   }
 
   std::string fen() const {
