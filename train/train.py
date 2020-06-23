@@ -33,7 +33,7 @@ def main():
   data = dataset.Data(config)
 
   opt = optim.Adadelta(M.parameters(), lr=config.learning_rate)
-  scheduler = optim.lr_scheduler.StepLR(opt, 10, gamma=0.9)
+  scheduler = optim.lr_scheduler.StepLR(opt, 10, gamma=0.5)
 
   loss_history = []
   
