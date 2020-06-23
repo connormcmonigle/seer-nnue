@@ -17,7 +17,7 @@ int main(){
   const auto bd = chess::board::parse_fen(fen);
   const auto eval = nnue::half_kp_eval<real_t>(&weights);
 
-  auto[score, mv] = chess::pv_search<real_t, true>(tt, eval, bd, 4);
+  auto[score, mv] = chess::pv_search<real_t>(tt, eval, bd, 4);
   std::cout << score << std::endl;
   std::cout << mv << std::endl;
 }

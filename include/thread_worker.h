@@ -43,7 +43,7 @@ struct thread_worker{
       const auto bd = position_;
       position_lk.unlock();
 
-      auto[nnue_score, mv] = pv_search<T, true>(tt_, evaluator_, bd, depth_.load());
+      auto[nnue_score, mv] = pv_search<T>(tt_, evaluator_, bd, depth_.load());
       std::uint32_t as_uint32; std::memcpy(&as_uint32, &nnue_score, score_num_bytes);
       score_.store(as_uint32);
       best_move_.store(mv.data);

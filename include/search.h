@@ -32,7 +32,7 @@ template<typename T> struct pvs_result<T, true>{ using type = std::tuple<T, move
 template<typename T, bool is_root>
 using pvs_result_t = typename pvs_result<T, is_root>::type;
 
-template<typename T, bool is_root=false>
+template<typename T, bool is_pv, bool is_root=false>
 auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, const int depth) -> pvs_result_t<T, is_root> {
   auto make_result = [](const T& score, const move& mv){
     if constexpr(is_root){
@@ -54,7 +54,7 @@ auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, con
 
   if(const auto it = tt -> find(bd.hash()); it != tt -> end()){
     const tt_entry entry = *it;
-    if(entry.depth() >= depth){
+    if(!is_pv && entry.depth() >= depth){
       if(entry.score() >= beta ? (entry.bound() == bound_type::lower) : (entry.bound() == bound_type::upper)){
         return make_result(entry.score(), entry.best_move());
       }
@@ -66,7 +66,7 @@ auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, con
   {
     const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(best_move, eval);
     const board bd_ = bd.forward(best_move);
-    best_score = -pv_search(tt, eval_, bd_, -beta, -alpha, depth - 1);
+    best_score = -pv_search<T, true>(tt, eval_, bd_, -beta, -alpha, depth - 1);
     alpha = std::max(alpha, best_score);
   }
 
@@ -77,10 +77,10 @@ auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, con
 
     const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
     const board bd_ = bd.forward(mv);
-    T score = -pv_search(tt, eval_, bd_, -alpha - eta<T>, -alpha, depth - 1);
+    T score = -pv_search<T, false>(tt, eval_, bd_, -alpha - eta<T>, -alpha, depth - 1);
 
     if(score > alpha && score < beta){
-      score = -pv_search(tt, eval_, bd_, -beta, -alpha, depth - 1);
+      score = -pv_search<T, true>(tt, eval_, bd_, -beta, -alpha, depth - 1);
       alpha = std::max(alpha, score);
     }
 
@@ -101,11 +101,11 @@ auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, con
   return make_result(best_score, best_move);
 }
 
-template<typename T, bool is_root=false>
-auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, const board& bd, const int depth) -> pvs_result_t<T, is_root> {
+template<typename T>
+auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, const board& bd, const int depth) -> pvs_result_t<T, true> {
   constexpr T alpha = -big_number<T>;
   constexpr T beta = big_number<T>;
-  return pv_search<T, is_root>(tt, eval, bd, alpha, beta, depth);
+  return pv_search<T, true, true>(tt, eval, bd, alpha, beta, depth);
 }
 
 }

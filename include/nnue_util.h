@@ -56,6 +56,15 @@ struct stack_vector{
     return *this;
   }
   
+  T dot_with(const T* other) const {
+    T result{};
+    #pragma omp simd
+    for(size_t i = 0; i < dim; ++i){
+      result += data[i] * other[i];
+    }
+    return result;
+  }
+
   T item() const {
     static_assert(dim == 1, "called item() on vector with dim != 1");
     return data[0];
@@ -112,6 +121,7 @@ stack_vector<T, dim0 + dim1> splice(const stack_vector<T, dim0>& a, const stack_
   }
   return c;
 }
+
 
 template<typename T, size_t dim0, size_t dim1>
 struct stack_affine{
