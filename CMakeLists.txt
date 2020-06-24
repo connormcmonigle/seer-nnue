@@ -16,6 +16,7 @@ add_executable (test_parse_fen test/test_parse_fen.cc)
 add_executable (test_half_kp_indices test/test_half_kp_indices.cc)
 add_executable (test_pv_search test/test_pv_search.cc)
 add_executable (test_after_uci_moves test/test_after_uci_moves.cc)
+add_executable (test_nnue_perf test/test_nnue_perf.cc)
 
 add_executable (test_worker test/test_worker.cc)
 target_link_libraries (test_worker pthread)

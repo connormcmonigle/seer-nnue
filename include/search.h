@@ -14,7 +14,7 @@
 namespace chess{
 
 template<typename T>
-inline constexpr T eta = static_cast<T>(0.005);
+inline constexpr T eta = static_cast<T>(0.05);
 
 template<typename T>
 inline constexpr T big_number = static_cast<T>(256.0);
@@ -33,7 +33,7 @@ template<typename T, bool is_root>
 using pvs_result_t = typename pvs_result<T, is_root>::type;
 
 template<typename T, bool is_pv, bool is_root=false>
-auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, const int depth) -> pvs_result_t<T, is_root> {
+auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, int depth) -> pvs_result_t<T, is_root> {
   auto make_result = [](const T& score, const move& mv){
     if constexpr(is_root){
       return pvs_result_t<T, is_root>{score, mv};
@@ -45,8 +45,12 @@ auto pv_search(std::shared_ptr<table> tt, const nnue::half_kp_eval<T>& eval, con
   const auto list = bd.generate_moves();
   const auto empty_move = move{};
 
-  if(list.size() == 0 && bd.is_check()){ return make_result(mate_score<T>, empty_move); }
+  const bool is_check = bd.is_check();
+  if(list.size() == 0 && is_check){ return make_result(mate_score<T>, empty_move); }
   if(list.size() == 0) { return make_result(draw_score<T>, empty_move); }
+  
+  if(is_check){ depth += 1; }
+  
   if(depth <= 0) { return make_result(eval.propagate(bd.turn()), empty_move); }
 
   T best_score = mate_score<T>;

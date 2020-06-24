@@ -23,7 +23,7 @@ struct thread_worker{
   std::mutex go_mutex_{};
   std::condition_variable cv_{};
   bool go_{false};
-  std::atomic<int> depth_{0};
+  std::atomic<int> depth_;
 
   std::atomic<std::uint32_t> score_;
   std::atomic<std::uint32_t> best_move_{};
@@ -89,7 +89,8 @@ struct thread_worker{
     return *this;
   }
 
-  thread_worker(const nnue::half_kp_weights<T>* weights, std::shared_ptr<table> tt) : tt_{tt}, evaluator_(weights){
+  thread_worker(const nnue::half_kp_weights<T>* weights, std::shared_ptr<table> tt, int start_depth=0) : tt_{tt}, evaluator_(weights){
+    depth_.store(start_depth);
     std::thread([this]{ iterative_deepening_loop_(); }).detach();
   }
 };
@@ -113,7 +114,10 @@ struct worker_pool{
 
   worker_pool(const nnue::half_kp_weights<T>* weights, size_t hash_table_size, size_t num_workers){
     tt_ = std::make_shared<table>(hash_table_size);
-    for(size_t i(0); i < num_workers; ++i){ pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_)); }
+    for(size_t i(0); i < num_workers; ++i){
+      const int start_depth = static_cast<int>(i % 2);
+      pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, start_depth));
+    }
   }
 };
 

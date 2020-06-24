@@ -51,7 +51,9 @@ struct feature_transformer{
   void insert(const size_t idx){ weights_ -> insert_idx(idx, active_); }
   void erase(const size_t idx){ weights_ -> erase_idx(idx, active_); }
 
-  feature_transformer(const big_affine<T, 384*64, 256>* src) : weights_{src} {}
+  feature_transformer(const big_affine<T, 384*64, 256>* src) : weights_{src} {
+    clear();
+  }
 };
 
 template<typename T>
