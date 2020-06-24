@@ -4,7 +4,6 @@
 #include <board.h>
 
 int main(){
-  constexpr int scale = 1000;
   const auto weights = nnue::half_kp_weights<float>{}.load("../train/model/save.bin");
   std::cout << weights.num_parameters() << std::endl;
   nnue::half_kp_eval<float> eval(&weights);
