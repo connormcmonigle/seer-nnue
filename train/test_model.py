@@ -1,5 +1,6 @@
 from os import path
 import torch
+import chess
 
 import config as C
 import util
@@ -15,6 +16,8 @@ if (path.exists(config.model_save_path)):
 
 M.cpu()
 
-val = M(torch.ones(1), torch.zeros(1, *util.side_size()), torch.zeros(1, *util.side_size()))
-
-print(val)
+while True:
+  bd = chess.Board(input("fen: "))
+  white, black = util.to_tensors(bd);
+  val = M(torch.tensor([bd.turn]).float(), white.unsqueeze(0).float(), black.unsqueeze(0).float())
+  print(val)

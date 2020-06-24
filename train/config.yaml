@@ -8,10 +8,11 @@ visual_directory: 'visual'
 epochs: 100000
 epoch_length: 210000
 report_rate: 4
-test_rate: 12
-batch_size: 48
+test_rate: 8
+max_queue_size: 128
+batch_size: 56
 
-learning_rate: 0.075
+learning_rate: 1.0
 
 max_fullmoves: 256
 uci_engine_path: '/usr/games/stockfish'

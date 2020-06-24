@@ -9,14 +9,16 @@ import util
 import dataset
 import model
 
-def train_step(M, sample, opt, loss_history, report=False):
+def train_step(M, sample, opt, queue, max_queue_size, report=False):
   pov, white, black, score = sample
   pred = M(pov, white, black)
   loss = model.loss_fn(score, pred)
   if report:
     print(loss.item())
   loss.backward()
-  loss_history.append(loss.item())
+  if(len(queue) >= max_queue_size):
+    queue.pop(0)
+  queue.append(loss.item())
   opt.step()
   M.zero_grad()
 
@@ -36,18 +38,20 @@ def main():
   scheduler = optim.lr_scheduler.StepLR(opt, 10, gamma=0.5)
 
   loss_history = []
+  queue = []
   
   for epoch in range(1, config.epochs + 1):
     M.to_binary_file(config.bin_model_save_path)
     for i in range(config.epoch_length):
       # update visual data
-      if (i % config.test_rate) == 0:
+      if (i % config.test_rate) == 0 and i != 0:
+        loss_history.append(sum(queue) / len(queue))
         plt.clf()
         plt.plot(loss_history)
         plt.savefig('{}/loss_graph.png'.format(config.visual_directory), bbox_inches='tight')
       
       sample = data.sample_batch()
-      train_step(M, sample, opt, loss_history, report=(0 == i % config.report_rate))
+      train_step(M, sample, opt, queue, max_queue_size=config.max_queue_size, report=(0 == i % config.report_rate))
 
     torch.save(M.state_dict(), config.model_save_path)
     scheduler.step()
