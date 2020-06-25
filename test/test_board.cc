@@ -3,11 +3,11 @@
 #include <board.h>
 
 int main(){
-  //std::string fen;
-  //std::getline(std::cin, fen);
-  //std::cout << fen << std::endl;
-  //auto bd = chess::board::parse_fen(fen);
-  auto bd = chess::board::start_pos();
+  std::cout << "fen: ";
+  std::string fen; std::getline(std::cin, fen);
+  std::cout << fen << std::endl;
+  auto bd = chess::board::parse_fen(fen);
+  //auto bd = chess::board::start_pos();
   std::cout << bd << std::endl;
   for(;;){
     const chess::move_list mv_ls = bd.generate_moves();
