@@ -18,7 +18,7 @@ def self_play_game(engine, config):
   scores = []
   bd = chess.Board()
   while (bd.fullmove_number < config.max_fullmoves) and (not bd.is_game_over()):
-    info = engine.analyse(bd, chess.engine.Limit(time=config.uci_engine_time))
+    info = engine.analyse(bd, chess.engine.Limit(depth=config.uci_engine_depth))
     w_tensor, b_tensor = util.to_tensors(bd)
     white.append(w_tensor)
     black.append(b_tensor)
@@ -28,7 +28,6 @@ def self_play_game(engine, config):
   white = torch.stack(white, dim=0)
   black = torch.stack(black, dim=0)
   scores = cp_conversion(torch.stack(scores, dim=0))
-  
   outcome = 1.0 if bd.result() == '1-0' else (0.0 if bd.result() == '0-1' else 0.5)
   mask = torch.zeros(bd.fullmove_number+1, 2, dtype=torch.bool)
   mask[:, 0] = True

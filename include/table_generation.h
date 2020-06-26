@@ -30,7 +30,7 @@ constexpr std::uint64_t pext_compile_time(std::uint64_t src, std::uint64_t mask)
   return res;
 }
 
-std::uint64_t pext(std::uint64_t src, std::uint64_t mask){
+inline std::uint64_t pext(std::uint64_t src, std::uint64_t mask){
   #ifdef __BMI__
   return _pext_u64(src, mask);
   #else
@@ -49,7 +49,7 @@ constexpr std::uint64_t pdep_compile_time(std::uint64_t src, std::uint64_t mask)
   return res;
 }
 
-std::uint64_t pdep(std::uint64_t src, std::uint64_t mask){
+inline std::uint64_t pdep(std::uint64_t src, std::uint64_t mask){
   #ifdef __BMI__
   return _pdep_u64(src, mask);
   #else

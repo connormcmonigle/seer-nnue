@@ -9,14 +9,14 @@
 namespace nnue{
 
 template<typename T>
-T relu(const T& x){ return std::max(x, T{0}); }
+constexpr T relu(const T& x){ return std::max(x, T{0}); }
 
 template<typename T, size_t dim>
 struct stack_vector{
   T data[dim];
   
   template<typename F>
-  stack_vector<T, dim>& apply_(F&& f){
+  constexpr stack_vector<T, dim>& apply_(F&& f){
     #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] = f(data[i]);
@@ -24,7 +24,7 @@ struct stack_vector{
     return *this;
   }
 
-  stack_vector<T, dim>& add_(const T* other){
+  constexpr stack_vector<T, dim>& add_(const T* other){
     #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] += other[i];
@@ -32,7 +32,7 @@ struct stack_vector{
     return *this;
   }
   
-  stack_vector<T, dim>& sub_(const T* other){
+  constexpr stack_vector<T, dim>& sub_(const T* other){
     #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] -= other[i];
@@ -40,7 +40,7 @@ struct stack_vector{
     return *this;
   }
   
-  stack_vector<T, dim>& fma_(const T c, const T* other){
+  constexpr stack_vector<T, dim>& fma_(const T c, const T* other){
     #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] += c * other[i];
@@ -48,29 +48,20 @@ struct stack_vector{
     return *this;
   }
   
-  stack_vector<T, dim>& set_(const T* other){
+  constexpr stack_vector<T, dim>& set_(const T* other){
     #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] = other[i];
     }
     return *this;
   }
-  
-  T dot_with(const T* other) const {
-    T result{};
-    #pragma omp simd
-    for(size_t i = 0; i < dim; ++i){
-      result += data[i] * other[i];
-    }
-    return result;
-  }
 
-  T item() const {
+  constexpr T item() const {
     static_assert(dim == 1, "called item() on vector with dim != 1");
     return data[0];
   }
   
-  static stack_vector<T, dim> zeros(){
+  static constexpr stack_vector<T, dim> zeros(){
     stack_vector<T, dim> result{};
     #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
@@ -79,7 +70,7 @@ struct stack_vector{
     return result;
   }
   
-  static stack_vector<T, dim> ones(){
+  static constexpr stack_vector<T, dim> ones(){
     stack_vector<T, dim> result{};
     #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
@@ -88,7 +79,7 @@ struct stack_vector{
     return result;
   }
   
-  static stack_vector<T, dim> from(const T* data){
+  static constexpr stack_vector<T, dim> from(const T* data){
     stack_vector<T, dim> result{};
     #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
@@ -110,7 +101,7 @@ std::ostream& operator<<(std::ostream& ostr, const stack_vector<T, dim>& vec){
 }
 
 template<typename T, size_t dim0, size_t dim1>
-stack_vector<T, dim0 + dim1> splice(const stack_vector<T, dim0>& a, const stack_vector<T, dim1>& b){
+constexpr stack_vector<T, dim0 + dim1> splice(const stack_vector<T, dim0>& a, const stack_vector<T, dim1>& b){
   auto c = stack_vector<T, dim0 + dim1>::zeros();
   #pragma omp simd
   for(size_t i = 0; i < dim0; ++i){
@@ -128,14 +119,14 @@ struct stack_affine{
   static constexpr size_t W_numel = dim0*dim1;
   static constexpr size_t b_numel = dim1;
   
-  T W[dim0*dim1];
-  T b[dim1];
+  T W[W_numel];
+  T b[b_numel];
   
-  size_t num_parameters() const {
+  constexpr size_t num_parameters() const {
     return W_numel + b_numel;
   }
   
-  stack_vector<T, dim1> forward(const stack_vector<T, dim0>& x) const {
+  constexpr stack_vector<T, dim1> forward(const stack_vector<T, dim0>& x) const {
     auto result = stack_vector<T, dim1>::from(b);
     #pragma omp simd
     for(size_t i = 0; i < dim0; ++i){
@@ -158,7 +149,7 @@ struct big_affine{
   T* W{nullptr};
   T b[b_numel];
 
-  size_t num_parameters() const {
+  constexpr size_t num_parameters() const {
     return W_numel + b_numel;
   }
 

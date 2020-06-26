@@ -14,10 +14,10 @@ batch_size: 56
 
 learning_rate: 1.0
 
-max_fullmoves: 384
+max_fullmoves: 256
 uci_engine_path: '/home/connor/Downloads/stockfish-11-linux/Linux/stockfish'
 uci_engine_threads: 2
-uci_engine_time: 0.01
+uci_engine_depth: 8
 interpolation_factor: 0.75
 num_positions: 2000000
 

@@ -45,7 +45,7 @@ template<typename T>
 struct feature_transformer{
   const big_affine<T, 384*64, 256>* weights_;
   stack_vector<T, 256> active_;
-  stack_vector<T, 256> active() const { return active_; }
+  constexpr stack_vector<T, 256> active() const { return active_; }
 
   void clear(){ active_ = stack_vector<T, 256>::from(weights_ -> b); }
   void insert(const size_t idx){ weights_ -> insert_idx(idx, active_); }
@@ -62,7 +62,7 @@ struct half_kp_eval : chess::sided<half_kp_eval<T>, feature_transformer<T>>{
   feature_transformer<T> white;
   feature_transformer<T> black;
 
-  T propagate(bool pov) const {
+  constexpr T propagate(bool pov) const {
     const auto w_x = white.active();
     const auto b_x = black.active();
     const auto x0 = pov ? splice(w_x, b_x).apply_(relu<T>) : splice(b_x, w_x).apply_(relu<T>);

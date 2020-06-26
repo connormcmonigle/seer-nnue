@@ -25,46 +25,46 @@ struct move{
   using enpassant_sq_ = bit_field<std::uint8_t, 22, 28>;
 
   template<typename B>
-  typename B::field_type get_field_() const {
+  constexpr typename B::field_type get_field_() const {
     return B::get(data);
   }
 
   template<typename B>
-  move& set_field_(const typename B::field_type info){
+  constexpr move& set_field_(const typename B::field_type info){
     B::set(data, info);
     return *this;
   }
 
-  square from() const { return square::from_index(get_field_<from_>()); }
-  square to() const { return square::from_index(get_field_<to_>()); }
-  piece_type piece() const { return get_field_<piece_>(); }
-  bool is_capture() const { return get_field_<is_capture_>(); }
-  bool is_enpassant() const { return get_field_<is_enpassant_>(); }
-  piece_type captured() const { return get_field_<captured_>(); }
-  square enpassant_sq() const { return square::from_index(get_field_<enpassant_sq_>()); }
+  constexpr square from() const { return square::from_index(get_field_<from_>()); }
+  constexpr square to() const { return square::from_index(get_field_<to_>()); }
+  constexpr piece_type piece() const { return get_field_<piece_>(); }
+  constexpr bool is_capture() const { return get_field_<is_capture_>(); }
+  constexpr bool is_enpassant() const { return get_field_<is_enpassant_>(); }
+  constexpr piece_type captured() const { return get_field_<captured_>(); }
+  constexpr square enpassant_sq() const { return square::from_index(get_field_<enpassant_sq_>()); }
 
   template<color c>
-  bool is_castle_oo() const {
+  constexpr bool is_castle_oo() const {
     return piece() == piece_type::king &&
       from() == castle_info<c>.start_king &&
       to() == castle_info<c>.oo_rook;
   }
   
   template<color c>
-  bool is_castle_ooo() const {
+  constexpr bool is_castle_ooo() const {
     return piece() == piece_type::king &&
       from() == castle_info<c>.start_king &&
       to() == castle_info<c>.ooo_rook;
   }
   
   template<color c>
-  bool is_promotion() const {
+  constexpr bool is_promotion() const {
     return piece() == piece_type::pawn &&
       pawn_delta<c>::last_rank.is_member(to());
   }
   
   template<color c>
-  bool is_pawn_double() const {
+  constexpr bool is_pawn_double() const {
     return piece() == piece_type::pawn &&
       pawn_delta<c>::start_rank.is_member(from()) && 
       pawn_delta<c>::double_rank.is_member(to());
@@ -89,11 +89,11 @@ struct move{
     return pov ? name<color::white>() : name<color::black>();
   }
 
-  move() : data{0} {}
+  constexpr move() : data{0} {}
   
-  move(std::uint32_t data) : data{data} {}
+  constexpr move(std::uint32_t data) : data{data} {}
   
-  move(
+  constexpr move(
     square from,
     square to,
     piece_type piece,
@@ -112,11 +112,11 @@ struct move{
 
 };
 
-bool operator==(const move& a, const move& b){
+inline bool operator==(const move& a, const move& b){
   return a.data == b.data;
 }
 
-bool operator!=(const move& a, const move& b){
+inline bool operator!=(const move& a, const move& b){
   return !(a == b);
 }
 

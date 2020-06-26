@@ -80,7 +80,7 @@ struct sided{
     return us(side != color::white);
   }
   
-  private:
+ private:
   sided(){};
   friend T;
 };

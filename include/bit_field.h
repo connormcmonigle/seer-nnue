@@ -24,7 +24,7 @@ struct bit_field{
   }
   
   template<typename I>
-  static void set(I& i, const T info){
+  static constexpr void set(I& i, const T info){
     constexpr int num_bits = 8 * sizeof(I);
     static_assert(B1 < num_bits, "integral type accessed by bit_field::set has insufficient bits");
     constexpr I one = static_cast<I>(1);
