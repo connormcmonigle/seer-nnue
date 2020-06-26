@@ -79,8 +79,6 @@ struct thread_worker{
     if(depth <= 0) { return make_result(eval.propagate(bd.turn()), empty_move); }
 
     auto picker = move_picker(list);
-    
-    T best_score = mate_score<T>;
     move first_move = picker.peek();
 
     if(const auto it = tt_ -> find(bd.hash()); it != tt_ -> end()){
@@ -93,7 +91,8 @@ struct thread_worker{
         first_move = entry.best_move();
       }
     }
-  
+
+    T best_score = mate_score<T>;
     move best_move = first_move;
 
     if(go_.load(std::memory_order_relaxed)){

@@ -8,19 +8,17 @@ import torch.nn.functional as F
 import numpy as np
 import util
 
-def cp_conversion(x, alpha=0.012):
+def cp_conversion(x, alpha=0.003):
   return (x * alpha).sigmoid()
 
 
-def self_play_game(config):
+def self_play_game(engine, config):
   white = []
   black = []
   scores = []
-  engine = chess.engine.SimpleEngine.popen_uci(config.uci_engine_path)
   bd = chess.Board()
   while (bd.fullmove_number < config.max_fullmoves) and (not bd.is_game_over()):
     info = engine.analyse(bd, chess.engine.Limit(time=config.uci_engine_time))
-    #print(info['pv'][0])
     w_tensor, b_tensor = util.to_tensors(bd)
     white.append(w_tensor)
     black.append(b_tensor)
@@ -37,22 +35,23 @@ def self_play_game(config):
   mask = mask.flatten()[:len(scores)]
   outcome = mask * outcome + mask.logical_not() * (1.0 - outcome)
   scores = config.interpolation_factor * outcome + (1.0 - config.interpolation_factor) * scores
-  engine.quit()
   pov = mask
   return pov, white, black, scores
 
 
 def self_play_position_generator(num_positions, config):
+  engine = chess.engine.SimpleEngine.popen_uci(config.uci_engine_path)
+  engine.configure({"Threads": config.uci_engine_threads})
   count = 0
   while count < num_positions:
-    game = self_play_game(config)
+    game = self_play_game(engine, config)
     for elem in zip(*game):
       if count >= num_positions:
         break
       else:
         count += 1
         yield elem
-
+  engine.quit()
 
 def generate_games(config):
   num_positions = config.num_positions
