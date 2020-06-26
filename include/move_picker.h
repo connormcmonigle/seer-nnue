@@ -16,7 +16,7 @@ struct move_picker{
     return index >= list_.size();
   }
 
-  move pick(){
+  move peek(){
     auto best = [this](const size_t i0, const size_t i1){
       //ugly heuristics
       const move a = list_.data[i0];
@@ -51,7 +51,13 @@ struct move_picker{
       best_index = best(best_index, i);
     }
     std::swap(list_.data[index], list_.data[best_index]);
-    return list_.data[index++];
+    return list_.data[index];
+  }
+
+  move pick(){
+    const move result = peek();
+    ++index;
+    return result;
   }
 
   move_picker(const move_list& list) : list_{list} {}

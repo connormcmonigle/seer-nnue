@@ -22,7 +22,7 @@ template<typename T>
 inline constexpr T eta = static_cast<T>(0.00001);
 
 template<typename T>
-inline constexpr T big_number = static_cast<T>(256.0);
+inline constexpr T big_number = static_cast<T>(256);
 
 template<typename T>
 inline constexpr T mate_score = -std::numeric_limits<T>::max();
@@ -78,8 +78,10 @@ struct thread_worker{
   
     if(depth <= 0) { return make_result(eval.propagate(bd.turn()), empty_move); }
 
+    auto picker = move_picker(list);
+    
     T best_score = mate_score<T>;
-    move best_move = *list.begin();
+    move first_move = picker.peek();
 
     if(const auto it = tt_ -> find(bd.hash()); it != tt_ -> end()){
       const tt_entry entry = *it;
@@ -88,9 +90,11 @@ struct thread_worker{
           return make_result(entry.score(), entry.best_move());
         }
       }else if(list.has(entry.best_move())){
-        best_move = entry.best_move();
+        first_move = entry.best_move();
       }
     }
+  
+    move best_move = first_move;
 
     if(go_.load(std::memory_order_relaxed)){
       const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(best_move, eval);
@@ -99,12 +103,10 @@ struct thread_worker{
       alpha = std::max(alpha, best_score);
     }
 
-    auto picker = move_picker(list);
-
     while(!picker.empty() && go_.load(std::memory_order_relaxed)){
       const auto mv = picker.pick();
       if(best_score > beta){ break; }
-      if(mv == best_move){ continue; }
+      if(mv == first_move){ continue; }
 
       const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
       const board bd_ = bd.forward(mv);
