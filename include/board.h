@@ -26,22 +26,42 @@ namespace feature_idx{
 
 constexpr size_t minor = 64;
 constexpr size_t major = 64 * 64;
-constexpr size_t pawn_offset = 0;
-constexpr size_t knight_offset = pawn_offset + major;
-constexpr size_t bishop_offset = knight_offset + major;
-constexpr size_t rook_offset = bishop_offset + major;
-constexpr size_t queen_offset = rook_offset + major;
-constexpr size_t king_offset = queen_offset + major;
 
-constexpr size_t offset(piece_type pt){
+constexpr size_t us_pawn_offset = 0;
+constexpr size_t us_knight_offset = us_pawn_offset + major;
+constexpr size_t us_bishop_offset = us_knight_offset + major;
+constexpr size_t us_rook_offset = us_bishop_offset + major;
+constexpr size_t us_queen_offset = us_rook_offset + major;
+constexpr size_t us_king_offset = us_queen_offset + major;
+
+constexpr size_t them_pawn_offset = us_king_offset + major;
+constexpr size_t them_knight_offset = them_pawn_offset + major;
+constexpr size_t them_bishop_offset = them_knight_offset + major;
+constexpr size_t them_rook_offset = them_bishop_offset + major;
+constexpr size_t them_queen_offset = them_rook_offset + major;
+constexpr size_t them_king_offset = them_queen_offset + major;
+
+constexpr size_t us_offset(piece_type pt){
   switch(pt){
-    case piece_type::pawn: return pawn_offset;
-    case piece_type::knight: return knight_offset;
-    case piece_type::bishop: return bishop_offset;
-    case piece_type::rook: return rook_offset;
-    case piece_type::queen: return queen_offset;
-    case piece_type::king: return king_offset;
-    default: return pawn_offset;
+    case piece_type::pawn: return us_pawn_offset;
+    case piece_type::knight: return us_knight_offset;
+    case piece_type::bishop: return us_bishop_offset;
+    case piece_type::rook: return us_rook_offset;
+    case piece_type::queen: return us_queen_offset;
+    case piece_type::king: return us_king_offset;
+    default: return us_pawn_offset;
+  }
+}
+
+constexpr size_t them_offset(piece_type pt){
+  switch(pt){
+    case piece_type::pawn: return them_pawn_offset;
+    case piece_type::knight: return them_knight_offset;
+    case piece_type::bishop: return them_bishop_offset;
+    case piece_type::rook: return them_rook_offset;
+    case piece_type::queen: return them_queen_offset;
+    case piece_type::king: return them_king_offset;
+    default: return them_pawn_offset;
   }
 }
 
@@ -359,36 +379,20 @@ struct board{
   void show_half_kp_indices(U& updatable) const {
     using namespace feature_idx;
     const size_t king_idx = man_.us<c>().king().item().index();
-    for(const auto sq : man_.us<c>().pawn()){ updatable.template us<c>().insert(minor*king_idx + pawn_offset + sq.index()); }
-    for(const auto sq : man_.us<c>().knight()){ updatable.template us<c>().insert(minor*king_idx + knight_offset + sq.index()); }
-    for(const auto sq : man_.us<c>().bishop()){ updatable.template us<c>().insert(minor*king_idx + bishop_offset + sq.index()); }
-    for(const auto sq : man_.us<c>().rook()){ updatable.template us<c>().insert(minor*king_idx + rook_offset + sq.index()); }
-    for(const auto sq : man_.us<c>().queen()){ updatable.template us<c>().insert(minor*king_idx + queen_offset + sq.index()); }
-    for(const auto sq : man_.us<c>().king()){ updatable.template us<c>().insert(minor*king_idx + king_offset + sq.index()); }
-  }
-
-  template<color c, typename U>
-  void show_delta(const move& mv, U& updatable) const {
-    using namespace feature_idx;
-    const size_t their_king_idx = man_.them<c>().king().item().index();
-    const size_t our_king_idx = man_.us<c>().king().item().index();
-    if(mv.piece() == piece_type::king){
-      updatable.template us<c>().clear();
-      forward_<c>(mv).template show_half_kp_indices<c>(updatable);
-    }else{
-      updatable.template us<c>().erase(minor * our_king_idx + mv.from().index() + offset(mv.piece()));
-      if(mv.is_promotion<c>()){
-        updatable.template us<c>().insert(minor * our_king_idx + mv.to().index() + queen_offset);
-      }else{
-        updatable.template us<c>().insert(minor * our_king_idx + mv.to().index() + offset(mv.piece()));
-      }
-      if(mv.is_enpassant()){
-        updatable.template them<c>().erase(minor * their_king_idx + mv.enpassant_sq().index() + pawn_offset);
-      }
-    }
-    if(mv.is_capture() && !mv.is_castle_oo<c>() && !mv.is_castle_ooo<c>()){
-      updatable.template them<c>().erase(minor * their_king_idx + mv.to().index() + offset(mv.captured()));
-    }
+    //us
+    for(const auto sq : man_.us<c>().pawn()){ updatable.template us<c>().insert(minor*king_idx + us_pawn_offset + sq.index()); }
+    for(const auto sq : man_.us<c>().knight()){ updatable.template us<c>().insert(minor*king_idx + us_knight_offset + sq.index()); }
+    for(const auto sq : man_.us<c>().bishop()){ updatable.template us<c>().insert(minor*king_idx + us_bishop_offset + sq.index()); }
+    for(const auto sq : man_.us<c>().rook()){ updatable.template us<c>().insert(minor*king_idx + us_rook_offset + sq.index()); }
+    for(const auto sq : man_.us<c>().queen()){ updatable.template us<c>().insert(minor*king_idx + us_queen_offset + sq.index()); }
+    for(const auto sq : man_.us<c>().king()){ updatable.template us<c>().insert(minor*king_idx + us_king_offset + sq.index()); }
+    //them
+    for(const auto sq : man_.them<c>().pawn()){ updatable.template us<c>().insert(minor*king_idx + them_pawn_offset + sq.index()); }
+    for(const auto sq : man_.them<c>().knight()){ updatable.template us<c>().insert(minor*king_idx + them_knight_offset + sq.index()); }
+    for(const auto sq : man_.them<c>().bishop()){ updatable.template us<c>().insert(minor*king_idx + them_bishop_offset + sq.index()); }
+    for(const auto sq : man_.them<c>().rook()){ updatable.template us<c>().insert(minor*king_idx + them_rook_offset + sq.index()); }
+    for(const auto sq : man_.them<c>().queen()){ updatable.template us<c>().insert(minor*king_idx + them_queen_offset + sq.index()); }
+    for(const auto sq : man_.them<c>().king()){ updatable.template us<c>().insert(minor*king_idx + them_king_offset + sq.index()); }
   }
 
   template<typename U>
@@ -397,6 +401,34 @@ struct board{
     u.black.clear();
     show_half_kp_indices<color::white>(u);
     show_half_kp_indices<color::black>(u);
+  }
+
+  template<color c, typename U>
+  void show_delta(const move& mv, U& updatable) const {
+    using namespace feature_idx;
+    const size_t their_king_idx = man_.them<c>().king().item().index();
+    const size_t our_king_idx = man_.us<c>().king().item().index();
+    if(mv.piece() == piece_type::king){
+      forward_<c>(mv).show_init(updatable);
+    }else{
+      updatable.template us<c>().erase(minor * our_king_idx + mv.from().index() + us_offset(mv.piece()));
+      updatable.template them<c>().erase(minor * their_king_idx + mv.from().index() + them_offset(mv.piece()));
+      if(mv.is_promotion<c>()){
+        updatable.template us<c>().insert(minor * our_king_idx + mv.to().index() + us_queen_offset);
+        updatable.template them<c>().insert(minor * their_king_idx + mv.to().index() + them_queen_offset);
+      }else{
+        updatable.template us<c>().insert(minor * our_king_idx + mv.to().index() + us_offset(mv.piece()));
+        updatable.template them<c>().insert(minor * their_king_idx + mv.to().index() + them_offset(mv.piece()));
+      }
+      if(mv.is_enpassant()){
+        updatable.template them<c>().erase(minor * their_king_idx + mv.enpassant_sq().index() + us_pawn_offset);
+        updatable.template us<c>().erase(minor * our_king_idx + mv.enpassant_sq().index() + them_pawn_offset);
+      }
+      if(mv.is_capture()){
+        updatable.template them<c>().erase(minor * their_king_idx + mv.to().index() + us_offset(mv.captured()));
+        updatable.template us<c>().erase(minor * our_king_idx + mv.to().index() + them_offset(mv.captured()));
+      }
+    }
   }
 
   template<typename U>

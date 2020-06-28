@@ -22,15 +22,22 @@ def state_numel():
   return functools.reduce(lambda a, b: a*b, state_size())
 
 def half_kp_numel():
-  return 64 * side_numel()
+  return 64 * state_numel()
 
 def king_idx():
   return 5
 
 
-def half_kp(side_batch):
-  our_king = side_batch[:, king_idx(), :, :]
-  return torch.einsum('bij,bcmn->bcijmn', (our_king, side_batch)).flatten(start_dim=1)
+def cp_conversion(x, alpha=0.0016):
+  return (x * alpha).sigmoid()
+
+
+def half_kp(us, them):
+  k = us[:, king_idx(), :, :].flatten(start_dim=1)
+  p = torch.cat([us, them], dim=1).flatten(start_dim=1)
+  result = torch.einsum('bi, bj->bij', k, p).flatten(start_dim=1)
+  #print(result.nonzero())
+  return result
 
 
 def side_to_tensor(bd, color):
@@ -62,6 +69,7 @@ def get_memmap_handlers(mode, config):
   mm_pov = np.memmap(os.path.join(tgt_dir, 'pov.mm'), dtype='bool', mode=mode, shape=(num_positions))
   mm_white = np.memmap(os.path.join(tgt_dir, 'white.mm'), dtype='bool', mode=mode, shape=(num_positions, *side_size()))
   mm_black = np.memmap(os.path.join(tgt_dir, 'black.mm'), dtype='bool', mode=mode, shape=(num_positions, *side_size()))
+  mm_outcome = np.memmap(os.path.join(tgt_dir, 'outcome.mm'), dtype='float32', mode=mode, shape=(num_positions))
   mm_score = np.memmap(os.path.join(tgt_dir, 'score.mm'), dtype='float32', mode=mode, shape=(num_positions))
-  return mm_pov, mm_white, mm_black, mm_score
+  return mm_pov, mm_white, mm_black, mm_outcome, mm_score
 

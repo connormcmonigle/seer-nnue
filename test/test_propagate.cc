@@ -8,7 +8,9 @@ int main(){
   std::cout << weights.num_parameters() << std::endl;
   nnue::half_kp_eval<float> eval(&weights);
   
-  auto bd = chess::board::start_pos();
+  std::cout << "fen: ";
+  std::string fen; std::getline(std::cin, fen);
+  auto bd = chess::board::parse_fen(fen);
   bd.show_init(eval);
   
   for(;;){

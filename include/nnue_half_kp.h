@@ -12,8 +12,8 @@ namespace nnue{
 
 template<typename T>
 struct half_kp_weights{
-  big_affine<T, 384*64, 256> w{};
-  big_affine<T, 384*64, 256> b{};
+  big_affine<T, 768*64, 256> w{};
+  big_affine<T, 768*64, 256> b{};
   stack_affine<T, 512, 32> fc0{};
   stack_affine<T, 32, 32> fc1{};
   stack_affine<T, 32, 1> fc2{};
@@ -43,7 +43,7 @@ struct half_kp_weights{
 
 template<typename T>
 struct feature_transformer{
-  const big_affine<T, 384*64, 256>* weights_;
+  const big_affine<T, 768*64, 256>* weights_;
   stack_vector<T, 256> active_;
   constexpr stack_vector<T, 256> active() const { return active_; }
 
@@ -51,7 +51,7 @@ struct feature_transformer{
   void insert(const size_t idx){ weights_ -> insert_idx(idx, active_); }
   void erase(const size_t idx){ weights_ -> erase_idx(idx, active_); }
 
-  feature_transformer(const big_affine<T, 384*64, 256>* src) : weights_{src} {
+  feature_transformer(const big_affine<T, 768*64, 256>* src) : weights_{src} {
     clear();
   }
 };

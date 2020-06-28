@@ -36,8 +36,8 @@ struct square{
   }
 
   std::string name() const {
-    const std::array<char, 8> n_of_file = {'h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'};
-    const std::array<char, 8> n_of_rank = {'1', '2', '3', '4', '5', '6', '7', '8'};
+    constexpr std::array<char, 8> n_of_file = {'h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'};
+    constexpr std::array<char, 8> n_of_rank = {'1', '2', '3', '4', '5', '6', '7', '8'};
     return std::string("") + n_of_file[file()] + n_of_rank[rank()];
   }
 
@@ -135,7 +135,7 @@ struct square_set_iterator{
   using reference = const square&;
   using iterator_category = std::output_iterator_tag;
 
-  std::uint64_t original, remaining;
+  std::uint64_t remaining;
   
   square_set_iterator& operator++(){
     remaining &= (remaining - static_cast<std::uint64_t>(1));

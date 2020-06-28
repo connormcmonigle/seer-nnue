@@ -8,9 +8,6 @@ import torch.nn.functional as F
 import numpy as np
 import util
 
-def cp_conversion(x, alpha=0.003):
-  return (x * alpha).sigmoid()
-
 
 def self_play_game(engine, config):
   white = []
@@ -27,15 +24,14 @@ def self_play_game(engine, config):
   
   white = torch.stack(white, dim=0)
   black = torch.stack(black, dim=0)
-  scores = cp_conversion(torch.stack(scores, dim=0))
+  scores = torch.stack(scores, dim=0).float()
   outcome = 1.0 if bd.result() == '1-0' else (0.0 if bd.result() == '0-1' else 0.5)
   mask = torch.zeros(bd.fullmove_number+1, 2, dtype=torch.bool)
   mask[:, 0] = True
   mask = mask.flatten()[:len(scores)]
   outcome = mask * outcome + mask.logical_not() * (1.0 - outcome)
-  scores = config.interpolation_factor * outcome + (1.0 - config.interpolation_factor) * scores
   pov = mask
-  return pov, white, black, scores
+  return pov, white, black, outcome, scores
 
 
 def self_play_position_generator(num_positions, config):
@@ -55,11 +51,13 @@ def self_play_position_generator(num_positions, config):
 def generate_games(config):
   num_positions = config.num_positions
   tgt_dir = config.dataset_path
-  mm_pov, mm_white, mm_black, mm_score = util.get_memmap_handlers(mode='w+', config=config)
+  mm_pov, mm_white, mm_black, mm_outcome, mm_score = util.get_memmap_handlers(mode='w+', config=config)
+
   for (idx, pos) in tqdm.tqdm(enumerate(self_play_position_generator(num_positions, config)), total=num_positions):
-    pov, white, black, score = pos
-    mm_pov[idx] = pov.numpy()
-    mm_white[idx] = white.numpy()
-    mm_black[idx] = black.numpy()
-    mm_score[idx] = score.numpy()
+    pov, white, black, outcome, score = pos
+    mm_pov[idx] = pov.bool().numpy()
+    mm_white[idx] = white.bool().numpy()
+    mm_black[idx] = black.bool().numpy()
+    mm_outcome[idx] = outcome.float().numpy()
+    mm_score[idx] = score.float().numpy()
 

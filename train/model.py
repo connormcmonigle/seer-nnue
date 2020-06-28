@@ -17,12 +17,9 @@ class NNUE(nn.Module):
     self.fc2 = nn.Linear(32, 1)
     
 
-    
   def forward(self, pov, white, black):
-    w_256 = self.white_affine(util.half_kp(white))
-    b_256 = self.black_affine(util.half_kp(black))
-    pov = pov.unsqueeze(-1)
-    #print(pov)
+    w_256 = self.white_affine(util.half_kp(white, black))
+    b_256 = self.black_affine(util.half_kp(black, white))
     x = pov * torch.cat([w_256, b_256], dim=1) + (1.0 - pov) * torch.cat([b_256, w_256], dim=1)
     x = F.relu(x)
     x = F.relu(self.fc0(x))
@@ -39,9 +36,15 @@ class NNUE(nn.Module):
     joined.astype('float32').tofile(path)
 
 
-def loss_fn(score, pred):
-  score = score.unsqueeze(-1)
-  eta = 0.001
-  c_score = score.clamp(eta, 1.0-eta)
-  min_value = -(score * c_score.log() + (1.0-score) * (1.0 - c_score).log()).mean()
-  return -(score * F.logsigmoid(pred) + (1.0-score) * F.logsigmoid(-pred)).mean() - min_value
+def loss_fn(outcome, score, pred, lambda_):
+  q = pred
+  t = outcome
+  p = util.cp_conversion(score)
+  #print(t.size())
+  #print(p.size())
+  #print(pred.size())
+  teacher_loss = -(p * F.logsigmoid(q) + (1.0 - p) * F.logsigmoid(-q))
+  outcome_loss = -(t * F.logsigmoid(q) + (1.0 - t) * F.logsigmoid(-q))
+  result = lambda_ * teacher_loss + (1.0 - lambda_) * outcome_loss
+  #print(result.size())
+  return result.sum()
