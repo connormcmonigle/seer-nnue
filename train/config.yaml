@@ -1,4 +1,4 @@
-device: 'cuda'
+device: 'cpu'
 model_save_path: 'model/save.pt'
 bin_model_save_path: 'model/save.bin'
 #CONFIGURE DATASET PATH SPECIFIC TO YOUR SETUP:
