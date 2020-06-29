@@ -7,3 +7,5 @@ train/model/*
 train/__pycache__
 *~
 include/cling
+.vscode/*
+train/*.pyc
