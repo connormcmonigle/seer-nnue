@@ -33,7 +33,10 @@ class NNUEBinData(torch.utils.data.Dataset):
     self.config = config
     self.device = config.device
     self.batch_size = config.batch_size
-    self.bits = bitstring.Bits(open(config.nnue_bin_data_path, 'rb'))
+    if not config.copy_data_to_mem:
+      self.bits = bitstring.Bits(open(config.nnue_bin_data_path, 'rb'))
+    else:
+      self.bits = bitstring.Bits(bitstring.Bits(open(config.nnue_bin_data_path, 'rb')).bytes)
 
   def __len__(self):
     return self.config.num_positions
