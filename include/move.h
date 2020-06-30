@@ -75,7 +75,7 @@ struct move{
     if(is_castle_oo<c>()){
       return castle_info<c>.start_king.name() + castle_info<c>.after_oo_king.name();
     }else if(is_castle_ooo<c>()){
-      return castle_info<c>.start_king.name() + castle_info<c>.after_oo_king.name();
+      return castle_info<c>.start_king.name() + castle_info<c>.after_ooo_king.name();
     }
     std::string base = from().name() + to().name();
     if(is_promotion<c>()){
