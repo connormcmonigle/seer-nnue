@@ -4,8 +4,10 @@
 #include <uci.h>
 
 std::string read_line(){
+  std::fstream log("/home/connor/seer-nnue/build/log.txt", std::ios::app);
   std::string line{};
   std::getline(std::cin, line);
+  log << line << '\n';
   return line;
 }
 
