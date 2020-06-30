@@ -13,7 +13,7 @@ std::string read_line(){
 
 int main(){
   const auto weights = nnue::half_kp_weights<engine::uci::real_t>{}.load("/home/connor/seer-nnue/train/model/save.bin");
-  engine::uci u(/*weights=*/&weights, /*hash_size=*/65536, /*thread_count=*/4);
+  engine::uci u(/*weights=*/&weights, /*hash_size=*/4000, /*thread_count=*/4);
   std::future<std::string> future = std::async(read_line);
   while(true){
     if(future.wait_for(std::chrono::seconds(0)) == std::future_status::ready){

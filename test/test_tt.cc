@@ -5,7 +5,7 @@
 #include <transposition_table.h>
 
 int main(){
-  constexpr size_t tbl_size = 10000;
+  constexpr size_t tbl_size = 1000;
   const auto mv_ls = chess::board::start_pos().generate_moves();
   const auto mv = mv_ls.data[8];
   std::cout << "mv: " << mv << std::endl;

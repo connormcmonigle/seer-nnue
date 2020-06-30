@@ -26,6 +26,7 @@ constexpr std::string_view bound_type_name(const bound_type& type){
 }
 
 struct tt_entry{
+  static constexpr size_t num_bytes = sizeof(tt_entry);
   static constexpr int score_byte_count = sizeof(float);
   static_assert(score_byte_count == 4, "system float type must be 32 bits");
 
@@ -83,6 +84,7 @@ std::ostream& operator<<(std::ostream& ostr, const tt_entry& entry){
 }
 
 struct table{
+  static constexpr size_t MiB = static_cast<size_t>(1) << static_cast<size_t>(20);
   std::vector<tt_entry> data;
 
   std::vector<tt_entry>::const_iterator begin() const { return data.cbegin(); }
@@ -103,7 +105,7 @@ struct table{
     return (key == (result -> key() ^ result -> value())) ? result : data.cend();
   }
 
-  table(size_t size) : data(size) {}
+  table(size_t size) : data(size * MiB / tt_entry::num_bytes) {}
 };
 
 }
