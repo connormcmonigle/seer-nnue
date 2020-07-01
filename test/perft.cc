@@ -43,7 +43,7 @@ void perft_divide(chess::board bd, int depth){
         sum += count;
       }
       std::cout << "total: " << sum << std::endl;
-      int choice; std::cin >> choice;
+      size_t choice; std::cin >> choice;
       bd = bd.forward(ls.data[choice]);
     }
   }

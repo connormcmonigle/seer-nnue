@@ -12,12 +12,14 @@
 #include <tuple>
 
 #include <zobrist_util.h>
+#include <position_history.h>
 #include <enum_util.h>
 #include <square.h>
 #include <move.h>
 #include <table_generation.h>
 #include <manifest.h>
 #include <latent.h>
+
 
 
 namespace chess{
@@ -438,19 +440,21 @@ struct board{
     return u;
   }
 
-  board after_uci_moves(const std::string& moves) const {
-    auto result = *this;
+  std::tuple<position_history, board> after_uci_moves(const std::string& moves) const {
+    position_history history{};
+    auto bd = *this;
     std::istringstream move_stream(moves);
     std::string move_name;
     while(move_stream >> move_name){
-      const move_list list = result.generate_moves();
+      const move_list list = bd.generate_moves();
       const auto it = std::find_if(list.begin(), list.end(), [=](const move& mv){
-        return mv.name(result.turn()) == move_name;
+        return mv.name(bd.turn()) == move_name;
       });
       assert((it != list.end()));
-      result = result.forward(*it);
+      history.push_(bd.hash());
+      bd = bd.forward(*it);
     }
-    return result;
+    return std::tuple(history, bd);
   }
 
   std::string fen() const {
@@ -533,11 +537,11 @@ struct board{
     fen_pos.lat_.white.set_ooo(castle.find('Q') != std::string::npos);
     fen_pos.lat_.black.set_oo(castle.find('k') != std::string::npos);
     fen_pos.lat_.black.set_ooo(castle.find('q') != std::string::npos);
-    fen_pos.lat_.half_clock = std::stoi(half_clock);
+    fen_pos.lat_.half_clock = std::stol(half_clock);
     if(ep_sq != "-"){
       fen_pos.lat_.them(side == "w").set_ep_mask(tbl_square::from_name(ep_sq));
     }
-    fen_pos.lat_.move_count = 2 * (std::stoi(ply) - 1) + static_cast<size_t>(side != "w");
+    fen_pos.lat_.move_count = static_cast<size_t>(2 * (std::stoi(ply) - 1) + static_cast<int>(side != "w"));
     return fen_pos;
   }
 

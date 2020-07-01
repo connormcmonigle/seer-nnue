@@ -13,6 +13,7 @@ namespace engine{
 
 struct uci{
   using real_t = float;
+  chess::position_history history{};
   chess::board position = chess::board::start_pos();
   chess::worker_pool<real_t> pool_;
 
@@ -22,21 +23,25 @@ struct uci{
   std::ostream& os = std::cout;
 
   void uci_new_game(){
+    history.clear();
     position = chess::board::start_pos();
   }
 
   void set_position(const std::string& line){
     if(line == "position startpos"){ uci_new_game(); return; }
-    std::regex spos_w_moves("position startpos moves((?: [a-h][1-8][a-h][1-8])+)");
-    std::regex fen_w_moves("position fen (.*) moves((?: [a-h][1-8][a-h][1-8])+)");
+    std::regex spos_w_moves("position startpos moves((?: [a-h][1-8][a-h][1-8]+q?)+)");
+    std::regex fen_w_moves("position fen (.*) moves((?: [a-h][1-8][a-h][1-8]+q?)+)");
     std::regex fen("position fen (.*)");
     std::smatch matches{};
     if(std::regex_search(line, matches, spos_w_moves)){
-      position = chess::board::start_pos().after_uci_moves(matches.str(1));
+      auto [h_, p_] = chess::board::start_pos().after_uci_moves(matches.str(1));
+      history = h_; position = p_;
     }else if(std::regex_search(line, matches, fen_w_moves)){
       position = chess::board::parse_fen(matches.str(1));
-      position = position.after_uci_moves(matches.str(2));
+      auto [h_, p_] = position.after_uci_moves(matches.str(2));
+      history = h_; position = p_;
     }else if(std::regex_search(line, matches, fen)){
+      history.clear();
       position = chess::board::parse_fen(matches.str(1));
     }
   }
@@ -44,7 +49,7 @@ struct uci{
   void info_string(){
     const real_t raw_score = pool_.pool_[0] -> score();
     const real_t clamped_score = std::max(std::min(chess::big_number<real_t>, raw_score), -chess::big_number<real_t>);
-    auto score = static_cast<int>(clamped_score * 80.0);
+    auto score = static_cast<int>(clamped_score * 600.0);
     static int last_reported_depth{0};
     const int depth = pool_.pool_[0] -> depth();
     if(last_reported_depth != depth){
@@ -57,7 +62,7 @@ struct uci{
     go_ = true;
     std::regex go_w_time("go .*wtime ([0-9]+) .*btime ([0-9]+)");
     std::smatch matches{};
-    pool_.set_position(position);
+    pool_.set_position(history, position);
     pool_.go();
     if(std::regex_search(line, matches, go_w_time)){
       const long long our_time = std::stoll(position.turn() ? matches.str(1) : matches.str(2));

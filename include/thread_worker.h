@@ -19,7 +19,7 @@
 namespace chess{
 
 template<typename T>
-inline constexpr T eta = static_cast<T>(0.00001);
+inline constexpr T eta = static_cast<T>(0.0001);
 
 template<typename T>
 inline constexpr T big_number = static_cast<T>(256);
@@ -56,9 +56,10 @@ struct thread_worker{
 
   std::mutex position_mutex_{};
   board position_{};
+  position_history history_{};
 
   template<bool is_pv, bool is_root=false>
-  auto pv_search(const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, int depth) -> pvs_result_t<T, is_root> {
+  auto pv_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, int depth) -> pvs_result_t<T, is_root> const {
     auto make_result = [](const T& score, const move& mv){
         if constexpr(is_root){
           return pvs_result_t<T, is_root>{score, mv};
@@ -67,13 +68,15 @@ struct thread_worker{
       }
     };
 
+
     const auto list = bd.generate_moves();
     const auto empty_move = move{};
 
     const bool is_check = bd.is_check();
     if(list.size() == 0 && is_check){ return make_result(mate_score<T>, empty_move); }
     if(list.size() == 0) { return make_result(draw_score<T>, empty_move); }
-  
+    if(hist.is_three_fold(bd.hash())){ return make_result(draw_score<T>, empty_move); }
+    
     if(is_check){ depth += 1; }
   
     if(depth <= 0) { return make_result(eval.propagate(bd.turn()), empty_move); }
@@ -91,6 +94,9 @@ struct thread_worker{
         first_move = entry.best_move();
       }
     }
+    
+    const int pre_size = hist.history_.size();
+    hist.push_(bd.hash());
 
     T best_score = mate_score<T>;
     move best_move = first_move;
@@ -98,7 +104,7 @@ struct thread_worker{
     if(go_.load(std::memory_order_relaxed)){
       const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(best_move, eval);
       const board bd_ = bd.forward(best_move);
-      best_score = -pv_search<true, false>(eval_, bd_, -beta, -alpha, depth - 1);
+      best_score = -pv_search<true, false>(hist, eval_, bd_, -beta, -alpha, depth - 1);
       alpha = std::max(alpha, best_score);
     }
 
@@ -109,10 +115,10 @@ struct thread_worker{
 
       const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
       const board bd_ = bd.forward(mv);
-      T score = -pv_search<false, false>(eval_, bd_, -alpha - eta<T>, -alpha, depth - 1);
+      T score = -pv_search<false, false>(hist, eval_, bd_, -alpha - eta<T>, -alpha, depth - 1);
 
       if(score > alpha && score < beta){
-        score = -pv_search<true, false>(eval_, bd_, -beta, -alpha, depth - 1);
+        score = -pv_search<true, false>(hist, eval_, bd_, -beta, -alpha, depth - 1);
         alpha = std::max(alpha, score);
       }
 
@@ -129,15 +135,19 @@ struct thread_worker{
       const tt_entry entry(bd.hash(), bound_type::upper, best_score, best_move, depth);
       tt_ -> insert(entry);
     }
+    
+    hist.pop_();
+    const int post_size = hist.history_.size();
+    assert(post_size == pre_size);
 
     return make_result(best_score, best_move);
   }
 
 
-  auto pv_search(const board bd, const int depth) -> pvs_result_t<T, true> {
+  auto pv_search(position_history& hist, const board bd, const int depth) -> pvs_result_t<T, true> const {
     constexpr T alpha = -big_number<T>;
     constexpr T beta = big_number<T>;
-    return pv_search<true, true>(evaluator_, bd, alpha, beta, depth);
+    return pv_search<true, true>(hist, evaluator_, bd, alpha, beta, depth);
   }
 
 
@@ -148,9 +158,10 @@ struct thread_worker{
 
       std::unique_lock<std::mutex> position_lk(position_mutex_);
       const auto bd = position_;
+      auto hist = history_;
       position_lk.unlock();
 
-      auto[nnue_score, mv] = pv_search(bd, depth_.load());
+      auto[nnue_score, mv] = pv_search(hist, bd, depth_.load());
       std::uint32_t as_uint32; std::memcpy(&as_uint32, &nnue_score, score_num_bytes);
       score_.store(as_uint32);
       best_move_.store(mv.data);
@@ -186,9 +197,10 @@ struct thread_worker{
   }
 
 
-  thread_worker<T>& set_position(const board& bd){
+  thread_worker<T>& set_position(const position_history& hist, const board& bd){
     std::lock_guard<std::mutex> position_lk(position_mutex_);
     bd.show_init(evaluator_);
+    history_ = hist;
     position_ = bd;
     return *this;
   }
@@ -212,8 +224,8 @@ struct worker_pool{
     for(auto& worker : pool_){ worker -> stop(); }
   }
 
-  void set_position(const board& bd){
-    for(auto& worker : pool_){ worker -> set_position(bd); }
+  void set_position(const position_history& hist, const board& bd){
+    for(auto& worker : pool_){ worker -> set_position(hist, bd); }
   }
 
   worker_pool(const nnue::half_kp_weights<T>* weights, size_t hash_table_size, size_t num_workers){

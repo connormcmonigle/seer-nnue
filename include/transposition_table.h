@@ -26,7 +26,6 @@ constexpr std::string_view bound_type_name(const bound_type& type){
 }
 
 struct tt_entry{
-  static constexpr size_t num_bytes = sizeof(tt_entry);
   static constexpr int score_byte_count = sizeof(float);
   static_assert(score_byte_count == 4, "system float type must be 32 bits");
 
@@ -105,7 +104,7 @@ struct table{
     return (key == (result -> key() ^ result -> value())) ? result : data.cend();
   }
 
-  table(size_t size) : data(size * MiB / tt_entry::num_bytes) {}
+  table(size_t size) : data(size * MiB / sizeof(tt_entry)) {}
 };
 
 }
