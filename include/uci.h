@@ -12,8 +12,13 @@
 
 namespace engine{
 
+
+
 struct uci{
+  static constexpr size_t default_thread_count = 1;
+  static constexpr size_t default_hash_size = 128;
   using real_t = float;
+
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
   nnue::half_kp_weights<engine::uci::real_t> weights_{};
@@ -31,12 +36,12 @@ struct uci{
       weights_.load(path);
     });
 
-    auto hash_size = option_callback(spin_option("Hash", 128, spin_range{1, 65536}), [this](const int size){
+    auto hash_size = option_callback(spin_option("Hash", default_hash_size, spin_range{1, 65536}), [this](const int size){
       const auto new_size = static_cast<size_t>(size);
       pool_.tt_ -> resize(new_size);
     });
 
-    auto thread_count = option_callback(spin_option("Threads", 1, spin_range{1, 512}), [this](const int count){
+    auto thread_count = option_callback(spin_option("Threads", default_thread_count, spin_range{1, 512}), [this](const int count){
       const auto new_count = static_cast<size_t>(count);
       pool_.grow(new_count);
     });
@@ -151,7 +156,7 @@ struct uci{
     }
   }
 
-  uci() : pool_(&weights_, /*hash_size=*/128, /*thread_count=*/1) {}
+  uci() : pool_(&weights_, default_hash_size, default_thread_count) {}
 };
 
 }
