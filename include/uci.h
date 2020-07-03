@@ -8,6 +8,7 @@
 #include <board.h>
 #include <move.h>
 #include <thread_worker.h>
+#include <option_parser.h>
 
 namespace engine{
 
@@ -15,12 +16,37 @@ struct uci{
   using real_t = float;
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
+  nnue::half_kp_weights<engine::uci::real_t> weights_{};
+
   chess::worker_pool<real_t> pool_;
 
   bool go_{false};
   std::chrono::milliseconds budget{0};
   std::chrono::steady_clock::time_point search_start{};
   std::ostream& os = std::cout;
+
+  auto options(){
+    auto weight_path = option_callback(string_option("Weights"), [this](const std::string& path){
+      std::cout << path << std::endl;
+      weights_.load(path);
+    });
+
+    auto hash_size = option_callback(spin_option("Hash", 128, spin_range{1, 65536}), [this](const int size){
+      const auto new_size = static_cast<size_t>(size);
+      pool_.tt_ -> resize(new_size);
+    });
+
+    auto thread_count = option_callback(spin_option("Threads", 1, spin_range{1, 512}), [this](const int count){
+      const auto new_count = static_cast<size_t>(count);
+      pool_.grow(new_count);
+    });
+
+    auto clear_hash = option_callback(button_option("Clear Hash"), [this](bool){
+      pool_.tt_ -> clear();
+    });
+
+    return uci_options(weight_path, hash_size, thread_count, clear_hash);
+  }
 
   void uci_new_game(){
     history.clear();
@@ -77,9 +103,9 @@ struct uci{
   }
 
   void stop(){
-    go_ = false;
     os << "bestmove " << pool_.pool_[0] -> best_move().name(position.turn()) << std::endl;
     pool_.stop();
+    go_ = false;
   }
 
   void ready(){
@@ -87,8 +113,9 @@ struct uci{
   }
 
   void id_info(){
-    os << "id name seer-nnue-testing\n";
+    os << "id name Seer v0.0\n";
     os << "id author C. McMonigle\n";
+    os << options();
     os << "uciok\n";
   }
 
@@ -111,7 +138,10 @@ struct uci{
       set_position(line);
     }else if(line == "quit"){
       std::terminate();
+    }else if(!go_){
+      options().update(line);
     }
+
     if(go_){
       if((std::chrono::steady_clock::now() - search_start) >= budget){
         stop();
@@ -121,7 +151,7 @@ struct uci{
     }
   }
 
-  uci(const nnue::half_kp_weights<real_t>* weights, size_t hash_size, const size_t thread_count) : pool_(weights, hash_size, thread_count) {}
+  uci() : pool_(&weights_, /*hash_size=*/128, /*thread_count=*/1) {}
 };
 
 }

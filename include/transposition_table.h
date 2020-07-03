@@ -83,12 +83,21 @@ std::ostream& operator<<(std::ostream& ostr, const tt_entry& entry){
 }
 
 struct table{
-  static constexpr size_t MiB = static_cast<size_t>(1) << static_cast<size_t>(20);
+  static constexpr size_t MiB = (static_cast<size_t>(1) << static_cast<size_t>(20)) / sizeof(tt_entry);
   std::vector<tt_entry> data;
 
   std::vector<tt_entry>::const_iterator begin() const { return data.cbegin(); }
   std::vector<tt_entry>::const_iterator end() const { return data.cend(); }
 
+  void resize(size_t size){
+    data.resize(size * MiB, tt_entry{});
+  }
+
+  void clear(){
+    std::transform(data.begin(), data.end(), data.begin(), [](auto){
+      return tt_entry{};
+    });
+  }
 
   table& insert(const tt_entry& entry){
     const size_t idx = entry.key() % data.size();
@@ -104,7 +113,7 @@ struct table{
     return (key == (result -> key() ^ result -> value())) ? result : data.cend();
   }
 
-  table(size_t size) : data(size * MiB / sizeof(tt_entry)) {}
+  table(size_t size) : data(size * MiB) {}
 };
 
 }

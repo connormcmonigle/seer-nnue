@@ -214,7 +214,17 @@ struct thread_worker{
 template<typename T>
 struct worker_pool{
   std::shared_ptr<table> tt_{nullptr};
+  const nnue::half_kp_weights<T>* weights_;
   std::vector<std::shared_ptr<thread_worker<T>>> pool_{};
+
+  void grow(size_t new_size){
+    assert((new_size > pool_.size()));
+    const size_t new_workers = new_size - pool_.size();
+    for(size_t i(0); i < new_workers; ++i){
+      const int start_depth = static_cast<int>((i + pool_.size()) % 2);
+      pool_.push_back(std::make_shared<thread_worker<T>>(weights_, tt_, start_depth));
+    }
+  }
 
   void go(){
     for(auto& worker : pool_){ worker -> go(); }
@@ -228,7 +238,7 @@ struct worker_pool{
     for(auto& worker : pool_){ worker -> set_position(hist, bd); }
   }
 
-  worker_pool(const nnue::half_kp_weights<T>* weights, size_t hash_table_size, size_t num_workers){
+  worker_pool(const nnue::half_kp_weights<T>* weights, size_t hash_table_size, size_t num_workers) : weights_{weights} {
     tt_ = std::make_shared<table>(hash_table_size);
     for(size_t i(0); i < num_workers; ++i){
       const int start_depth = static_cast<int>(i % 2);
