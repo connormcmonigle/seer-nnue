@@ -47,6 +47,7 @@ struct thread_worker{
   std::condition_variable cv_{};
   std::atomic<bool> go_{false};
   std::atomic<int> depth_;
+  std::atomic<size_t> nodes_;
 
   std::atomic<std::uint32_t> score_;
   std::atomic<std::uint32_t> best_move_{};
@@ -60,6 +61,7 @@ struct thread_worker{
 
   template<bool is_pv, bool is_root=false>
   auto pv_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, int depth) -> pvs_result_t<T, is_root> const {
+    ++nodes_;
     auto make_result = [](const T& score, const move& mv){
         if constexpr(is_root){
           return pvs_result_t<T, is_root>{score, mv};
@@ -67,7 +69,6 @@ struct thread_worker{
         return score;
       }
     };
-
 
     const auto list = bd.generate_moves();
     const auto empty_move = move{};
@@ -115,6 +116,7 @@ struct thread_worker{
 
       const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
       const board bd_ = bd.forward(mv);
+      
       T score = -pv_search<false, false>(hist, eval_, bd_, -alpha - eta<T>, -alpha, depth - 1);
 
       if(score > alpha && score < beta){
@@ -174,6 +176,10 @@ struct thread_worker{
     return depth_.load();
   }
 
+  size_t nodes() const {
+    return nodes_.load();
+  }
+
   move best_move() const {
     return move{best_move_.load()};
   }
@@ -184,9 +190,10 @@ struct thread_worker{
     return result;
   }
 
-  void go(){
+  void go(const int start_depth){
     std::unique_lock<std::mutex> go_lk(go_mutex_);
-    depth_.store(0);
+    depth_.store(start_depth);
+    nodes_.store(0);
     go_.store(true);
     go_lk.unlock();
     cv_.notify_one();
@@ -205,8 +212,7 @@ struct thread_worker{
     return *this;
   }
 
-  thread_worker(const nnue::half_kp_weights<T>* weights, std::shared_ptr<table> tt, int start_depth=0) : tt_{tt}, evaluator_(weights){
-    depth_.store(start_depth);
+  thread_worker(const nnue::half_kp_weights<T>* weights, std::shared_ptr<table> tt) : tt_{tt}, evaluator_(weights){
     std::thread([this]{ iterative_deepening_loop_(); }).detach();
   }
 };
@@ -217,21 +223,43 @@ struct worker_pool{
   const nnue::half_kp_weights<T>* weights_;
   std::vector<std::shared_ptr<thread_worker<T>>> pool_{};
 
+  std::string pv_string(chess::board bd) const {
+    std::string result{};
+    while(true){
+      if(const auto it = tt_ -> find(bd.hash()); it != tt_ -> end()){
+        const auto entry = *it;
+        if(bd.generate_moves().has(entry.best_move())){
+          result += entry.best_move().name(bd.turn()) + " ";
+          bd = bd.forward(entry.best_move());
+        }else{ break; }
+      }else{ break; }
+    }
+    return result;
+  }
+
   void grow(size_t new_size){
     assert((new_size > pool_.size()));
     const size_t new_workers = new_size - pool_.size();
     for(size_t i(0); i < new_workers; ++i){
-      const int start_depth = static_cast<int>((i + pool_.size()) % 2);
-      pool_.push_back(std::make_shared<thread_worker<T>>(weights_, tt_, start_depth));
+      pool_.push_back(std::make_shared<thread_worker<T>>(weights_, tt_));
     }
   }
 
   void go(){
-    for(auto& worker : pool_){ worker -> go(); }
+    for(size_t i(0); i < pool_.size(); ++i){
+      const int start_depth = static_cast<int>(i % 2);
+      pool_[i] -> go(start_depth);
+    }
   }
   
   void stop(){
     for(auto& worker : pool_){ worker -> stop(); }
+  }
+
+  size_t nodes() const {
+    size_t result{0};
+    for(const auto& worker : pool_){ result += worker -> nodes(); }
+    return result;
   }
 
   void set_position(const position_history& hist, const board& bd){
@@ -241,8 +269,7 @@ struct worker_pool{
   worker_pool(const nnue::half_kp_weights<T>* weights, size_t hash_table_size, size_t num_workers) : weights_{weights} {
     tt_ = std::make_shared<table>(hash_table_size);
     for(size_t i(0); i < num_workers; ++i){
-      const int start_depth = static_cast<int>(i % 2);
-      pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, start_depth));
+      pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_));
     }
   }
 };

@@ -17,6 +17,8 @@ namespace engine{
 struct uci{
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 128;
+  static constexpr std::string_view default_weight_path = "/home/connor/Documents/GitHub/seer-nnue/train/model/save.bin";
+  
   using real_t = float;
 
   chess::position_history history{};
@@ -83,9 +85,13 @@ struct uci{
     auto score = static_cast<int>(clamped_score * 600.0);
     static int last_reported_depth{0};
     const int depth = pool_.pool_[0] -> depth();
+    const size_t elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - search_start).count();
+    const size_t node_count = pool_.nodes();
+    const size_t nps = static_cast<size_t>(1000) * node_count / (elapsed_ms+1);
     if(last_reported_depth != depth){
       last_reported_depth = depth;
-      os << "info depth " << depth << " seldepth " << depth << " multipv 1 score cp " << score << '\n';
+      os << "info depth " << depth << " seldepth " << depth << " multipv 1 score cp " << score;
+      os << " nodes " << node_count << " nps " << nps << " tbhits " << 0 << " time " << elapsed_ms << " pv " << pool_.pv_string(position) << '\n';
     }
   }
 
@@ -118,7 +124,7 @@ struct uci{
   }
 
   void id_info(){
-    os << "id name Seer v0.0\n";
+    os << "id name Seer\n";
     os << "id author C. McMonigle\n";
     os << options();
     os << "uciok\n";
@@ -156,7 +162,9 @@ struct uci{
     }
   }
 
-  uci() : pool_(&weights_, default_hash_size, default_thread_count) {}
+  uci() : pool_(&weights_, default_hash_size, default_thread_count) {
+    weights_.load(std::string(default_weight_path));
+  }
 };
 
 }
