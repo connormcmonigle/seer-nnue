@@ -257,9 +257,9 @@ struct worker_pool{
   }
 
   size_t nodes() const {
-    size_t result{0};
-    for(const auto& worker : pool_){ result += worker -> nodes(); }
-    return result;
+    return std::accumulate(pool_.cbegin(), pool_.cend(), static_cast<size_t>(0), [](size_t count, const auto& worker){
+      return count + worker -> nodes();
+    });
   }
 
   void set_position(const position_history& hist, const board& bd){

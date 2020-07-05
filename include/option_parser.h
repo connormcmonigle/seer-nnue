@@ -27,7 +27,7 @@ struct string_option{
         return match;
       }
     }
-    return {};
+    return std::nullopt;
   }
 
   string_option(const std::string_view& name) : name_{name} {}
@@ -60,7 +60,7 @@ struct spin_option{
         return raw;
       }
     }
-    return {};
+    return std::nullopt;
   }
 
   spin_option(const std::string_view& name) : name_{name} {}
@@ -77,7 +77,7 @@ struct button_option{
     if(cmd == (std::string("setoption name ") + name_)){
       return true;
     }else{
-      return {};
+      return std::nullopt;
     }
   }
 
