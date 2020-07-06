@@ -146,7 +146,7 @@ struct thread_worker{
   }
 
 
-  auto pv_search(position_history& hist, const board bd, const int depth) -> pvs_result_t<T, true> const {
+  auto root_search(position_history& hist, const board bd, const int depth) -> pvs_result_t<T, true> const {
     constexpr T alpha = -big_number<T>;
     constexpr T beta = big_number<T>;
     return pv_search<true, true>(hist, evaluator_, bd, alpha, beta, depth);
@@ -163,7 +163,7 @@ struct thread_worker{
       auto hist = history_;
       position_lk.unlock();
 
-      auto[nnue_score, mv] = pv_search(hist, bd, depth_.load());
+      auto[nnue_score, mv] = root_search(hist, bd, depth_.load());
       std::uint32_t as_uint32; std::memcpy(&as_uint32, &nnue_score, score_num_bytes);
       score_.store(as_uint32);
       best_move_.store(mv.data);
@@ -225,7 +225,8 @@ struct worker_pool{
 
   std::string pv_string(chess::board bd) const {
     std::string result{};
-    while(true){
+    constexpr size_t max_pv_length = 256;
+    for(size_t i(0); i < max_pv_length; ++i){
       if(const auto it = tt_ -> find(bd.hash()); it != tt_ -> end()){
         const auto entry = *it;
         if(bd.generate_moves().has(entry.best_move())){
@@ -246,6 +247,9 @@ struct worker_pool{
   }
 
   void go(){
+    //increment table generation on every new search
+    tt_ -> update_gen();
+    
     for(size_t i(0); i < pool_.size(); ++i){
       const int start_depth = static_cast<int>(i % 2);
       pool_[i] -> go(start_depth);

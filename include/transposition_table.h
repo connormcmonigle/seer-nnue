@@ -36,6 +36,9 @@ struct tt_entry{
   zobrist::hash_type key_;
   zobrist::hash_type value_;
   int depth_;
+  
+  //table assigned field
+  std::uint8_t gen{0};
 
   const zobrist::hash_type& key() const { return key_; }
   const zobrist::hash_type& value() const { return value_; }
@@ -83,14 +86,21 @@ std::ostream& operator<<(std::ostream& ostr, const tt_entry& entry){
 }
 
 struct table{
+  using iterator = std::vector<tt_entry>::const_iterator;
+
+  static constexpr size_t bucket_size = 4;
+  static constexpr size_t idx_mask = ~(0x3);
+
   static constexpr size_t MiB = (static_cast<size_t>(1) << static_cast<size_t>(20)) / sizeof(tt_entry);
   std::vector<tt_entry> data;
+  std::uint8_t current_gen{0};
 
   std::vector<tt_entry>::const_iterator begin() const { return data.cbegin(); }
   std::vector<tt_entry>::const_iterator end() const { return data.cend(); }
 
   void resize(size_t size){
-    data.resize(size * MiB, tt_entry{});
+    const size_t new_size = size * MiB - ((size * MiB) % bucket_size);
+    data.resize(new_size, tt_entry{});
   }
 
   void clear(){
@@ -99,21 +109,65 @@ struct table{
     });
   }
 
+  void update_gen(){ current_gen += (0x1 << 2); }
+
+  size_t hash_function(const zobrist::hash_type& hash) const {
+    return idx_mask & (hash % data.size());
+  }
+
+  size_t find_idx(const zobrist::hash_type& hash, const size_t& base_idx) const {
+    for(size_t i{base_idx}; i < (base_idx + bucket_size); ++i){
+      if((data[i].key() ^ data[i].value()) == hash){
+        return i;
+      }
+    }
+    return base_idx;
+  }
+  
+  size_t replacement_idx(const zobrist::hash_type& hash, const size_t& base_idx){
+    auto heuristic = [this](const size_t& idx){
+      constexpr int b = 1024;
+      constexpr int m0 = 1;
+      constexpr int m1 = 512;
+      return b + m0 * data[idx].depth() - m1 * static_cast<int>(current_gen != data[idx].gen);
+    };
+    
+    size_t worst_idx = base_idx;
+    int worst_score = std::numeric_limits<int>::max();
+    
+    for(size_t i{base_idx}; i < base_idx + bucket_size; ++i){
+      if((data[i].key() ^ data[i].value()) == hash){
+        return i;
+      }
+      const int score = heuristic(i);
+      if(score < worst_score){
+        worst_idx = i;
+        worst_score = score;
+      }
+    }
+    return worst_idx;
+  }
+
   table& insert(const tt_entry& entry){
-    const size_t idx = entry.key() % data.size();
+    const size_t base_idx = hash_function(entry.key());
+    const size_t idx = replacement_idx(entry.key(), base_idx);
+    assert(idx < data.size());
     data[idx] = entry;
     data[idx].key_ ^= entry.value();
+    data[idx].gen = current_gen;
     return *this;
   }
 
   std::vector<tt_entry>::const_iterator find(const zobrist::hash_type& key) const {
-    const size_t idx = key % data.size();
+    const size_t base_idx = hash_function(key);
+    const size_t idx = find_idx(key, base_idx);
+    assert(idx < data.size());
     std::vector<tt_entry>::const_iterator result = data.cbegin();
     std::advance(result, idx);
     return (key == (result -> key() ^ result -> value())) ? result : data.cend();
   }
 
-  table(size_t size) : data(size * MiB) {}
+  table(size_t size) : data(size * MiB - ((size * MiB) % bucket_size)) {}
 };
 
 }

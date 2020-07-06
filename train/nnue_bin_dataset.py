@@ -92,6 +92,10 @@ class NNUEBinData(torch.utils.data.Dataset):
     
   def sample(self):
     bd, outcome, score = self.sample_data()
+    turn_before = bd.turn
+    mirror = random.choice([False, True])
+    if mirror:
+      bd = bd.mirror()
     pov = torch.tensor([bd.turn])
     outcome = torch.tensor([outcome])
     score = torch.tensor([score])
