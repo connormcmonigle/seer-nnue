@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <vector>
+#include <atomic>
 #include <string_view>
 
 #include <bit_field.h>
@@ -93,7 +94,7 @@ struct table{
 
   static constexpr size_t MiB = (static_cast<size_t>(1) << static_cast<size_t>(20)) / sizeof(tt_entry);
   std::vector<tt_entry> data;
-  std::uint8_t current_gen{0};
+  std::atomic<std::uint8_t> current_gen{0};
 
   std::vector<tt_entry>::const_iterator begin() const { return data.cbegin(); }
   std::vector<tt_entry>::const_iterator end() const { return data.cend(); }
@@ -109,7 +110,7 @@ struct table{
     });
   }
 
-  void update_gen(){ current_gen += (0x1 << 2); }
+  void update_gen(){ ++current_gen; }
 
   size_t hash_function(const zobrist::hash_type& hash) const {
     return idx_mask & (hash % data.size());
@@ -129,7 +130,7 @@ struct table{
       constexpr int b = 1024;
       constexpr int m0 = 1;
       constexpr int m1 = 512;
-      return b + m0 * data[idx].depth() - m1 * static_cast<int>(current_gen != data[idx].gen);
+      return b + m0 * data[idx].depth() - m1 * static_cast<int>(current_gen.load() != data[idx].gen);
     };
     
     size_t worst_idx = base_idx;
@@ -154,7 +155,7 @@ struct table{
     assert(idx < data.size());
     data[idx] = entry;
     data[idx].key_ ^= entry.value();
-    data[idx].gen = current_gen;
+    data[idx].gen = current_gen.load();
     return *this;
   }
 

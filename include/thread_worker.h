@@ -163,7 +163,10 @@ struct thread_worker{
       auto hist = history_;
       position_lk.unlock();
 
+      //increment table generation on every new root search
+      tt_ -> update_gen();
       auto[nnue_score, mv] = root_search(hist, bd, depth_.load());
+
       std::uint32_t as_uint32; std::memcpy(&as_uint32, &nnue_score, score_num_bytes);
       score_.store(as_uint32);
       best_move_.store(mv.data);
@@ -247,9 +250,6 @@ struct worker_pool{
   }
 
   void go(){
-    //increment table generation on every new search
-    tt_ -> update_gen();
-    
     for(size_t i(0); i < pool_.size(); ++i){
       const int start_depth = static_cast<int>(i % 2);
       pool_[i] -> go(start_depth);
