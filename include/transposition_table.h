@@ -6,6 +6,7 @@
 #include <vector>
 #include <atomic>
 #include <string_view>
+#include <optional>
 
 #include <bit_field.h>
 #include <zobrist_util.h>
@@ -159,13 +160,12 @@ struct table{
     return *this;
   }
 
-  std::vector<tt_entry>::const_iterator find(const zobrist::hash_type& key) const {
+  std::optional<tt_entry> find(const zobrist::hash_type& key) const {
     const size_t base_idx = hash_function(key);
     const size_t idx = find_idx(key, base_idx);
     assert(idx < data.size());
-    std::vector<tt_entry>::const_iterator result = data.cbegin();
-    std::advance(result, idx);
-    return (key == (result -> key() ^ result -> value())) ? result : data.cend();
+    const tt_entry result = data[idx];
+    return (key == (result.key() ^ result.value())) ? std::optional(result) : std::nullopt;
   }
 
   table(size_t size) : data(size * MiB - ((size * MiB) % bucket_size)) {}

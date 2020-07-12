@@ -56,6 +56,7 @@ struct uci{
 
   void uci_new_game(){
     history.clear();
+    pool_.tt_ -> clear();
     position = chess::board::start_pos();
   }
 

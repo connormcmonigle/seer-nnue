@@ -59,6 +59,70 @@ struct thread_worker{
   board position_{};
   position_history history_{};
 
+  auto quiescent_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta) -> T const {
+    ++nodes_;
+    
+    const auto list = bd.generate_moves();
+
+    const bool is_check = bd.is_check();
+    if(list.size() == 0 && is_check){ return mate_score<T>; }
+    if(list.size() == 0) { return draw_score<T>; }
+    if(hist.is_three_fold(bd.hash())){ return draw_score<T>; }
+
+    auto best_score = mate_score<T>;
+    const std::optional<tt_entry> entry = tt_ -> find(bd.hash());
+    
+    if(entry.has_value()){
+      if(entry.value().score() >= beta && entry.value().bound() == bound_type::lower){
+        return entry.value().score();
+      }
+      alpha = std::max(alpha, entry.value().score());
+    }
+
+    const T static_eval = eval.propagate(bd.turn());
+    const auto loud_list = list.loud();
+
+    if(loud_list.size() == 0){ return static_eval; }
+    if(static_eval > beta){ return static_eval; }
+
+    const int pre_size = hist.history_.size();
+    hist.push_(bd.hash());
+
+    alpha = std::max(alpha, static_eval);    
+    best_score = std::max(best_score, static_eval);
+
+    auto picker = move_picker(loud_list);
+    const auto first_move = entry.has_value() ? entry.value().best_move() : picker.peek();
+
+    if(go_.load(std::memory_order_relaxed)){
+      const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(first_move, eval);
+      const board bd_ = bd.forward(first_move);
+      const T score = -quiescent_search(hist, eval_, bd_, -beta, -alpha);
+      alpha = std::max(alpha, score);
+      best_score = std::max(best_score, score);
+    }
+
+    while(!picker.empty() && go_.load(std::memory_order_relaxed)){
+      const auto mv = picker.pick();
+      if(best_score > beta){ break; }
+      if(mv == first_move){ continue; }
+
+      const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
+      const board bd_ = bd.forward(mv);
+      
+
+      const T score = -quiescent_search(hist, eval_, bd_, -beta, -alpha);
+      alpha = std::max(alpha, score);
+      best_score = std::max(best_score, score);
+    }
+
+    hist.pop_();
+    const int post_size = hist.history_.size();
+    assert(post_size == pre_size);
+
+    return best_score;
+  }
+
   template<bool is_pv, bool is_root=false>
   auto pv_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, int depth) -> pvs_result_t<T, is_root> const {
     ++nodes_;
@@ -80,19 +144,18 @@ struct thread_worker{
     
     if(is_check){ depth += 1; }
   
-    if(depth <= 0) { return make_result(eval.propagate(bd.turn()), empty_move); }
+    if(depth <= 0) { return make_result(quiescent_search(hist, eval, bd, alpha, beta), empty_move); }
 
     auto picker = move_picker(list);
     move first_move = picker.peek();
 
-    if(const auto it = tt_ -> find(bd.hash()); it != tt_ -> end()){
-      const tt_entry entry = *it;
-      if(!is_pv && entry.depth() >= depth){
-        if(entry.score() >= beta ? (entry.bound() == bound_type::lower) : (entry.bound() == bound_type::upper)){
-          return make_result(entry.score(), entry.best_move());
+    if(const std::optional<tt_entry> entry = tt_ -> find(bd.hash()); entry.has_value()){
+      if(!is_pv && entry.value().depth() >= depth){
+        if(entry.value().score() >= beta ? (entry.value().bound() == bound_type::lower) : (entry.value().bound() == bound_type::upper)){
+          return make_result(entry.value().score(), entry.value().best_move());
         }
-      }else if(list.has(entry.best_move())){
-        first_move = entry.best_move();
+      }else if(list.has(entry.value().best_move())){
+        first_move = entry.value().best_move();
       }
     }
     
@@ -144,6 +207,7 @@ struct thread_worker{
 
     return make_result(best_score, best_move);
   }
+
 
 
   auto root_search(position_history& hist, const board bd, const int depth) -> pvs_result_t<T, true> const {
@@ -230,11 +294,10 @@ struct worker_pool{
     std::string result{};
     constexpr size_t max_pv_length = 256;
     for(size_t i(0); i < max_pv_length; ++i){
-      if(const auto it = tt_ -> find(bd.hash()); it != tt_ -> end()){
-        const auto entry = *it;
-        if(bd.generate_moves().has(entry.best_move())){
-          result += entry.best_move().name(bd.turn()) + " ";
-          bd = bd.forward(entry.best_move());
+      if(const std::optional<tt_entry> entry = tt_ -> find(bd.hash()); entry.has_value()){
+        if(bd.generate_moves().has(entry.value().best_move())){
+          result += entry.value().best_move().name(bd.turn()) + " ";
+          bd = bd.forward(entry.value().best_move());
         }else{ break; }
       }else{ break; }
     }

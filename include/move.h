@@ -143,14 +143,34 @@ struct move_list{
 
   size_t size() const {
     return size_;
-}
-  
+  }
+
+  move_list loud() const {
+    move_list result{};
+    std::for_each(begin(), end(), [this, &result](const move &mv){
+      if(mv.is_capture()){
+        result.add_(mv);
+      }
+    });
+    return result;
+  }
+
+  move_list quiet() const {
+    move_list result{};
+    std::for_each(begin(), end(), [this, &result](const move &mv){
+      if(!mv.is_capture()){
+        result.add_(mv);
+      }
+    });
+    return result;
+  }
+
   move_list& add_(move mv){
     data[size_] = mv;
     ++size_;
     return *this;
   }
-  
+
   template<typename ... Ts>
   move_list& add_(const Ts& ... ts){
     return add_(move(ts...));

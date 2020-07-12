@@ -23,11 +23,11 @@ int main(){
     t0.join();
     t1.join();
 
-    if(auto res = tt.find(entry_0.key()); res != tt.end()){
-      std::cout << *res << std::endl;
+    if(auto res = tt.find(entry_0.key()); res.has_value()){
+      std::cout << res.value() << std::endl;
     }
-    if(auto res = tt.find(entry_1.key()); res != tt.end()){
-      std::cout << *res << std::endl;
+    if(auto res = tt.find(entry_1.key()); res.has_value()){
+      std::cout << res.value() << std::endl;
     }
   }
 
@@ -41,8 +41,8 @@ int main(){
     tt.insert(entry_0);
     tt.insert(entry_1);
 
-    if(auto res = tt.find(hash); res != tt.end()){
-      std::cout << *res << std::endl;
+    if(auto res = tt.find(hash); res.has_value()){
+      std::cout << res.value() << std::endl;
     }
   }
 
@@ -59,8 +59,8 @@ int main(){
     t0.join();
     t1.join();
 
-    if(auto res = tt.find(hash); res != tt.end()){
-      std::cout << *res << std::endl;
+    if(auto res = tt.find(hash); res.has_value()){
+      std::cout << res.value() << std::endl;
     }else{
       //This seems to never happen in practice
       std::cout << "data was mutilated by collision and multiple threads writing simultaneously?\n";
