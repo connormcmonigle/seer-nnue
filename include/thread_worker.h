@@ -145,6 +145,7 @@ struct thread_worker{
     if(is_check){ depth += 1; }
   
     if(depth <= 0) { return make_result(quiescent_search(hist, eval, bd, alpha, beta), empty_move); }
+    //if(depth <= 0) { return make_result(eval.propagate(bd.turn()), empty_move); }
 
     auto picker = move_picker(list);
     move first_move = picker.peek();

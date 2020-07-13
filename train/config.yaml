@@ -8,8 +8,8 @@ dataset_path: '/home/connor/nnue_data'
 nnue_bin_data_path: /home/connor/nnue_data/bin/100md12train.bin
 visual_directory: 'visual'
 
-epochs: 100000
-epoch_length: 210000
+epochs: 10000000
+epoch_length: 10000
 report_rate: 4
 test_rate: 8
 max_queue_size: 128

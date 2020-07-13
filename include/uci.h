@@ -17,7 +17,7 @@ namespace engine{
 struct uci{
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 128;
-  static constexpr std::string_view default_weight_path = "/home/connor/seer-nnue/train/model/save.bin";
+  static constexpr std::string_view default_weight_path = "/home/connor/Documents/GitHub/seer-nnue/train/model/save.bin";
   
   using real_t = float;
 
