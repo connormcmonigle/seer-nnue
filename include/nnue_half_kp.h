@@ -18,9 +18,9 @@ struct half_kp_weights{
   big_affine<T, half_kp_numel, base_dim> w{};
   big_affine<T, half_kp_numel, base_dim> b{};
   stack_affine<T, 2*base_dim, 1> skip{};
-  stack_affine<T, 2*base_dim, 24> fc0{};
-  stack_affine<T, 24, 24> fc1{};
-  stack_affine<T, 24, 1> fc2{};
+  stack_affine<T, 2*base_dim, 32> fc0{};
+  stack_affine<T, 32, 32> fc1{};
+  stack_affine<T, 32, 1> fc2{};
 
   size_t num_parameters() const {
     return w.num_parameters() +

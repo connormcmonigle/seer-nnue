@@ -14,9 +14,9 @@ class NNUE(nn.Module):
     self.white_affine = nn.Linear(util.half_kp_numel(), BASE)
     self.black_affine = nn.Linear(util.half_kp_numel(), BASE)
     self.skip = nn.Linear(2*BASE, 1)
-    self.fc0 = nn.Linear(2*BASE, 24)
-    self.fc1 = nn.Linear(24, 24)
-    self.fc2 = nn.Linear(24, 1)
+    self.fc0 = nn.Linear(2*BASE, 32)
+    self.fc1 = nn.Linear(32, 32)
+    self.fc2 = nn.Linear(32, 1)
     
 
   def forward(self, pov, white, black):
