@@ -4,6 +4,7 @@ bin_model_save_path: 'model/save.bin'
 #CONFIGURE DATASET PATH SPECIFIC TO YOUR SETUP:
 use_binary_data: yes
 copy_data_to_mem: no
+only_quiet: yes
 dataset_path: '/home/connor/nnue_data'
 nnue_bin_data_path: /home/connor/nnue_data/bin/100md12train.bin
 visual_directory: 'visual'
@@ -15,7 +16,7 @@ test_rate: 8
 max_queue_size: 128
 batch_size: 64
 
-learning_rate: 1.0
+learning_rate: 0.01
 
 max_fullmoves: 256
 uci_engine_path: '/home/connor/Downloads/stockfish-11-linux/Linux/stockfish'

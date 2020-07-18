@@ -80,6 +80,7 @@ struct uci{
   }
 
   void info_string(){
+    constexpr int max_depth = 384;
     const real_t raw_score = pool_.pool_[0] -> score();
     const real_t clamped_score = std::max(std::min(chess::big_number<real_t>, raw_score), -chess::big_number<real_t>);
     auto score = static_cast<int>(clamped_score * 600.0);
@@ -88,7 +89,7 @@ struct uci{
     const size_t elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - search_start).count();
     const size_t node_count = pool_.nodes();
     const size_t nps = static_cast<size_t>(1000) * node_count / (elapsed_ms+1);
-    if(last_reported_depth != depth){
+    if(last_reported_depth != depth && depth <= max_depth){
       last_reported_depth = depth;
       os << "info depth " << depth << " seldepth " << depth << " multipv 1 score cp " << score;
       os << " nodes " << node_count << " nps " << nps << " tbhits " << 0 << " time " << elapsed_ms << " pv " << pool_.pv_string(position) << '\n';

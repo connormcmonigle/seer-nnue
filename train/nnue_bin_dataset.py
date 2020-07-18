@@ -26,6 +26,12 @@ def read_n_bit(string, start_idx, n):
     result |= (read_bit(string, start_idx+i) << i)
   return result
 
+def is_quiet(board, from_, to_):
+  for mv in board.legal_moves:
+    if mv.from_square == from_ and mv.to_square == to_:
+      return not board.is_capture(mv)
+  return False
+        
 
 class NNUEBinData(torch.utils.data.Dataset):
   def __init__(self, config):
@@ -85,13 +91,23 @@ class NNUEBinData(torch.utils.data.Dataset):
     
     ply = struct.unpack('H', game_ply_string.bytes)[0]
     score = struct.unpack('h', score_string.bytes)[0]
+    move = struct.unpack('H', move_string.bytes)[0]
+    to_ = move & 63
+    from_ = (move & (63 << 6)) >> 6
+    
+    if self.config.only_quiet:
+      if not is_quiet(bd, from_, to_):
+        return self.sample_data()
+    
+    move = chess.Move(from_square=chess.Square(from_), to_square=chess.Square(to_))
+    
     # 1, 0, -1
     outcome = {'00000001': 1.0, '00000000': 0.5, '11111111': 0.0}[game_result_string.bin]
     assert(padding_string.bin == '00000000')
-    return bd, outcome, score
+    return bd, move, outcome, score
     
   def sample(self):
-    bd, outcome, score = self.sample_data()
+    bd, _, outcome, score = self.sample_data()
     turn_before = bd.turn
     mirror = random.choice([False, True])
     if mirror:
