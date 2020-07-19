@@ -47,14 +47,16 @@ class NNUEBinData(torch.utils.data.Dataset):
   def __len__(self):
     return self.config.num_positions
 
-  def sample_raw(self):
-    element = random.randint(0, len(self) - 1)
+  def sample_raw(self, idx=None):
+    element = random.randint(0, len(self) - 1) if (idx is None) else (len(self) - idx - 1)
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^~~~~~~~~
+    #games are stored backwards relative to the direction they are read by the bitstring module
     start_idx = PACKED_SFEN_VALUE_BITS * element
     end_idx = start_idx + PACKED_SFEN_VALUE_BITS
     return self.bits[start_idx:end_idx]
     
-  def sample_data(self):
-    segment = self.sample_raw()
+  def sample_data(self, idx=None):
+    segment = self.sample_raw(idx)
 
     board_string = segment[0:256]
     score_string = segment[256:272]
