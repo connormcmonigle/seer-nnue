@@ -13,7 +13,7 @@
 #include <move.h>
 #include <move_picker.h>
 #include <transposition_table.h>
-
+#include <history_heuristic.h>
 
 
 namespace chess{
@@ -52,8 +52,9 @@ struct thread_worker{
   std::atomic<std::uint32_t> score_;
   std::atomic<std::uint32_t> best_move_{};
 
-  std::shared_ptr<table> tt_;
   nnue::half_kp_eval<T> evaluator_;
+  std::shared_ptr<table> tt_;
+  std::shared_ptr<sided_history_heuristic> hh_;
 
   std::mutex position_mutex_{};
   board position_{};
@@ -91,7 +92,7 @@ struct thread_worker{
     alpha = std::max(alpha, static_eval);    
     best_score = std::max(best_score, static_eval);
 
-    auto picker = move_picker(loud_list);
+    auto picker = move_picker(loud_list, &(hh_ -> us(bd.turn())));
     const auto first_move = entry.has_value() ? entry.value().best_move() : picker.peek();
 
     if(go_.load(std::memory_order_relaxed)){
@@ -145,9 +146,8 @@ struct thread_worker{
     if(is_check){ depth += 1; }
   
     if(depth <= 0) { return make_result(quiescent_search(hist, eval, bd, alpha, beta), empty_move); }
-    //if(depth <= 0) { return make_result(eval.propagate(bd.turn()), empty_move); }
 
-    auto picker = move_picker(list);
+    auto picker = move_picker(list, &(hh_ -> us(bd.turn())));
     move first_move = picker.peek();
 
     if(const std::optional<tt_entry> entry = tt_ -> find(bd.hash()); entry.has_value()){
@@ -194,12 +194,15 @@ struct thread_worker{
       }
     }
 
-    if(best_score > beta && go_.load(std::memory_order_relaxed)){
-      const tt_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
-      tt_ -> insert(entry);
-    }else if(go_.load(std::memory_order_relaxed)){
-      const tt_entry entry(bd.hash(), bound_type::upper, best_score, best_move, depth);
-      tt_ -> insert(entry);
+    if(go_.load(std::memory_order_relaxed)){
+      if(best_score > beta){
+        const tt_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
+        tt_-> insert(entry);
+        (hh_ -> us(bd.turn())).add(depth, best_move);
+      }else{
+        const tt_entry entry(bd.hash(), bound_type::upper, best_score, best_move, depth);
+        tt_-> insert(entry);
+      }
     }
     
     hist.pop_();
@@ -280,15 +283,19 @@ struct thread_worker{
     return *this;
   }
 
-  thread_worker(const nnue::half_kp_weights<T>* weights, std::shared_ptr<table> tt) : tt_{tt}, evaluator_(weights){
+  thread_worker(const nnue::half_kp_weights<T>* weights, std::shared_ptr<table> tt, std::shared_ptr<sided_history_heuristic> hh) : 
+    evaluator_(weights), tt_{tt}, hh_{hh} {
     std::thread([this]{ iterative_deepening_loop_(); }).detach();
   }
 };
 
 template<typename T>
 struct worker_pool{
-  std::shared_ptr<table> tt_{nullptr};
+  
   const nnue::half_kp_weights<T>* weights_;
+  std::shared_ptr<table> tt_{nullptr};
+  std::shared_ptr<sided_history_heuristic> hh_{nullptr};
+
   std::vector<std::shared_ptr<thread_worker<T>>> pool_{};
 
   std::string pv_string(chess::board bd) const {
@@ -309,7 +316,7 @@ struct worker_pool{
     assert((new_size > pool_.size()));
     const size_t new_workers = new_size - pool_.size();
     for(size_t i(0); i < new_workers; ++i){
-      pool_.push_back(std::make_shared<thread_worker<T>>(weights_, tt_));
+      pool_.push_back(std::make_shared<thread_worker<T>>(weights_, tt_, hh_));
     }
   }
 
@@ -336,8 +343,9 @@ struct worker_pool{
 
   worker_pool(const nnue::half_kp_weights<T>* weights, size_t hash_table_size, size_t num_workers) : weights_{weights} {
     tt_ = std::make_shared<table>(hash_table_size);
+    hh_ = std::make_shared<sided_history_heuristic>();
     for(size_t i(0); i < num_workers; ++i){
-      pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_));
+      pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, hh_));
     }
   }
 };

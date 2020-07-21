@@ -20,6 +20,7 @@ int main(){
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::cout << pool.pool_[0] -> score() << '\n';
     std::cout << pool.pool_[0] -> best_move() << '\n';
+    std::cout << pool.hh_ -> white << '\n';
   }
 }
 

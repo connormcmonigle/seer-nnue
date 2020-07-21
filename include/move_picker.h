@@ -5,12 +5,14 @@
 #include <algorithm>
 
 #include <move.h>
+#include <history_heuristic.h>
 
 namespace chess{
 
 struct move_picker{
   size_t index{0};
   move_list list_;
+  const history_heuristic* hh_;
 
   bool empty() const {
     return index >= list_.size();
@@ -42,8 +44,9 @@ struct move_picker{
           }
         }
       }
-      //TODO: implement move history heuristic
-      return i0;
+      const auto a_count = hh_ -> count(a);
+      const auto b_count = hh_ -> count(b);
+      return a_count >= b_count ? i0 : i1;
     };
 
     size_t best_index = index;
@@ -60,7 +63,7 @@ struct move_picker{
     return result;
   }
 
-  move_picker(const move_list& list) : list_{list} {}
+  move_picker(const move_list& list, const history_heuristic* hh) : list_{list}, hh_{hh} {}
 
 };
 
