@@ -6,4 +6,4 @@ config = C.Config('config.yaml')
 d = nnue_bin_dataset.NNUEBinData(config)
 
 for i in range(10000):
-  print(d.sample_data())
+  print(d.sample_data(i))
