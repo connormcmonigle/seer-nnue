@@ -9,6 +9,7 @@ import util
 import nnue_bin_dataset
 import model
 
+
 def train_step(M, sample, opt, queue, max_queue_size, lambda_, report=False):
   pov, white, black, outcome, score = sample
   pred = M(pov, white, black)
@@ -26,6 +27,8 @@ def train_step(M, sample, opt, queue, max_queue_size, lambda_, report=False):
 def main():
   config = C.Config('config.yaml')
 
+  sample_to_device = lambda x: tuple(map(lambda t: t.to(config.device, non_blocking=True), x))
+
   M = model.NNUE().to(config.device)
 
   if (path.exists(config.model_save_path)):
@@ -33,7 +36,7 @@ def main():
     M.load_state_dict(torch.load(config.model_save_path))
 
   data = nnue_bin_dataset.NNUEBinData(config)
-  data_loader = torch.utils.data.DataLoader(data, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
+  data_loader = torch.utils.data.DataLoader(data, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers, pin_memory=True)
 
 
   opt = optim.Adadelta(M.parameters(), lr=config.learning_rate)
@@ -56,7 +59,7 @@ def main():
         M.to_binary_file(config.bin_model_save_path)
         torch.save(M.state_dict(), config.model_save_path)
 
-      train_step(M, sample, opt, queue, max_queue_size=config.max_queue_size, lambda_=config.lambda_, report=(0 == i % config.report_rate))
+      train_step(M, sample_to_device(sample), opt, queue, max_queue_size=config.max_queue_size, lambda_=config.lambda_, report=(0 == i % config.report_rate))
 
     scheduler.step()
 
