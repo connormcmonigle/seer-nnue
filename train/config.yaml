@@ -1,26 +1,21 @@
-device: 'cuda'
+device: 'cpu'
 model_save_path: 'model/save.pt'
 bin_model_save_path: 'model/save.bin'
 #CONFIGURE DATASET PATH SPECIFIC TO YOUR SETUP:
-use_binary_data: yes
 copy_data_to_mem: no
 only_quiet: yes
-dataset_path: '/home/connor/nnue_data'
 nnue_bin_data_path: /home/connor/nnue_data/bin/100md12train.bin
+num_workers: 8
+batch_size: 128
+lambda_: 0.75
+
 visual_directory: 'visual'
 
 epochs: 10000000
-epoch_length: 10000
+save_rate: 10000
 report_rate: 4
 test_rate: 8
 max_queue_size: 128
-batch_size: 64
 
-learning_rate: 0.01
 
-max_fullmoves: 256
-uci_engine_path: '/home/connor/Downloads/stockfish-11-linux/Linux/stockfish'
-uci_engine_threads: 2
-uci_engine_depth: 10
-lambda_: 0.75
-num_positions: 100000000
+learning_rate: 1.00

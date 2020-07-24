@@ -45,7 +45,7 @@ class NNUEBinData(torch.utils.data.Dataset):
       self.bits = bitstring.Bits(bitstring.Bits(open(config.nnue_bin_data_path, 'rb')).bytes)
 
   def __len__(self):
-    return self.config.num_positions
+    return len(self.bits) // PACKED_SFEN_VALUE_BITS
 
   def sample_raw(self, idx=None):
     element = random.randint(0, len(self) - 1) if (idx is None) else (len(self) - idx - 1)
@@ -108,8 +108,8 @@ class NNUEBinData(torch.utils.data.Dataset):
     assert(padding_string.bin == '00000000')
     return bd, move, outcome, score
     
-  def sample(self):
-    bd, _, outcome, score = self.sample_data()
+  def sample(self, idx=None):
+    bd, _, outcome, score = self.sample_data(idx)
     turn_before = bd.turn
     mirror = random.choice([False, True])
     if mirror:
@@ -120,23 +120,7 @@ class NNUEBinData(torch.utils.data.Dataset):
     white, black = util.to_tensors(bd)
     return pov.float(), white.float(), black.float(), outcome.float(), score.float()
   
-  def sample_batch(self):
-    pov_ls = []
-    white_ls = []
-    black_ls = []
-    outcome_ls = []
-    score_ls = []
-    for _ in range(self.batch_size):
-      pov, white, black, outcome, score = self.sample()
-      pov_ls.append(pov)
-      white_ls.append(white)
-      black_ls.append(black)
-      outcome_ls.append(outcome)
-      score_ls.append(score)
-    return torch.stack(pov_ls, dim=0).to(self.device),\
-      torch.stack(white_ls, dim=0).to(self.device),\
-      torch.stack(black_ls, dim=0).to(self.device),\
-      torch.stack(outcome_ls, dim=0).to(self.device),\
-      torch.stack(score_ls, dim=0).to(self.device)
+  def __getitem__(self, idx):
+    return self.sample(idx)
 
 
