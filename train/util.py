@@ -62,14 +62,3 @@ def half_kp_indices(bd):
   b = half_kp(b.unsqueeze(0)).squeeze(0).nonzero().squeeze(0)
   return w, b
 
-
-def get_memmap_handlers(mode, config):
-  num_positions = config.num_positions
-  tgt_dir = config.dataset_path
-  mm_pov = np.memmap(os.path.join(tgt_dir, 'pov.mm'), dtype='bool', mode=mode, shape=(num_positions))
-  mm_white = np.memmap(os.path.join(tgt_dir, 'white.mm'), dtype='bool', mode=mode, shape=(num_positions, *side_size()))
-  mm_black = np.memmap(os.path.join(tgt_dir, 'black.mm'), dtype='bool', mode=mode, shape=(num_positions, *side_size()))
-  mm_outcome = np.memmap(os.path.join(tgt_dir, 'outcome.mm'), dtype='float32', mode=mode, shape=(num_positions))
-  mm_score = np.memmap(os.path.join(tgt_dir, 'score.mm'), dtype='float32', mode=mode, shape=(num_positions))
-  return mm_pov, mm_white, mm_black, mm_outcome, mm_score
-
