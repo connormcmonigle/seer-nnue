@@ -1,6 +1,5 @@
 import os
 import math
-import cv2
 import functools
 import chess
 import chess.pgn
