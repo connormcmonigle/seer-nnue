@@ -36,8 +36,11 @@ def main():
     M.load_state_dict(torch.load(config.model_save_path))
 
   data = nnue_bin_dataset.NNUEBinData(config)
-  data_loader = torch.utils.data.DataLoader(data, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers, pin_memory=True)
-
+  data_loader = torch.utils.data.DataLoader(data,\
+    batch_size=config.batch_size,\
+    num_workers=config.num_workers,\
+    pin_memory=True,\
+    worker_init_fn=nnue_bin_dataset.worker_init_fn)
 
   opt = optim.Adadelta(M.parameters(), lr=config.learning_rate)
   scheduler = optim.lr_scheduler.StepLR(opt, 1, gamma=0.5)

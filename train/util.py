@@ -42,7 +42,7 @@ def half_kp(us, them):
 def side_to_tensor(bd, color):
   tensor = torch.zeros(side_size(), dtype=torch.bool)
   for piece_type in range(0, 6):
-    plane = torch.zeros(64)
+    plane = torch.zeros(64, dtype=torch.bool)
     for sq in bd.pieces(piece_type+1, color):
       plane[sq] = True;
     tensor[piece_type] = plane.reshape(8, 8)

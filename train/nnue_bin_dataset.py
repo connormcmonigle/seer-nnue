@@ -11,10 +11,8 @@ import util
 
 PACKED_SFEN_VALUE_BITS = 40*8
 
-# from sfen_packer.cpp
 HUFFMAN_MAP = {0b0001 : chess.PAWN, 0b0011 : chess.KNIGHT, 0b0101 : chess.BISHOP, 0b0111 : chess.ROOK, 0b1001: chess.QUEEN}
 
-# Grr. This is bad...
 def read_bit(string, idx):
   corrected_idx = 8 * (idx // 8) + 7 - (idx % 8)
   return string[corrected_idx]
@@ -26,37 +24,46 @@ def read_n_bit(string, start_idx, n):
     result |= (read_bit(string, start_idx+i) << i)
   return result
 
+
 def is_quiet(board, from_, to_):
   for mv in board.legal_moves:
     if mv.from_square == from_ and mv.to_square == to_:
       return not board.is_capture(mv)
   return False
-        
 
-class NNUEBinData(torch.utils.data.Dataset):
+
+def worker_init_fn(worker_id):
+  worker_info = torch.utils.data.get_worker_info()
+  dataset = worker_info.dataset
+  per_worker = dataset.cardinality() // worker_info.num_workers
+  start = worker_id * per_worker
+  dataset.set_range(start, start + per_worker)
+
+
+class NNUEBinData(torch.utils.data.IterableDataset):
   def __init__(self, config):
     super(NNUEBinData, self).__init__()
     self.config = config
-    self.device = config.device
     self.batch_size = config.batch_size
-    if not config.copy_data_to_mem:
-      self.bits = bitstring.Bits(open(config.nnue_bin_data_path, 'rb'))
-    else:
-      self.bits = bitstring.Bits(bitstring.Bits(open(config.nnue_bin_data_path, 'rb')).bytes)
+    self.shuffle_buffer = [None] * config.shuffle_buffer_size
+    self.bits = bitstring.Bits(open(config.nnue_bin_data_path, 'rb'))
+    self.start_idx = 0
+    self.end_idx = len(self.bits) // PACKED_SFEN_VALUE_BITS
 
-  def __len__(self):
+  def cardinality(self):
     return len(self.bits) // PACKED_SFEN_VALUE_BITS
 
-  def sample_raw(self, idx=None):
-    element = random.randint(0, len(self) - 1) if (idx is None) else (len(self) - idx - 1)
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^~~~~~~~~
-    #games are stored backwards relative to the direction they are read by the bitstring module
-    start_idx = PACKED_SFEN_VALUE_BITS * element
-    end_idx = start_idx + PACKED_SFEN_VALUE_BITS
-    return self.bits[start_idx:end_idx]
-    
-  def sample_data(self, idx=None):
-    segment = self.sample_raw(idx)
+  def set_range(self, start_idx, end_idx):
+    self.start_idx = start_idx
+    self.end_idx = end_idx
+
+  def get_raw(self, idx):
+    first_idx = PACKED_SFEN_VALUE_BITS * idx
+    last_idx = first_idx + PACKED_SFEN_VALUE_BITS
+    return self.bits[first_idx:last_idx]
+
+  def get_data(self, idx):
+    segment = self.get_raw(idx)
 
     board_string = segment[0:256]
     score_string = segment[256:272]
@@ -92,35 +99,54 @@ class NNUEBinData(torch.utils.data.Dataset):
           bit_idx += 1
     
     ply = struct.unpack('H', game_ply_string.bytes)[0]
+    bd.fullmove_number = ply // 2
+    
     score = struct.unpack('h', score_string.bytes)[0]
     move = struct.unpack('H', move_string.bytes)[0]
     to_ = move & 63
     from_ = (move & (63 << 6)) >> 6
     
-    if self.config.only_quiet:
-      if not is_quiet(bd, from_, to_):
-        return self.sample_data()
-    
+    if self.config.only_quiet and (not is_quiet(bd, from_, to_)):
+      next_idx = (idx + 1 - self.start_idx) % (self.end_idx - self.start_idx) + self.start_idx
+      assert(next_idx >= self.start_idx and next_idx < self.end_idx)
+      return self.get_data(next_idx)
     move = chess.Move(from_square=chess.Square(from_), to_square=chess.Square(to_))
     
     # 1, 0, -1
     outcome = {'00000001': 1.0, '00000000': 0.5, '11111111': 0.0}[game_result_string.bin]
     assert(padding_string.bin == '00000000')
     return bd, move, outcome, score
-    
-  def sample(self, idx=None):
-    bd, _, outcome, score = self.sample_data(idx)
+
+  def get(self, idx):
+    bd, _, outcome, score = self.get_data(idx)
     turn_before = bd.turn
-    mirror = random.choice([False, True])
-    if mirror:
-      bd = bd.mirror()
+    
+    if self.config.enable_mirroring:
+      mirror = random.choice([False, True])
+      if mirror:
+        bd = bd.mirror()
     pov = torch.tensor([bd.turn])
     outcome = torch.tensor([outcome])
     score = torch.tensor([score])
     white, black = util.to_tensors(bd)
     return pov.float(), white.float(), black.float(), outcome.float(), score.float()
-  
-  def __getitem__(self, idx):
-    return self.sample(idx)
 
+  def seq_data_iter(self):
+    for idx in range(self.start_idx, self.end_idx):
+      yield self.get_data(idx)
+
+  def get_shuffled(self, idx):
+    shuffle_buffer_idx = random.randrange(0, len(self.shuffle_buffer))
+    result = self.shuffle_buffer[shuffle_buffer_idx]
+    self.shuffle_buffer[shuffle_buffer_idx] = self.get(idx)
+    return result
+
+  def __iter__(self):
+    for idx in range(self.start_idx, self.end_idx):
+      val = self.get_shuffled(idx)
+      if val != None:
+        yield val
+    for val in self.shuffle_buffer:
+      if val != None:
+        yield val
 
