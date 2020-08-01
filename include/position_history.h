@@ -6,6 +6,13 @@
 
 namespace chess{
 
+template<typename T>
+struct popper{
+  T* data_;
+  popper(T* data) : data_{data} {}
+  ~popper(){ data_ -> pop_(); }
+};
+
 struct position_history{
   std::vector<zobrist::hash_type> history_;
 
@@ -14,11 +21,16 @@ struct position_history{
     return *this;
   }
 
+  popper<position_history> scoped_push_(const zobrist::hash_type& hash){
+    history_.push_back(hash);
+    return popper<position_history>(this);
+  }
+  
   position_history& push_(const zobrist::hash_type& hash){
     history_.push_back(hash);
     return *this;
   }
-
+  
   position_history& pop_(){
     history_.pop_back();
     return *this;

@@ -11,7 +11,7 @@
 #include <nnue_half_kp.h>
 #include <board.h>
 #include <move.h>
-#include <move_picker.h>
+#include <move_orderer.h>
 #include <transposition_table.h>
 #include <history_heuristic.h>
 
@@ -19,7 +19,7 @@
 namespace chess{
 
 template<typename T>
-inline constexpr T eta = static_cast<T>(0.0001);
+inline constexpr T epsilon = static_cast<T>(1e-4);
 
 template<typename T>
 inline constexpr T big_number = static_cast<T>(256);
@@ -30,12 +30,12 @@ inline constexpr T mate_score = -std::numeric_limits<T>::max();
 template<typename T>
 inline constexpr T draw_score = static_cast<T>(0);
 
-template<typename T, bool is_root> struct pvs_result{};
-template<typename T> struct pvs_result<T, false>{ using type = T; };
-template<typename T> struct pvs_result<T, true>{ using type = std::tuple<T, move>; };
+template<typename T, bool is_root> struct pv_search_result{};
+template<typename T> struct pv_search_result<T, false>{ using type = T; };
+template<typename T> struct pv_search_result<T, true>{ using type = std::tuple<T, move>; };
 
 template<typename T, bool is_root>
-using pvs_result_t = typename pvs_result<T, is_root>::type;
+using pv_search_result_t = typename pv_search_result<T, is_root>::type;
 
 template<typename T>
 struct thread_worker{
@@ -60,7 +60,7 @@ struct thread_worker{
   board position_{};
   position_history history_{};
 
-  auto quiescent_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta) -> T const {
+  auto q_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta) -> T const {
     ++nodes_;
     
     const auto list = bd.generate_moves();
@@ -69,124 +69,96 @@ struct thread_worker{
     if(list.size() == 0 && is_check){ return mate_score<T>; }
     if(list.size() == 0) { return draw_score<T>; }
     if(hist.is_three_fold(bd.hash())){ return draw_score<T>; }
-
-    auto best_score = mate_score<T>;
-    const std::optional<tt_entry> entry = tt_ -> find(bd.hash());
     
-    if(entry.has_value()){
-      if(entry.value().score() >= beta && entry.value().bound() == bound_type::lower){
-        return entry.value().score();
-      }
-      alpha = std::max(alpha, entry.value().score());
+    const auto loud_list = list.loud();
+    auto orderer = move_orderer(loud_list, &(hh_ -> us(bd.turn())));
+    
+    if(const std::optional<tt_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
+      const tt_entry entry = maybe.value();
+      const bool is_cutoff = entry.score() >= beta && entry.bound() == bound_type::lower;
+      if(is_cutoff){ return entry.score(); }
+      alpha = std::max(alpha, entry.score());
+      orderer.set_first(entry.best_move());
     }
 
     const T static_eval = eval.propagate(bd.turn());
-    const auto loud_list = list.loud();
+    if(loud_list.size() == 0 || static_eval > beta){ return static_eval; }
 
-    if(loud_list.size() == 0){ return static_eval; }
-    if(static_eval > beta){ return static_eval; }
-
-    const int pre_size = hist.history_.size();
-    hist.push_(bd.hash());
-
-    alpha = std::max(alpha, static_eval);    
-    best_score = std::max(best_score, static_eval);
-
-    auto picker = move_picker(loud_list, &(hh_ -> us(bd.turn())));
-    const auto first_move = entry.has_value() ? entry.value().best_move() : picker.peek();
-
-    if(go_.load(std::memory_order_relaxed)){
-      const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(first_move, eval);
-      const board bd_ = bd.forward(first_move);
-      const T score = -quiescent_search(hist, eval_, bd_, -beta, -alpha);
-      alpha = std::max(alpha, score);
-      best_score = std::max(best_score, score);
-    }
-
-    while(!picker.empty() && go_.load(std::memory_order_relaxed)){
-      const auto mv = picker.pick();
-      if(best_score > beta){ break; }
-      if(mv == first_move){ continue; }
+    alpha = std::max(alpha, static_eval);
+    T best_score = static_eval;
+    
+    auto _ = hist.scoped_push_(bd.hash());
+    for(auto [idx, mv] : orderer){
+      assert((mv != move::null()));
+      if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
 
       const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
       const board bd_ = bd.forward(mv);
       
-
-      const T score = -quiescent_search(hist, eval_, bd_, -beta, -alpha);
+      const T score = -q_search(hist, eval_, bd_, -beta, -alpha);
       alpha = std::max(alpha, score);
       best_score = std::max(best_score, score);
     }
-
-    hist.pop_();
-    const int post_size = hist.history_.size();
-    assert(post_size == pre_size);
 
     return best_score;
   }
 
   template<bool is_pv, bool is_root=false>
-  auto pv_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, int depth) -> pvs_result_t<T, is_root> const {
+  auto pv_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, int depth) -> pv_search_result_t<T, is_root> const {
     ++nodes_;
+    
     auto make_result = [](const T& score, const move& mv){
-        if constexpr(is_root){
-          return pvs_result_t<T, is_root>{score, mv};
-      }else{
-        return score;
-      }
+      if constexpr(is_root){ return pv_search_result_t<T, is_root>{score, mv}; }
+      if constexpr(!is_root){ return score; }
     };
 
     const auto list = bd.generate_moves();
-    const auto empty_move = move{};
 
     const bool is_check = bd.is_check();
-    if(list.size() == 0 && is_check){ return make_result(mate_score<T>, empty_move); }
-    if(list.size() == 0) { return make_result(draw_score<T>, empty_move); }
-    if(hist.is_three_fold(bd.hash())){ return make_result(draw_score<T>, empty_move); }
+    if(list.size() == 0 && is_check){ return make_result(mate_score<T>, move::null()); }
+    if(list.size() == 0) { return make_result(draw_score<T>, move::null()); }
+    if(hist.is_three_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
     
     if(is_check){ depth += 1; }
   
-    if(depth <= 0) { return make_result(quiescent_search(hist, eval, bd, alpha, beta), empty_move); }
+    if(depth <= 0) { return make_result(q_search(hist, eval, bd, alpha, beta), move::null()); }
 
-    auto picker = move_picker(list, &(hh_ -> us(bd.turn())));
-    move first_move = picker.peek();
 
-    if(const std::optional<tt_entry> entry = tt_ -> find(bd.hash()); entry.has_value()){
-      if(!is_pv && entry.value().depth() >= depth){
-        if(entry.value().score() >= beta ? (entry.value().bound() == bound_type::lower) : (entry.value().bound() == bound_type::upper)){
-          return make_result(entry.value().score(), entry.value().best_move());
-        }
-      }else if(list.has(entry.value().best_move())){
-        first_move = entry.value().best_move();
-      }
+    auto orderer = move_orderer(list, &(hh_ -> us(bd.turn())));
+
+    if(const std::optional<tt_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
+      const tt_entry entry = maybe.value();
+      const bool is_cutoff = !is_pv &&
+        entry.depth() >= depth &&
+        (entry.score() >= beta ?
+          (entry.bound() == bound_type::lower) :
+          (entry.bound() == bound_type::upper));
+      if(is_cutoff){ return make_result(entry.score(), entry.best_move()); }
+      orderer.set_first(entry.best_move());
     }
-    
-    const int pre_size = hist.history_.size();
-    hist.push_(bd.hash());
 
     T best_score = mate_score<T>;
-    move best_move = first_move;
+    move best_move = list.data[0];
 
-    if(go_.load(std::memory_order_relaxed)){
-      const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(best_move, eval);
-      const board bd_ = bd.forward(best_move);
-      best_score = -pv_search<true, false>(hist, eval_, bd_, -beta, -alpha, depth - 1);
-      alpha = std::max(alpha, best_score);
-    }
-
-    while(!picker.empty() && go_.load(std::memory_order_relaxed)){
-      const auto mv = picker.pick();
-      if(best_score > beta){ break; }
-      if(mv == first_move){ continue; }
+    auto _ = hist.scoped_push_(bd.hash());
+    for(auto [idx, mv] : orderer){
+      assert((mv != move::null()));
+      if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
 
       const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
       const board bd_ = bd.forward(mv);
       
-      T score = -pv_search<false, false>(hist, eval_, bd_, -alpha - eta<T>, -alpha, depth - 1);
+      const T score = [&]{
+        auto full_width = [&]{ return -pv_search<is_pv>(hist, eval_, bd_, -beta, -alpha, depth - 1); };
+        if(best_score > alpha){
+          T zw_score = -pv_search<false>(hist, eval_, bd_, -alpha - epsilon<T>, -alpha, depth - 1);
+          const bool interior = zw_score > alpha && zw_score < beta;
+          return interior ? full_width() : zw_score;
+        }
+        return full_width();
+      }();
 
-      if(score > alpha && score < beta){
-        score = -pv_search<true, false>(hist, eval_, bd_, -beta, -alpha, depth - 1);
-        alpha = std::max(alpha, score);
-      }
+      if(score < beta){ alpha = std::max(alpha, score); }
 
       if(score > best_score){
         best_score = score;
@@ -204,19 +176,15 @@ struct thread_worker{
         tt_-> insert(entry);
       }
     }
-    
-    hist.pop_();
-    const int post_size = hist.history_.size();
-    assert(post_size == pre_size);
 
     return make_result(best_score, best_move);
   }
 
 
-
-  auto root_search(position_history& hist, const board bd, const int depth) -> pvs_result_t<T, true> const {
+  auto root_search(position_history& hist, const board bd, const int depth) -> pv_search_result_t<T, true> const {
     constexpr T alpha = -big_number<T>;
     constexpr T beta = big_number<T>;
+    //return pv_search<true, true>(hist, search_params<T>{evaluator_, bd, alpha, beta, depth});
     return pv_search<true, true>(hist, evaluator_, bd, alpha, beta, depth);
   }
 
@@ -233,9 +201,12 @@ struct thread_worker{
 
       //increment table generation on every new root search
       tt_ -> update_gen();
-      auto[nnue_score, mv] = root_search(hist, bd, depth_.load());
+      auto len_before = hist.history_.size();
+      auto[search_score, mv] = root_search(hist, bd, depth_.load());
+      auto len_after = hist.history_.size();
+      assert(len_before == len_after);
 
-      std::uint32_t as_uint32; std::memcpy(&as_uint32, &nnue_score, score_num_bytes);
+      std::uint32_t as_uint32; std::memcpy(&as_uint32, &search_score, score_num_bytes);
       score_.store(as_uint32);
       best_move_.store(mv.data);
 

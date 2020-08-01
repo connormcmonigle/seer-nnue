@@ -43,6 +43,8 @@ struct move{
   constexpr piece_type captured() const { return get_field_<captured_>(); }
   constexpr square enpassant_sq() const { return square::from_index(get_field_<enpassant_sq_>()); }
 
+  constexpr bool is_null() const { return data == 0; }
+
   template<color c>
   constexpr bool is_castle_oo() const {
     return piece() == piece_type::king &&
@@ -100,7 +102,7 @@ struct move{
     bool is_capture=false,
     piece_type captured=piece_type::pawn,
     bool is_enpassant=false,
-    square enpassant_sq=square{0}
+    square enpassant_sq=square::from_index(0)
   ){
     const auto from_idx = static_cast<std::uint8_t>(from.index());
     const auto to_idx = static_cast<std::uint8_t>(to.index());
@@ -109,6 +111,8 @@ struct move{
     set_field_<is_capture_>(is_capture).set_field_<is_enpassant_>(is_enpassant).
     set_field_<captured_>(captured).set_field_<enpassant_sq_>(ep_sq_idx);
   }
+
+  constexpr static move null(){ return move{0}; }
 
 };
 
@@ -130,24 +134,31 @@ std::ostream& operator<<(std::ostream& ostr, const move& mv){
 
 struct move_list{
   static constexpr size_t max_branching_factor = 192;
-  using iterator = std::array<move, max_branching_factor>::const_iterator;
+  using iterator = std::array<move, max_branching_factor>::iterator;
+  using const_iterator = std::array<move, max_branching_factor>::const_iterator;
   size_t size_{0};
   std::array<move, max_branching_factor> data{};
   
-  iterator begin() const { return data.begin(); }
-  iterator end() const { return data.begin() + size_; }
+  iterator begin(){ return data.begin(); }
+  iterator end(){ return data.begin() + size_; }
+  const_iterator cbegin() const { return data.cbegin(); }
+  const_iterator cend() const { return data.cbegin() + size_; }
 
   bool has(const move& mv) const {
-    return end() == std::find(begin(), end(), mv);    
+    return cend() != std::find(cbegin(), cend(), mv);    
   }
 
   size_t size() const {
     return size_;
   }
+  
+  bool empty() const {
+    return size() == 0;
+  }
 
   move_list loud() const {
     move_list result{};
-    std::for_each(begin(), end(), [this, &result](const move &mv){
+    std::for_each(cbegin(), cend(), [this, &result](const move &mv){
       if(mv.is_capture()){
         result.add_(mv);
       }
@@ -157,7 +168,7 @@ struct move_list{
 
   move_list quiet() const {
     move_list result{};
-    std::for_each(begin(), end(), [this, &result](const move &mv){
+    std::for_each(cbegin(), cend(), [this, &result](const move &mv){
       if(!mv.is_capture()){
         result.add_(mv);
       }

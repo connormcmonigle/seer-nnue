@@ -17,7 +17,7 @@ namespace engine{
 struct uci{
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 128;
-  static constexpr std::string_view default_weight_path = "/home/connor/seer-nnue/train/model/save.bin";
+  static constexpr std::string_view default_weight_path = "/home/connor/Documents/GitHub/seer-nnue/train/model/save.bin";
   
   using real_t = float;
 
@@ -80,9 +80,11 @@ struct uci{
   }
 
   void info_string(){
-    constexpr int max_depth = 384;
+    constexpr int max_depth = 96;
+    constexpr real_t eval_limit = static_cast<real_t>(256);
+    
     const real_t raw_score = pool_.pool_[0] -> score();
-    const real_t clamped_score = std::max(std::min(chess::big_number<real_t>, raw_score), -chess::big_number<real_t>);
+    const real_t clamped_score = std::max(std::min(eval_limit, raw_score), -eval_limit);
     auto score = static_cast<int>(clamped_score * 600.0);
     static int last_reported_depth{0};
     const int depth = pool_.pool_[0] -> depth();
