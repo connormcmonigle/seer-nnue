@@ -18,6 +18,8 @@ add_executable (test_after_uci_moves test/test_after_uci_moves.cc)
 add_executable (test_nnue_perf test/test_nnue_perf.cc)
 add_executable (test_move_orderer test/test_move_orderer.cc)
 add_executable (test_option_parser test/test_option_parser.cc)
+add_executable (test_lva test/test_lva.cc)
+add_executable (test_see test/test_see.cc)
 
 add_executable (test_history_heuristic test/test_history_heuristic.cc)
 target_link_libraries (test_history_heuristic pthread)

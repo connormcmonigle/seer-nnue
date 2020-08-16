@@ -71,7 +71,7 @@ struct thread_worker{
     if(hist.is_three_fold(bd.hash())){ return draw_score<T>; }
     
     const auto loud_list = list.loud();
-    auto orderer = move_orderer(loud_list, &(hh_ -> us(bd.turn())));
+    auto orderer = move_orderer(&bd, loud_list, &(hh_ -> us(bd.turn())));
     
     if(const std::optional<tt_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
       const tt_entry entry = maybe.value();
@@ -91,13 +91,14 @@ struct thread_worker{
     for(auto [idx, mv] : orderer){
       assert((mv != move::null()));
       if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
-
-      const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
-      const board bd_ = bd.forward(mv);
+      if(bd.see<int>(mv) >= 0){
+        const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
+        const board bd_ = bd.forward(mv);
       
-      const T score = -q_search(hist, eval_, bd_, -beta, -alpha);
-      alpha = std::max(alpha, score);
-      best_score = std::max(best_score, score);
+        const T score = -q_search(hist, eval_, bd_, -beta, -alpha);
+        alpha = std::max(alpha, score);
+        best_score = std::max(best_score, score);
+      }
     }
 
     return best_score;
@@ -124,7 +125,7 @@ struct thread_worker{
     if(depth <= 0) { return make_result(q_search(hist, eval, bd, alpha, beta), move::null()); }
 
 
-    auto orderer = move_orderer(list, &(hh_ -> us(bd.turn())));
+    auto orderer = move_orderer(&bd, list, &(hh_ -> us(bd.turn())));
 
     if(const std::optional<tt_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
       const tt_entry entry = maybe.value();

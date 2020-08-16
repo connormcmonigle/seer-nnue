@@ -69,6 +69,12 @@ constexpr size_t them_offset(piece_type pt){
 
 }
 
+template<typename T>
+constexpr T material_value(const piece_type& pt){
+  constexpr std::array<T, 6> values = {100, 300, 300, 450, 900, std::numeric_limits<T>::max()};
+  return values[static_cast<size_t>(pt)];
+}
+
 struct board{
   sided_manifest man_{};
   sided_latent lat_{};
@@ -79,6 +85,37 @@ struct board{
 
   zobrist::hash_type hash() const {
     return man_.hash() ^ lat_.hash();
+  }
+
+  template<color c>
+  std::tuple<piece_type, square> least_valuable_attacker(const square& tgt, const square_set& ignore) const {
+    const auto p_mask = pawn_attack_tbl<them_<c>::value>.look_up(tgt);
+    const auto p_attackers = p_mask & man_.us<c>().pawn() & ~ignore;
+    if(p_attackers.any()){ return std::tuple(piece_type::pawn, *p_attackers.begin()); }
+
+    const auto n_mask = knight_attack_tbl.look_up(tgt);
+    const auto n_attackers = n_mask & man_.us<c>().knight() & ~ignore;
+    if(n_attackers.any()){ return std::tuple(piece_type::knight, *n_attackers.begin()); }
+    
+    const square_set occ = (man_.white.all() | man_.black.all()) & ~ignore;
+    
+    const auto b_mask = bishop_attack_tbl.look_up(tgt, occ);
+    const auto b_attackers = b_mask & man_.us<c>().bishop() & ~ignore;
+    if(b_attackers.any()){ return std::tuple(piece_type::bishop, *b_attackers.begin()); }
+    
+    const auto r_mask = rook_attack_tbl.look_up(tgt, occ);
+    const auto r_attackers = r_mask & man_.us<c>().rook() & ~ignore;
+    if(r_attackers.any()){ return std::tuple(piece_type::rook, *r_attackers.begin()); }
+    
+    const auto q_mask = b_mask | r_mask;
+    const auto q_attackers = q_mask & man_.us<c>().queen() & ~ignore;
+    if(q_attackers.any()){ return std::tuple(piece_type::queen, *q_attackers.begin()); }
+    
+    const auto k_mask = king_attack_tbl.look_up(tgt);
+    const auto k_attackers = k_mask & man_.us<c>().king() & ~ignore;
+    if(k_attackers.any()){ return std::tuple(piece_type::king, *k_attackers.begin()); }
+    
+    return std::tuple(piece_type::pawn, tgt);
   }
 
   template<color c>
@@ -317,13 +354,59 @@ struct board{
   }
 
   template<color c>
-  bool is_check() const {
-    const bool is_check_ = std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).count() != 0;
-    return is_check_;
+  bool is_check_() const {
+    return std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).any();
   }
 
   bool is_check() const {
-    return turn() ? is_check<color::white>() : is_check<color::black>();
+    return turn() ? is_check_<color::white>() : is_check_<color::black>();
+  }
+  
+  template<color c, typename T>
+  T see_(const move& mv) const {
+    const square tgt_sq = mv.to();
+    size_t last_idx{0};
+    std::array<T, 32> material_deltas{};
+    auto used_mask = square_set{};
+    auto on_sq = mv.piece();
+    used_mask.add_(mv.from());
+
+    for(;;){
+      {
+        const auto [p, sq] = least_valuable_attacker<them_<c>::value>(tgt_sq, used_mask);
+        if(sq == tgt_sq){ break; }
+        
+        material_deltas[last_idx++] = material_value<T>(on_sq);
+        used_mask.add_(sq);
+        on_sq = p;
+      }
+
+      {
+        const auto [p, sq] = least_valuable_attacker<c>(tgt_sq, used_mask);
+        if(sq == tgt_sq){ break; }
+        
+        material_deltas[last_idx++] = material_value<T>(on_sq);
+        used_mask.add_(sq);
+        on_sq = p;
+      }
+    }
+    
+    T delta_sum{};
+    for(auto iter = material_deltas.rend() - last_idx; iter != material_deltas.rend(); ++iter){
+      delta_sum = std::max(T{}, *iter - delta_sum);
+    }
+
+    const T base = (mv.is_capture() &&
+      !mv.is_castle_ooo<c>() &&
+      !mv.is_castle_oo<c>()) ?
+        material_value<T>(mv.captured()) :
+        T{};
+    return base - delta_sum;
+  }
+
+  template<typename T>
+  T see(const move& mv) const {
+    return turn() ? see_<chess::color::white, T>(mv) : see_<chess::color::black, T>(mv);
   }
 
   template<color c>

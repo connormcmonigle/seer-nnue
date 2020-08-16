@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdint>
+#include <cassert>
 #include <type_traits>
 #include <array>
 
@@ -23,7 +24,12 @@ struct square{
   std::uint64_t data;
   
   constexpr std::uint64_t bit_board() const { return data; }
-  constexpr int index() const { return count_trailing_zeros(data); }
+  
+  constexpr int index() const {
+    assert((data != 0));
+    return count_trailing_zeros(data);
+  }
+  
   constexpr int file() const { return index() % 8; }
   constexpr int rank() const { return index() / 8; }
 
