@@ -27,11 +27,16 @@ std::ostream& operator<<(std::ostream& ostr, const tester& test){
 int main(){
 
   auto gen = std::mt19937(std::random_device()());
+  
+  std::cout << "fen: ";
+  std::string fen; std::getline(std::cin, fen);
+  const auto start_board = chess::board::parse_fen(fen);
+
   std::cout << "enter number of test games to run: ";
   size_t game_count; std::cin >> game_count;
 
   for(size_t n(0); n < game_count; ++n){
-    auto bd = chess::board::start_pos();
+    auto bd = start_board;
     tester updatable{};
     bd.show_init(updatable);
 

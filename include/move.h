@@ -65,6 +65,10 @@ struct move{
       pawn_delta<c>::last_rank.is_member(to());
   }
   
+  constexpr bool is_promotion() const {
+    return is_promotion<color::white>() || is_promotion<color::black>();
+  }
+  
   template<color c>
   constexpr bool is_pawn_double() const {
     return piece() == piece_type::pawn &&

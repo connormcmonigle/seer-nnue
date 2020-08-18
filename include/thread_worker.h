@@ -11,6 +11,7 @@
 #include <nnue_half_kp.h>
 #include <board.h>
 #include <move.h>
+#include <search_util.h>
 #include <move_orderer.h>
 #include <transposition_table.h>
 #include <history_heuristic.h>
@@ -19,16 +20,19 @@
 namespace chess{
 
 template<typename T>
-inline constexpr T epsilon = static_cast<T>(1e-4);
+inline constexpr T epsilon = static_cast<T>(1e-5);
 
 template<typename T>
 inline constexpr T big_number = static_cast<T>(256);
 
 template<typename T>
-inline constexpr T mate_score = -std::numeric_limits<T>::max();
+inline constexpr T mate_score = -static_cast<T>(2) * big_number<T>;
 
 template<typename T>
 inline constexpr T draw_score = static_cast<T>(0);
+
+template<typename T>
+inline constexpr T aspiration_delta = static_cast<T>(0.03);
 
 template<typename T, bool is_root> struct pv_search_result{};
 template<typename T> struct pv_search_result<T, false>{ using type = T; };
@@ -46,7 +50,7 @@ struct thread_worker{
   std::mutex go_mutex_{};
   std::condition_variable cv_{};
   std::atomic<bool> go_{false};
-  std::atomic<int> depth_;
+  std::atomic<search::depth_type> depth_;
   std::atomic<size_t> nodes_;
 
   std::atomic<std::uint32_t> score_;
@@ -55,12 +59,13 @@ struct thread_worker{
   nnue::half_kp_eval<T> evaluator_;
   std::shared_ptr<table> tt_;
   std::shared_ptr<sided_history_heuristic> hh_;
+  std::shared_ptr<search::constants> constants_;
 
   std::mutex position_mutex_{};
   board position_{};
   position_history history_{};
 
-  auto q_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta) -> T const {
+  auto q_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T& beta) -> T const {
     ++nodes_;
     
     const auto list = bd.generate_moves();
@@ -105,7 +110,7 @@ struct thread_worker{
   }
 
   template<bool is_pv, bool is_root=false>
-  auto pv_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T beta, int depth) -> pv_search_result_t<T, is_root> const {
+  auto pv_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T& beta, search::depth_type depth) -> pv_search_result_t<T, is_root> const {
     ++nodes_;
     
     auto make_result = [](const T& score, const move& mv){
@@ -149,14 +154,32 @@ struct thread_worker{
       const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
       const board bd_ = bd.forward(mv);
       
-      const T score = [&]{
-        auto full_width = [&]{ return -pv_search<is_pv>(hist, eval_, bd_, -beta, -alpha, depth - 1); };
-        if(best_score > alpha){
-          T zw_score = -pv_search<false>(hist, eval_, bd_, -alpha - epsilon<T>, -alpha, depth - 1);
-          const bool interior = zw_score > alpha && zw_score < beta;
-          return interior ? full_width() : zw_score;
+      const T score = [&, this]{
+        const search::depth_type next_depth = depth - 1;
+        auto full_width = [&]{ return -pv_search<is_pv>(hist, eval_, bd_, -beta, -alpha, next_depth); };
+          
+        const bool lmr = !is_check && (depth >= constants_ -> reduce_depth());
+        T zw_score{};
+
+        if(lmr){
+          search::depth_type reduction = constants_ -> reduction(depth, idx);
+          
+          if(bd.forward(mv).is_check()){ --reduction; }
+          if(mv.is_promotion()){ --reduction; }
+          if(bd.see<int>(mv) < 0){ ++reduction; }
+          
+          reduction = std::max(reduction, 0);
+          
+          const search::depth_type lmr_depth = std::max(0, next_depth - reduction);
+          zw_score = -pv_search<false>(hist, eval_, bd_, -alpha - epsilon<T>, -alpha, lmr_depth);
         }
-        return full_width();
+
+        if(!lmr || (lmr && (zw_score > alpha))){
+          zw_score = -pv_search<false>(hist, eval_, bd_, -alpha - epsilon<T>, -alpha, next_depth);
+        }
+
+        const bool interior = zw_score > alpha && zw_score < beta;
+        return (interior && is_pv) ? full_width() : zw_score;
       }();
 
       if(score < beta){ alpha = std::max(alpha, score); }
@@ -182,10 +205,8 @@ struct thread_worker{
   }
 
 
-  auto root_search(position_history& hist, const board bd, const int depth) -> pv_search_result_t<T, true> const {
-    constexpr T alpha = -big_number<T>;
-    constexpr T beta = big_number<T>;
-    //return pv_search<true, true>(hist, search_params<T>{evaluator_, bd, alpha, beta, depth});
+  auto root_search(position_history& hist, const board bd, const T& alpha, const T& beta, const search::depth_type depth) -> pv_search_result_t<T, true> const {
+    assert(alpha < beta);
     return pv_search<true, true>(hist, evaluator_, bd, alpha, beta, depth);
   }
 
@@ -194,24 +215,62 @@ struct thread_worker{
     for(;;){
       std::unique_lock<std::mutex> go_lk(go_mutex_);
       cv_.wait(go_lk, [this]{ return go_.load(std::memory_order_relaxed); });
-
+      
+      // store new search data locally 
       std::unique_lock<std::mutex> position_lk(position_mutex_);
       const auto bd = position_;
       auto hist = history_;
       position_lk.unlock();
-
-      //increment table generation on every new root search
-      tt_ -> update_gen();
-      auto len_before = hist.history_.size();
-      auto[search_score, mv] = root_search(hist, bd, depth_.load());
-      auto len_after = hist.history_.size();
-      assert(len_before == len_after);
-
-      std::uint32_t as_uint32; std::memcpy(&as_uint32, &search_score, score_num_bytes);
-      score_.store(as_uint32);
-      best_move_.store(mv.data);
-
-      ++depth_;
+      
+      //iterative deepening
+      auto alpha = -big_number<T>;
+      auto beta = big_number<T>;
+      for(; go_.load(std::memory_order_relaxed) && depth_.load() < (constants_ -> max_depth()); ++depth_){
+        //increment table generation on every new root search
+        tt_ -> update_gen();
+      
+        //update aspiration window once reasonable evaluation is obtained
+        if(depth_.load(std::memory_order_relaxed) >= constants_ -> aspiration_depth()){
+          const T previous_score = score();
+          alpha = previous_score - aspiration_delta<T>;
+          beta = previous_score + aspiration_delta<T>;
+        }
+        
+        auto delta = aspiration_delta<T>;
+        
+        search::depth_type failed_high_count{0};
+        for(;;){
+          const search::depth_type adjusted_depth = std::max(1, depth_.load() - failed_high_count);
+          const auto len_before = hist.history_.size();
+          const auto[search_score, mv] = root_search(hist, bd, alpha, beta, adjusted_depth);
+          const auto len_after = hist.history_.size();
+          assert(len_before == len_after);
+          
+          if(!go_.load()){ break; }
+          
+          //update aspiration window if failing low or high
+          if(search_score <= alpha){
+            beta = (alpha + beta) / static_cast<T>(2);
+            alpha = search_score - delta;
+            failed_high_count = 0;
+          }else if(search_score >= beta){
+            beta = search_score + delta;
+            ++failed_high_count;
+          }else{
+            //store updated information
+            std::uint32_t as_uint32; std::memcpy(&as_uint32, &search_score, score_num_bytes);
+            score_.store(as_uint32);
+            best_move_.store(mv.data);
+            break;
+          }
+          
+          //exponentially grow window
+          delta += delta / static_cast<T>(3);
+        }
+      }
+      
+      //stop search if we reach max_depth, otherwise, go_ is already false 
+      go_.store(false);
     }
   }
 
@@ -233,7 +292,7 @@ struct thread_worker{
     return result;
   }
 
-  void go(const int start_depth){
+  void go(const search::depth_type start_depth){
     std::unique_lock<std::mutex> go_lk(go_mutex_);
     depth_.store(start_depth);
     nodes_.store(0);
@@ -255,8 +314,14 @@ struct thread_worker{
     return *this;
   }
 
-  thread_worker(const nnue::half_kp_weights<T>* weights, std::shared_ptr<table> tt, std::shared_ptr<sided_history_heuristic> hh) : 
-    evaluator_(weights), tt_{tt}, hh_{hh} {
+  thread_worker(
+    const nnue::half_kp_weights<T>* weights,
+    std::shared_ptr<table> tt,
+    std::shared_ptr<sided_history_heuristic> hh,
+    std::shared_ptr<search::constants> constants
+  ) : 
+    evaluator_(weights), tt_{tt}, hh_{hh}, constants_{constants}
+  {
     std::thread([this]{ iterative_deepening_loop_(); }).detach();
   }
 };
@@ -267,6 +332,7 @@ struct worker_pool{
   const nnue::half_kp_weights<T>* weights_;
   std::shared_ptr<table> tt_{nullptr};
   std::shared_ptr<sided_history_heuristic> hh_{nullptr};
+  std::shared_ptr<search::constants> constants_{nullptr};
 
   std::vector<std::shared_ptr<thread_worker<T>>> pool_{};
 
@@ -286,15 +352,16 @@ struct worker_pool{
 
   void grow(size_t new_size){
     assert((new_size > pool_.size()));
+    constants_ -> update_(new_size);
     const size_t new_workers = new_size - pool_.size();
     for(size_t i(0); i < new_workers; ++i){
-      pool_.push_back(std::make_shared<thread_worker<T>>(weights_, tt_, hh_));
+      pool_.push_back(std::make_shared<thread_worker<T>>(weights_, tt_, hh_, constants_));
     }
   }
 
   void go(){
     for(size_t i(0); i < pool_.size(); ++i){
-      const int start_depth = static_cast<int>(i % 2);
+      const search::depth_type start_depth = 1 + static_cast<search::depth_type>(i % 2);
       pool_[i] -> go(start_depth);
     }
   }
@@ -304,7 +371,7 @@ struct worker_pool{
   }
 
   size_t nodes() const {
-    return std::accumulate(pool_.cbegin(), pool_.cend(), static_cast<size_t>(0), [](size_t count, const auto& worker){
+    return std::accumulate(pool_.cbegin(), pool_.cend(), static_cast<size_t>(0), [](const size_t& count, const auto& worker){
       return count + worker -> nodes();
     });
   }
@@ -316,8 +383,9 @@ struct worker_pool{
   worker_pool(const nnue::half_kp_weights<T>* weights, size_t hash_table_size, size_t num_workers) : weights_{weights} {
     tt_ = std::make_shared<table>(hash_table_size);
     hh_ = std::make_shared<sided_history_heuristic>();
+    constants_ = std::make_shared<search::constants>(num_workers);
     for(size_t i(0); i < num_workers; ++i){
-      pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, hh_));
+      pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, hh_, constants_));
     }
   }
 };
