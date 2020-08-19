@@ -111,8 +111,6 @@ struct thread_worker{
 
   template<bool is_pv, bool is_root=false>
   auto pv_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T& beta, search::depth_type depth) -> pv_search_result_t<T, is_root> const {
-    ++nodes_;
-    
     auto make_result = [](const T& score, const move& mv){
       if constexpr(is_root){ return pv_search_result_t<T, is_root>{score, mv}; }
       if constexpr(!is_root){ return score; }
@@ -128,7 +126,7 @@ struct thread_worker{
     if(is_check){ depth += 1; }
   
     if(depth <= 0) { return make_result(q_search(hist, eval, bd, alpha, beta), move::null()); }
-
+    ++nodes_;
 
     auto orderer = move_orderer(&bd, list, &(hh_ -> us(bd.turn())));
 
@@ -222,14 +220,14 @@ struct thread_worker{
       auto hist = history_;
       position_lk.unlock();
       
-      //iterative deepening
+      // iterative deepening
       auto alpha = -big_number<T>;
       auto beta = big_number<T>;
       for(; go_.load(std::memory_order_relaxed) && depth_.load() < (constants_ -> max_depth()); ++depth_){
-        //increment table generation on every new root search
+        // increment table generation on every new root search
         tt_ -> update_gen();
       
-        //update aspiration window once reasonable evaluation is obtained
+        // update aspiration window once reasonable evaluation is obtained
         if(depth_.load(std::memory_order_relaxed) >= constants_ -> aspiration_depth()){
           const T previous_score = score();
           alpha = previous_score - aspiration_delta<T>;
@@ -248,7 +246,7 @@ struct thread_worker{
           
           if(!go_.load()){ break; }
           
-          //update aspiration window if failing low or high
+          // update aspiration window if failing low or high
           if(search_score <= alpha){
             beta = (alpha + beta) / static_cast<T>(2);
             alpha = search_score - delta;
@@ -264,12 +262,12 @@ struct thread_worker{
             break;
           }
           
-          //exponentially grow window
+          // exponentially grow window
           delta += delta / static_cast<T>(3);
         }
       }
       
-      //stop search if we reach max_depth, otherwise, go_ is already false 
+      // stop search if we reach max_depth, otherwise, go_ is already false 
       go_.store(false);
     }
   }

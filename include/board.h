@@ -209,6 +209,7 @@ struct board{
   template<color c>
   move_list generate_moves_() const {
     move_list result{};
+    constexpr auto last_rank = pawn_delta<c>::last_rank;
     const square_set occ = man_.white.all() | man_.black.all();
     const auto [checkers_, checker_rays_] = checkers<c>(occ);
     const square_set king_danger_ = king_danger<c>();
@@ -220,8 +221,10 @@ struct board{
       for(const auto from : (man_.us<c>().pawn() & ~pinned_)){
         const auto to_quiet = pawn_push_tbl<c>.look_up(from, occ);
         const auto to_loud = pawn_attack_tbl<c>.look_up(from) & man_.them<c>().all();
-        for(const auto to : to_quiet){ result.add_(from, to, piece_type::pawn); }
-        for(const auto to : to_loud){ result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
+        for(const auto to : (to_quiet & ~last_rank)){ result.add_(from, to, piece_type::pawn); }
+        for(const auto to : (to_loud & ~last_rank)){ result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
+        for(const auto to : (to_quiet & last_rank)){ result.add_promotion_(from, to, piece_type::pawn); }
+        for(const auto to : (to_loud & last_rank)){ result.add_promotion_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
       }
       for(const auto from : (man_.us<c>().knight() & ~pinned_)){
         const auto to_mask = knight_attack_tbl.look_up(from);
@@ -260,14 +263,20 @@ struct board{
       if(pinned_.any()){
         for(const auto from : (man_.us<c>().pawn() & pinned_ & k_x_diag)){
           const auto to_mask = pawn_attack_tbl<c>.look_up(from) & k_x_diag;
-          for(const auto to : (to_mask & man_.them<c>().all())){
+          for(const auto to : (to_mask & ~last_rank & man_.them<c>().all())){
             result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
+          }
+          for(const auto to : (to_mask & last_rank & man_.them<c>().all())){
+            result.add_promotion_(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
           }
         }
         for(const auto from : (man_.us<c>().pawn() & pinned_ & k_x_hori)){
           const auto to_mask = pawn_push_tbl<c>.look_up(from, occ) & k_x_hori;
-          for(const auto to : to_mask){
+          for(const auto to : (to_mask & ~last_rank)){
             result.add_(from, to, piece_type::pawn);
+          }
+          for(const auto to : (to_mask & last_rank)){
+            result.add_promotion_(from, to, piece_type::pawn);
           }
         }
         for(const auto from : (man_.us<c>().bishop() & pinned_ & k_x_diag)){
@@ -307,8 +316,10 @@ struct board{
       for(const auto from : (man_.us<c>().pawn() & ~pinned_)){
         const auto to_quiet = push_mask & pawn_push_tbl<c>.look_up(from, occ);
         const auto to_loud = capture_mask & pawn_attack_tbl<c>.look_up(from);
-        for(const auto to : to_quiet){ result.add_(from, to, piece_type::pawn); }
-        for(const auto to : to_loud){ result.add_(from, to, piece_type::pawn, true, checker_type); }
+        for(const auto to : (to_quiet & ~last_rank)){ result.add_(from, to, piece_type::pawn); }
+        for(const auto to : (to_loud & ~last_rank)){ result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
+        for(const auto to : (to_quiet & last_rank)){ result.add_promotion_(from, to, piece_type::pawn); }
+        for(const auto to : (to_loud & last_rank)){ result.add_promotion_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
       }
       for(const auto from : (man_.us<c>().knight() & ~pinned_)){
         const auto to_mask = knight_attack_tbl.look_up(from);
@@ -427,7 +438,7 @@ struct board{
     }else{
       cpy.man_.us<c>().remove_piece(mv.piece(), mv.from());
       if(mv.is_promotion<c>()){
-        cpy.man_.us<c>().add_piece(piece_type::queen, mv.to());
+        cpy.man_.us<c>().add_piece(mv.promotion(), mv.to());
       }else{
         cpy.man_.us<c>().add_piece(mv.piece(), mv.to());
       }
@@ -499,8 +510,8 @@ struct board{
       updatable.template us<c>().erase(major * our_king_idx + mv.from().index() + us_offset(mv.piece()));
       updatable.template them<c>().erase(major * their_king_idx + mv.from().index() + them_offset(mv.piece()));
       if(mv.is_promotion<c>()){
-        updatable.template us<c>().insert(major * our_king_idx + mv.to().index() + us_queen_offset);
-        updatable.template them<c>().insert(major * their_king_idx + mv.to().index() + them_queen_offset);
+        updatable.template us<c>().insert(major * our_king_idx + mv.to().index() + us_offset(mv.promotion()));
+        updatable.template them<c>().insert(major * their_king_idx + mv.to().index() + them_offset(mv.promotion()));
       }else{
         updatable.template us<c>().insert(major * our_king_idx + mv.to().index() + us_offset(mv.piece()));
         updatable.template them<c>().insert(major * their_king_idx + mv.to().index() + them_offset(mv.piece()));

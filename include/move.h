@@ -12,17 +12,25 @@
 
 namespace chess{
 
+inline constexpr std::array<piece_type, 4> promotion_types = {
+  piece_type::knight,
+  piece_type::bishop,
+  piece_type::rook,
+  piece_type::queen
+};
+
 struct move{
   std::uint32_t data{0};
 
-  static constexpr size_t width = 28;
+  static constexpr size_t width = 29;
   using from_ = bit_field<std::uint8_t, 0, 6>;
   using to_ = bit_field<std::uint8_t, 6, 12>;
-  using piece_ = bit_field<piece_type, 12, 16>;
-  using is_capture_ = bit_field<bool, 16, 17>;
-  using is_enpassant_ = bit_field<bool, 17, 18>;
-  using captured_ = bit_field<piece_type, 18, 22>;
-  using enpassant_sq_ = bit_field<std::uint8_t, 22, 28>;
+  using piece_ = bit_field<piece_type, 12, 15>;
+  using is_capture_ = bit_field<bool, 15, 16>;
+  using is_enpassant_ = bit_field<bool, 16, 17>;
+  using captured_ = bit_field<piece_type, 17, 20>;
+  using enpassant_sq_ = bit_field<std::uint8_t, 20, 26>;
+  using promotion_ = bit_field<piece_type, 26, 29>;
 
   template<typename B>
   constexpr typename B::field_type get_field_() const {
@@ -42,6 +50,7 @@ struct move{
   constexpr bool is_enpassant() const { return get_field_<is_enpassant_>(); }
   constexpr piece_type captured() const { return get_field_<captured_>(); }
   constexpr square enpassant_sq() const { return square::from_index(get_field_<enpassant_sq_>()); }
+  constexpr piece_type promotion() const { return get_field_<promotion_>(); }
 
   constexpr bool is_null() const { return data == 0; }
 
@@ -85,7 +94,7 @@ struct move{
     }
     std::string base = from().name() + to().name();
     if(is_promotion<c>()){
-      return base + "q";
+      return base + piece_letter(promotion());
     }else{
       return base;
     }
@@ -106,14 +115,16 @@ struct move{
     bool is_capture=false,
     piece_type captured=piece_type::pawn,
     bool is_enpassant=false,
-    square enpassant_sq=square::from_index(0)
+    square enpassant_sq=square::from_index(0),
+    piece_type promotion=piece_type::pawn
   ){
     const auto from_idx = static_cast<std::uint8_t>(from.index());
     const auto to_idx = static_cast<std::uint8_t>(to.index());
     const auto ep_sq_idx = static_cast<std::uint8_t>(enpassant_sq.index());
     set_field_<from_>(from_idx).set_field_<to_>(to_idx).set_field_<piece_>(piece).
     set_field_<is_capture_>(is_capture).set_field_<is_enpassant_>(is_enpassant).
-    set_field_<captured_>(captured).set_field_<enpassant_sq_>(ep_sq_idx);
+    set_field_<captured_>(captured).set_field_<enpassant_sq_>(ep_sq_idx).
+    set_field_<promotion_>(promotion);
   }
 
   constexpr static move null(){ return move{0}; }
@@ -132,7 +143,8 @@ std::ostream& operator<<(std::ostream& ostr, const move& mv){
   ostr << "move(from=" << mv.from().name() <<
   ", to=" << mv.to().name() << ", piece=" << piece_name(mv.piece()) <<
   ", is_capture=" << mv.is_capture() << ", capture=" << piece_name(mv.captured()) <<
-  ", is_enpassant=" << mv.is_enpassant() << ", enpassant_sq=" << mv.enpassant_sq().name() << ')';
+  ", is_enpassant=" << mv.is_enpassant() << ", enpassant_sq=" << mv.enpassant_sq().name() <<
+   ", promotion=" << piece_name(mv.promotion()) << ')';
   return ostr;
 }
 
@@ -189,6 +201,15 @@ struct move_list{
   template<typename ... Ts>
   move_list& add_(const Ts& ... ts){
     return add_(move(ts...));
+  }
+  
+  template<typename ... Ts>
+  move_list& add_promotion_(const Ts& ... ts){
+    assert((move(ts...).piece() == piece_type::pawn));
+    for(const auto& pt : promotion_types){
+      add_(move(ts...).set_field_<move::promotion_>(pt));
+    }
+    return *this;
   }
 };
 

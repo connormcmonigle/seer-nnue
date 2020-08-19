@@ -62,8 +62,8 @@ struct uci{
 
   void set_position(const std::string& line){
     if(line == "position startpos"){ uci_new_game(); return; }
-    std::regex spos_w_moves("position startpos moves((?: [a-h][1-8][a-h][1-8]+q?)+)");
-    std::regex fen_w_moves("position fen (.*) moves((?: [a-h][1-8][a-h][1-8]+q?)+)");
+    std::regex spos_w_moves("position startpos moves((?: [a-h][1-8][a-h][1-8]+(?:q|r|b|n)?)+)");
+    std::regex fen_w_moves("position fen (.*) moves((?: [a-h][1-8][a-h][1-8]+(?:q|r|b|n)?)+)");
     std::regex fen("position fen (.*)");
     std::smatch matches{};
     if(std::regex_search(line, matches, spos_w_moves)){
