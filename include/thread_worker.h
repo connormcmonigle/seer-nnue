@@ -375,6 +375,8 @@ struct worker_pool{
   }
 
   void set_position(const position_history& hist, const board& bd){
+    (hh_ -> white).clear();
+    (hh_ -> black).clear();
     for(auto& worker : pool_){ worker -> set_position(hist, bd); }
   }
 
