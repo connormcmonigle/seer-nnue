@@ -17,10 +17,15 @@ struct constants{
   depth_type max_depth() const { return 128; }
   depth_type aspiration_depth() const { return 4; }
   
+  template<bool is_pv>
   depth_type reduction(const depth_type& depth, const size_t& move_idx) const {
     if(move_idx == 0) return 0;
     if(move_idx < 6) return 1;
-    return depth / 4;
+    if constexpr(is_pv){
+      return depth / 4;
+    }else{
+      return depth / 2;
+    }
   }
 
   constants& update_(const size_t& thread_count){

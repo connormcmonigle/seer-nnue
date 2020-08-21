@@ -160,7 +160,7 @@ struct thread_worker{
         T zw_score{};
 
         if(lmr){
-          search::depth_type reduction = constants_ -> reduction(depth, idx);
+          search::depth_type reduction = constants_ -> reduction<is_pv>(depth, idx);
           
           if(bd.forward(mv).is_check()){ --reduction; }
           if(mv.is_promotion()){ --reduction; }
