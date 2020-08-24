@@ -13,12 +13,13 @@ struct constants{
   size_t thread_count_;
   
   const size_t& thread_count() const { return thread_count_; }
-  depth_type reduce_depth() const { return 3; }
-  depth_type max_depth() const { return 128; }
-  depth_type aspiration_depth() const { return 4; }
+  constexpr depth_type reduce_depth() const { return 3; }
+  constexpr depth_type max_depth() const { return 128; }
+  constexpr depth_type aspiration_depth() const { return 4; }
+  constexpr depth_type nmp_depth() const { return 2; }
   
   template<bool is_pv>
-  depth_type reduction(const depth_type& depth, const size_t& move_idx) const {
+  constexpr depth_type reduction(const depth_type& depth, const size_t& move_idx) const {
     if(move_idx == 0) return 0;
     if(move_idx < 6) return 1;
     if constexpr(is_pv){
@@ -26,6 +27,10 @@ struct constants{
     }else{
       return depth / 2;
     }
+  }
+  
+  constexpr depth_type R(const depth_type& depth){
+    return 4 + depth / 6;
   }
 
   constants& update_(const size_t& thread_count){

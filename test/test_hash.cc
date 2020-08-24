@@ -19,12 +19,24 @@ int main(){
       const auto h0 = bd.hash();
       const auto bd_from_bd = chess::board::parse_fen(bd.fen());
       const auto h1 = bd_from_bd.hash();
+
       std::cout << h0 << " :match: " << h1 << std::endl;
+      
       if(h0 != h1){
         std::cout << bd_from_bd << std::endl;
         std::cout << "FAIL" << std::endl;
         std::terminate();
       }
+      
+      if(!bd.is_check()){
+        const auto h2 = bd.forward(chess::move::null()).hash();
+        if(h0 == h2){
+          std::cout << bd_from_bd << std::endl;
+          std::cout << "FAIL" << std::endl;
+          std::terminate();
+        }
+      }
+      
       const chess::move_list mv_ls = bd.generate_moves();
       if(mv_ls.size() == 0 || bd.lat_.move_count > 500){
         std::cout << "SUCCESS" << std::endl;

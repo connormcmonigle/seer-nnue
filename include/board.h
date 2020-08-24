@@ -420,10 +420,20 @@ struct board{
     return turn() ? see_<chess::color::white, T>(mv) : see_<chess::color::black, T>(mv);
   }
 
+  bool has_non_pawn_material() const {
+    return 
+      man_.us(turn()).knight().any() ||
+      man_.us(turn()).bishop().any() ||
+      man_.us(turn()).rook().  any() ||
+      man_.us(turn()).queen(). any();
+  }
+
   template<color c>
   board forward_(const move& mv) const {
     auto cpy = *this;
-    if(mv.is_castle_ooo<c>()){
+    if(mv.is_null()){
+      assert(!is_check_<c>());
+    }else if(mv.is_castle_ooo<c>()){
       cpy.lat_.us<c>().set_ooo(false).set_oo(false);
       cpy.man_.us<c>().remove_piece(piece_type::king, castle_info<c>.start_king);
       cpy.man_.us<c>().remove_piece(piece_type::rook, castle_info<c>.ooo_rook);
