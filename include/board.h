@@ -429,6 +429,15 @@ struct board{
   }
 
   template<color c>
+  bool is_passed_push_(const move& mv) const {
+    return ((mv.piece() == piece_type::pawn && !mv.is_capture()) && !(man_.them<c>().pawn() & passer_tbl<c>.mask(mv.to())).any());
+  }
+
+  bool is_passed_push(const move& mv) const {
+    return turn() ? is_passed_push_<color::white>(mv) : is_passed_push_<color::black>(mv);
+  }
+
+  template<color c>
   board forward_(const move& mv) const {
     auto cpy = *this;
     if(mv.is_null()){

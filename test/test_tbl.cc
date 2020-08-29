@@ -73,4 +73,17 @@ int main(){
     std::cout << chess::pawn_attack_tbl<chess::color::black>.look_up(from) << std::endl;
   }
 
+  {
+    std::cout << "test6:" << std::endl;
+    const auto from = chess::tbl_square({1, 4}).to_square();
+    const auto from_ = chess::tbl_square({0, 4}).to_square();
+
+    std::cout << from << std::endl;
+    std::cout << chess::passer_tbl<chess::color::black>.mask(from) << std::endl;
+    std::cout << chess::passer_tbl<chess::color::white>.mask(from) << std::endl;
+    std::cout << chess::passer_tbl<chess::color::white>.mask(from_) << std::endl;
+    std::cout << chess::passer_tbl<chess::color::black>.mask(from_) << std::endl;
+
+  }
+
 }

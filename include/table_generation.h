@@ -242,6 +242,32 @@ struct stepper_attack_tbl{
 };
 
 template<color c>
+struct passer_tbl_{
+  static constexpr size_t num_squares = 64;
+  std::array<square_set, num_squares> data{};
+
+  template<typename T>
+  constexpr square_set mask(const T& sq) const {
+    static_assert(is_square_v<T>, "can only look up squares");
+    return data[sq.index()];
+  }
+
+  constexpr passer_tbl_(){
+    over_all([this](const tbl_square& sq){
+      for(auto left = sq.add(pawn_delta<c>::attack[0]); left.is_valid(); left = left.add(pawn_delta<c>::step)){
+        data[sq.index()].add_(left.to_square());
+      }
+      for(auto center = sq.add(pawn_delta<c>::step); center.is_valid(); center = center.add(pawn_delta<c>::step)){
+        data[sq.index()].add_(center.to_square());
+      }
+      for(auto right = sq.add(pawn_delta<c>::attack[1]); right.is_valid(); right = right.add(pawn_delta<c>::step)){
+        data[sq.index()].add_(right.to_square());
+      }
+    });
+  }
+};
+
+template<color c>
 struct pawn_push_tbl_{
   static constexpr size_t num_squares = 64;
   
@@ -359,10 +385,13 @@ inline constexpr pawn_push_tbl_<c> pawn_push_tbl = pawn_push_tbl_<c>{};
 template<color c>
 inline constexpr stepper_attack_tbl pawn_attack_tbl = stepper_attack_tbl{piece_type::pawn, pawn_delta<c>::attack};
 
+template<color c>
+inline constexpr passer_tbl_<c> passer_tbl = passer_tbl_<c>{};
+
 inline constexpr stepper_attack_tbl knight_attack_tbl{piece_type::knight, knight_deltas()};
 inline constexpr stepper_attack_tbl king_attack_tbl{piece_type::king, king_deltas()};
 inline constexpr slider_attack_tbl<9> bishop_attack_tbl{piece_type::bishop, bishop_deltas()};
-inline constexpr slider_attack_tbl<12> rook_attack_tbl{piece_type::rook, rook_deltas()};
 
+inline constexpr slider_attack_tbl<12> rook_attack_tbl{piece_type::rook, rook_deltas()};
 
 }
