@@ -22,7 +22,8 @@ add_executable (test_lva test/test_lva.cc)
 add_executable (test_see test/test_see.cc)
 add_executable (test_bit_field test/test_bit_field.cc)
 add_executable (test_is_passed test/test_is_passed.cc)
-
+add_executable (test_history test/test_history.cc)
+add_executable (test_eval_history test/test_eval_history.cc)
 
 add_executable (test_history_heuristic test/test_history_heuristic.cc)
 target_link_libraries (test_history_heuristic pthread)

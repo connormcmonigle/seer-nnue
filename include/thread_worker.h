@@ -111,7 +111,7 @@ struct thread_worker{
 
   template<bool is_pv, bool is_root=false>
   auto pv_search(
-    position_history& hist, move_history& mv_hist,
+    position_history& pos_hist, move_history& mv_hist, eval_history<T>& eval_hist,
     const nnue::half_kp_eval<T>& eval, const board& bd,
     T alpha, const T& beta, search::depth_type depth
   ) -> pv_search_result_t<T, is_root>{
@@ -120,18 +120,21 @@ struct thread_worker{
       if constexpr(!is_root){ return score; }
     };
 
+    // step 1. check if node is terminal
     const auto list = bd.generate_moves();
-
     const bool is_check = bd.is_check();
     if(list.size() == 0 && is_check){ return make_result(mate_score<T>, move::null()); }
     if(list.size() == 0) { return make_result(draw_score<T>, move::null()); }
-    if(hist.is_three_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
+    if(pos_hist.is_three_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
     
     if(is_check){ depth += 1; }
   
-    if(depth <= 0) { return make_result(q_search(hist, eval, bd, alpha, beta), move::null()); }
+    // step 2. drop into qsearch if depth reaches zero
+    if(depth <= 0) { return make_result(q_search(pos_hist, eval, bd, alpha, beta), move::null()); }
     ++nodes_;
 
+    // step 3. initialize move orderer (setting tt move first if applicable)
+    // and check for tt entry + tt induced cutoff on nonpv nodes
     auto orderer = move_orderer(&bd, list, &(hh_ -> us(bd.turn())));
     const std::optional<tt_entry> maybe = tt_ -> find(bd.hash());
     if(maybe.has_value()){
@@ -144,25 +147,39 @@ struct thread_worker{
       if(is_cutoff){ return make_result(entry.score(), entry.best_move()); }
       orderer.set_first(entry.best_move());
     }
-
-    auto del_guard_ = hist.scoped_push_(bd.hash());
     
+    // step 4. compute static eval and adjust appropriately if there's a tt hit
+    const T static_eval = [&]{
+      const T val = eval.propagate(bd.turn());
+      if(maybe.has_value()){
+        if(maybe -> bound() == bound_type::upper && val > maybe -> score()){ return maybe -> score(); }
+        if(maybe -> bound() == bound_type::lower && val < maybe -> score()){ return maybe -> score(); }
+      }
+      return val;
+    }();
+
+    // step 5. add position and static eval to histories
+    auto pos_hist_del_guard_ = pos_hist.scoped_push_(bd.hash());
+    auto eval_hist_del_guard_ = eval_hist.scoped_push_(static_eval);
+    const bool improving = eval_hist.improving();
+
+    // step 6. null move pruning
     const bool try_nmp = 
-      !is_root &&
-      !is_pv && 
+      !is_root && !is_pv && 
       !is_check && 
       depth >= constants_ -> nmp_depth() &&
+      static_eval > beta &&
       mv_hist.nmp_valid() &&
       bd.has_non_pawn_material();
 
     if(try_nmp){
-      auto mv_del_guard_ = mv_hist.scoped_push_(move::null());
+      auto mv_hist_del_guard_ = mv_hist.scoped_push_(move::null());
       const search::depth_type R = constants_ -> R(depth);
       const search::depth_type adjusted_depth = std::max(0, depth - R);
-      const T nmp_score = -pv_search<is_pv>(hist, mv_hist, eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth);
+      const T nmp_score = -pv_search<is_pv>(pos_hist, mv_hist, eval_hist, eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth);
       if(nmp_score > beta){ return make_result(nmp_score, move::null()); }
     }
-
+    
     T best_score = mate_score<T>;
     move best_move = list.data[0];
 
@@ -176,26 +193,33 @@ struct thread_worker{
       
       const T score = [&, this]{
         const search::depth_type next_depth = depth - 1;
-        auto full_width = [&]{ return -pv_search<is_pv>(hist, mv_hist, eval_, bd_, -beta, -alpha, next_depth); };
+        auto full_width = [&]{ return -pv_search<is_pv>(pos_hist, mv_hist, eval_hist, eval_, bd_, -beta, -alpha, next_depth); };
           
-        const bool lmr = !is_check && (depth >= constants_ -> reduce_depth());
+        const bool lmr = 
+          !is_check &&
+          !mv.is_capture() &&
+          !mv.is_promotion() &&
+          idx != 0 &&
+          (depth >= constants_ -> reduce_depth());
         T zw_score{};
 
         if(lmr){
           search::depth_type reduction = constants_ -> reduction<is_pv>(depth, idx);
 
           if(bd_.is_check()){ --reduction; }
-          if(mv.is_promotion()){ --reduction; }
+          if(bd.is_passed_push(mv)){ --reduction; }
+          if(!improving){ ++reduction; }
+          if(!is_pv){ ++reduction; }
           if(bd.see<int>(mv) < 0){ ++reduction; }
           
           reduction = std::max(reduction, 0);
           
-          const search::depth_type lmr_depth = std::max(0, next_depth - reduction);
-          zw_score = -pv_search<false>(hist, mv_hist, eval_, bd_, -alpha - epsilon<T>, -alpha, lmr_depth);
+          const search::depth_type lmr_depth = std::max(1, next_depth - reduction);
+          zw_score = -pv_search<false>(pos_hist, mv_hist, eval_hist, eval_, bd_, -alpha - epsilon<T>, -alpha, lmr_depth);
         }
 
         if(!lmr || (lmr && (zw_score > alpha))){
-          zw_score = -pv_search<false>(hist, mv_hist, eval_, bd_, -alpha - epsilon<T>, -alpha, next_depth);
+          zw_score = -pv_search<false>(pos_hist, mv_hist, eval_hist, eval_, bd_, -alpha - epsilon<T>, -alpha, next_depth);
         }
 
         const bool interior = zw_score > alpha && zw_score < beta;
@@ -225,11 +249,13 @@ struct thread_worker{
   }
 
 
-  auto root_search(position_history& hist, const board bd, const T& alpha, const T& beta, const search::depth_type depth) -> pv_search_result_t<T, true> const {
+  auto root_search(position_history& pos_hist, const board bd, const T& alpha, const T& beta, const search::depth_type depth) -> pv_search_result_t<T, true> const {
     assert(alpha < beta);
     move_history mv_hist{};
-    auto result = pv_search<true, true>(hist, mv_hist, evaluator_, bd, alpha, beta, depth);
-    assert((mv_hist.history_.size() == 0));
+    eval_history<T> eval_hist{};
+    auto result = pv_search<true, true>(pos_hist, mv_hist, eval_hist, evaluator_, bd, alpha, beta, depth);
+    assert((mv_hist.len() == 0));
+    assert((eval_hist.len() == 0));
     return result;
   }
 

@@ -14,30 +14,46 @@ struct popper{
   ~popper(){ data_ -> pop_(); }
 };
 
-struct position_history{
-  std::vector<zobrist::hash_type> history_;
+template<typename T, typename U>
+struct base_history{
+  using stored_type = U;
+  std::vector<stored_type> history_;
 
-  position_history& clear(){
+  T& cast(){ return static_cast<T&>(*this); }
+  const T& cast() const { return static_cast<const T&>(*this); }
+
+  T& clear(){
     history_.clear();
-    return *this;
+    return cast();
   }
 
-  popper<position_history> scoped_push_(const zobrist::hash_type& hash){
-    history_.push_back(hash);
-    return popper<position_history>(this);
+  popper<T> scoped_push_(const stored_type& elem){
+    history_.push_back(elem);
+    return popper<T>(&cast());
   }
   
-  position_history& push_(const zobrist::hash_type& hash){
-    history_.push_back(hash);
-    return *this;
+  T& push_(const stored_type& elem){
+    history_.push_back(elem);
+    return cast();
   }
   
-  position_history& pop_(){
+  T& pop_(){
     history_.pop_back();
-    return *this;
+    return cast();
   }
   
-  zobrist::hash_type back() const { return history_.back(); }
+  stored_type back() const { return history_.back(); }
+
+  size_t len() const {
+    return history_.size();
+  }
+
+  base_history() : history_{} {}
+  base_history(std::vector<stored_type>& h) : history_{h} {}
+};
+
+
+struct position_history : base_history<position_history, zobrist::hash_type>{
   
   size_t occurrences(const zobrist::hash_type& hash) const {
     size_t occurrences_{0};
@@ -50,46 +66,26 @@ struct position_history{
   bool is_three_fold(const zobrist::hash_type& hash) const {
     return occurrences(hash) >= 2;
   }
-
-  position_history() : history_{} {}
-  position_history(std::vector<zobrist::hash_type>& h) : history_{h} {}
 };
 
 
-struct move_history{
-  std::vector<chess::move> history_;
-
-  move_history& clear(){
-    history_.clear();
-    return *this;
-  }
-
-  popper<move_history> scoped_push_(const chess::move& mv){
-    history_.push_back(mv);
-    return popper<move_history>(this);
-  }
-  
-  move_history& push_(const chess::move& mv){
-    history_.push_back(mv);
-    return *this;
-  }
-  
-  move_history& pop_(){
-    history_.pop_back();
-    return *this;
-  }
+struct move_history : base_history<move_history, move>{
 
   bool nmp_valid() const {
     return 
       (history_.size() >= 2) &&
-      !(history_.rbegin() -> is_null()) &&
-      !((history_.rbegin()+1) -> is_null());
+      !(history_.crbegin() -> is_null()) &&
+      !((history_.crbegin()+1) -> is_null());
   }
-  
-  move back() const { return history_.back(); }
+};
 
-  move_history() : history_{} {}
-  move_history(std::vector<chess::move>& h) : history_{h} {}
+template<typename T>
+struct eval_history : base_history<eval_history<T>, T>{
+
+  bool improving() const {
+    const auto& hist_ref = this -> history_;
+    return (hist_ref.size() >= 3) && (*hist_ref.crbegin() > *(hist_ref.crbegin()+2));
+  }
 };
 
 }

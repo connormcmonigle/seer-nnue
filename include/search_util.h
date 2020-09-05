@@ -1,7 +1,11 @@
+#pragma once
+
 #include <iostream>
 #include <algorithm>
 #include <numeric>
 #include <cmath>
+#include <array>
+
 
 #include <move.h>
 
@@ -10,7 +14,9 @@ namespace search{
 using depth_type = int;
 
 struct constants{
+  static constexpr search::depth_type lmr_tbl_dim = 64;
   size_t thread_count_;
+  std::array<search::depth_type, lmr_tbl_dim * lmr_tbl_dim> lmr_tbl{}; 
   
   const size_t& thread_count() const { return thread_count_; }
   constexpr depth_type reduce_depth() const { return 3; }
@@ -19,25 +25,25 @@ struct constants{
   constexpr depth_type nmp_depth() const { return 2; }
   
   template<bool is_pv>
-  constexpr depth_type reduction(const depth_type& depth, const size_t& move_idx) const {
-    if(move_idx == 0) return 0;
-    if(move_idx < 6) return 1;
-    if constexpr(is_pv){
-      return depth / 4;
-    }else{
-      return depth / 2;
-    }
+  constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
+    constexpr search::depth_type last_idx = lmr_tbl_dim - 1;
+    return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
   }
   
-  constexpr depth_type R(const depth_type& depth){
+  constexpr depth_type R(const depth_type& depth) const {
     return 4 + depth / 6;
   }
 
   constants& update_(const size_t& thread_count){
     thread_count_ = thread_count;
+    for(search::depth_type depth{1}; depth < lmr_tbl_dim; ++depth){
+      for(search::depth_type played{1}; played < lmr_tbl_dim; ++played){
+        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<search::depth_type>(0.75 + std::log(depth) * std::log(played) / 2.25);
+      }
+    }
     return *this;
   }
-
+  
   constants(const size_t& thread_count){ update_(thread_count); }
 };
 
