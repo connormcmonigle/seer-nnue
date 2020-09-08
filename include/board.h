@@ -379,7 +379,7 @@ struct board{
     size_t last_idx{0};
     std::array<T, 32> material_deltas{};
     auto used_mask = square_set{};
-    auto on_sq = mv.piece();
+    auto on_sq = mv.is_promotion() ? mv.promotion() : mv.piece();
     used_mask.add_(mv.from());
 
     for(;;){
@@ -407,11 +407,12 @@ struct board{
       delta_sum = std::max(T{}, *iter - delta_sum);
     }
 
-    const T base = (mv.is_capture() &&
-      !mv.is_castle_ooo<c>() &&
-      !mv.is_castle_oo<c>()) ?
-        material_value<T>(mv.captured()) :
-        T{};
+    const T base = [&]{
+      T val{};
+      if(mv.is_promotion()){ val += material_value<T>(mv.promotion()) - material_value<T>(mv.piece()); }
+      if(mv.is_capture() && !mv.is_castle_ooo<c>() && !mv.is_castle_oo<c>()){ val += material_value<T>(mv.captured()); }
+      return val;
+    }();
     return base - delta_sum;
   }
 

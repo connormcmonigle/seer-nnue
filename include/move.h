@@ -85,6 +85,10 @@ struct move{
       pawn_delta<c>::double_rank.is_member(to());
   }
   
+  constexpr bool is_quiet() const {
+    return !is_capture() && !is_promotion();
+  }
+  
   template<color c>
   std::string name() const {
     if(is_castle_oo<c>()){
@@ -175,7 +179,7 @@ struct move_list{
   move_list loud() const {
     move_list result{};
     std::for_each(cbegin(), cend(), [this, &result](const move &mv){
-      if(mv.is_capture()){
+      if(!mv.is_quiet()){
         result.add_(mv);
       }
     });
@@ -185,7 +189,7 @@ struct move_list{
   move_list quiet() const {
     move_list result{};
     std::for_each(cbegin(), cend(), [this, &result](const move &mv){
-      if(!mv.is_capture()){
+      if(mv.is_quiet()){
         result.add_(mv);
       }
     });

@@ -1,5 +1,4 @@
 #include <iostream>
-#include <thread>
 #include <random>
 #include <chrono>
 
@@ -7,21 +6,17 @@
 #include <history_heuristic.h>
 
 int main(){
-  chess::history_heuristic history{};
-
   auto gen = std::mt19937(std::random_device()());
-
-  std::thread([&history, &gen](){
+  
+  auto rnd_move = [&gen](){
     auto piece = std::uniform_int_distribution<std::uint32_t>(0, 5);
     auto sq = std::uniform_int_distribution<std::uint8_t>(0, 63);
+    return chess::move{chess::square::from_index(sq(gen)), chess::square::from_index(sq(gen)), static_cast<chess::piece_type>(piece(gen))};
+  };
 
-    for(;;){
-      history.add(1, chess::move{chess::square::from_index(sq(gen)), chess::square::from_index(sq(gen)), static_cast<chess::piece_type>(piece(gen))});
-    }
-  }).detach();
-
-  for(;;){
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-    std::cout << history << '\n';
+  chess::history_heuristic history{};
+  for(size_t i(0); i < 600000; ++i){
+    history.update(rnd_move(), rnd_move(), rnd_move(), chess::move_list{}, 1);
   }
+  std::cout << history << std::endl;
 }

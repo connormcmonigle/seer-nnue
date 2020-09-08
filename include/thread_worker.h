@@ -57,8 +57,9 @@ struct thread_worker{
   std::atomic<std::uint32_t> best_move_{};
 
   nnue::half_kp_eval<T> evaluator_;
+  sided_history_heuristic hh_;
+
   std::shared_ptr<table> tt_;
-  std::shared_ptr<sided_history_heuristic> hh_;
   std::shared_ptr<search::constants> constants_;
 
   std::mutex position_mutex_{};
@@ -76,7 +77,7 @@ struct thread_worker{
     if(hist.is_three_fold(bd.hash())){ return draw_score<T>; }
     
     const auto loud_list = list.loud();
-    auto orderer = move_orderer(&bd, loud_list, &(hh_ -> us(bd.turn())));
+    auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), &bd, loud_list, &hh_.us(bd.turn())});
     
     if(const std::optional<tt_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
       const tt_entry entry = maybe.value();
@@ -135,7 +136,10 @@ struct thread_worker{
 
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
-    auto orderer = move_orderer(&bd, list, &(hh_ -> us(bd.turn())));
+    const move follow = mv_hist.follow();
+    const move counter = mv_hist.counter();
+    
+    auto orderer = move_orderer(move_orderer_data{follow, counter, &bd, list, &hh_.us(bd.turn())});
     const std::optional<tt_entry> maybe = tt_ -> find(bd.hash());
     if(maybe.has_value()){
       const tt_entry entry = maybe.value();
@@ -180,6 +184,10 @@ struct thread_worker{
       if(nmp_score > beta){ return make_result(nmp_score, move::null()); }
     }
     
+    // list of attempted quiets for updating histories
+    move_list quiets_tried{};
+    
+    // move loop
     T best_score = mate_score<T>;
     move best_move = list.data[0];
 
@@ -187,58 +195,85 @@ struct thread_worker{
       assert((mv != move::null()));
       if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
       auto mv_del_guard_ = mv_hist.scoped_push_(mv);
-
+      
+      const history_heuristic::value_type history_value = hh_.us(bd.turn()).compute_value(follow, counter, mv);
+      
       const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
       const board bd_ = bd.forward(mv);
+      
+      const bool try_pruning = 
+        !is_root && !is_pv && 
+        !bd_.is_check() && !is_check &&
+        idx != 0 && mv.is_quiet() &&
+        best_score > mate_score<T>;
+      
+      // step 7. pruning
+      if(try_pruning){
+        const bool history_prune = 
+          depth <= constants_ -> history_prune_depth() &&
+          history_value <= constants_ -> history_prune_threshold<history_heuristic::value_type>();
+        
+        if(history_prune){ continue; }
+      }
       
       const T score = [&, this]{
         const search::depth_type next_depth = depth - 1;
         auto full_width = [&]{ return -pv_search<is_pv>(pos_hist, mv_hist, eval_hist, eval_, bd_, -beta, -alpha, next_depth); };
           
-        const bool lmr = 
+        const bool try_lmr = 
           !is_check &&
-          !mv.is_capture() &&
+          mv.is_quiet() &&
           !mv.is_promotion() &&
           idx != 0 &&
           (depth >= constants_ -> reduce_depth());
         T zw_score{};
-
-        if(lmr){
+        
+        // step 8. late move reductions
+        if(try_lmr){
           search::depth_type reduction = constants_ -> reduction<is_pv>(depth, idx);
-
+          
+          // adjust reduction
           if(bd_.is_check()){ --reduction; }
           if(bd.is_passed_push(mv)){ --reduction; }
           if(!improving){ ++reduction; }
           if(!is_pv){ ++reduction; }
           if(bd.see<int>(mv) < 0){ ++reduction; }
+
+          reduction += constants_ -> history_reduction(history_value);
           
           reduction = std::max(reduction, 0);
           
           const search::depth_type lmr_depth = std::max(1, next_depth - reduction);
           zw_score = -pv_search<false>(pos_hist, mv_hist, eval_hist, eval_, bd_, -alpha - epsilon<T>, -alpha, lmr_depth);
         }
-
-        if(!lmr || (lmr && (zw_score > alpha))){
+        
+        // search again at full depth if necessary
+        if(!try_lmr || (try_lmr && (zw_score > alpha))){
           zw_score = -pv_search<false>(pos_hist, mv_hist, eval_hist, eval_, bd_, -alpha - epsilon<T>, -alpha, next_depth);
         }
-
+        
+        // search again with full window on pv nodes
         const bool interior = zw_score > alpha && zw_score < beta;
         return (interior && is_pv) ? full_width() : zw_score;
       }();
 
-      if(score < beta){ alpha = std::max(alpha, score); }
+      if(score < beta){
+        if(mv.is_quiet()){ quiets_tried.add_(mv); }
+        alpha = std::max(alpha, score);
+      }
 
       if(score > best_score){
         best_score = score;
         best_move = mv;
       }
     }
-
+    
+    // step 9. update histories if appropriate and maybe insert a new tt_entry
     if(go_.load(std::memory_order_relaxed)){
       if(best_score > beta){
         const tt_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
         tt_-> insert(entry);
-        (hh_ -> us(bd.turn())).add(depth, best_move);
+        if(best_move.is_quiet()){ hh_.us(bd.turn()).update(follow, counter, best_move, quiets_tried, depth); }
       }else{
         const tt_entry entry(bd.hash(), bound_type::upper, best_score, best_move, depth);
         tt_-> insert(entry);
@@ -335,9 +370,9 @@ struct thread_worker{
     return move{best_move_.load()};
   }
 
-  float score() const {
+  T score() const {
     const std::uint32_t raw = score_.load();
-    float result; std::memcpy(&result, &raw, score_num_bytes);
+    T result; std::memcpy(&result, &raw, score_num_bytes);
     return result;
   }
 
@@ -358,6 +393,7 @@ struct thread_worker{
   thread_worker<T>& set_position(const position_history& hist, const board& bd){
     std::lock_guard<std::mutex> position_lk(position_mutex_);
     bd.show_init(evaluator_);
+    hh_.clear();
     history_ = hist;
     position_ = bd;
     return *this;
@@ -366,10 +402,9 @@ struct thread_worker{
   thread_worker(
     const nnue::half_kp_weights<T>* weights,
     std::shared_ptr<table> tt,
-    std::shared_ptr<sided_history_heuristic> hh,
     std::shared_ptr<search::constants> constants
   ) : 
-    evaluator_(weights), tt_{tt}, hh_{hh}, constants_{constants}
+    evaluator_(weights), hh_{}, tt_{tt}, constants_{constants}
   {
     std::thread([this]{ iterative_deepening_loop_(); }).detach();
   }
@@ -380,7 +415,6 @@ struct worker_pool{
   
   const nnue::half_kp_weights<T>* weights_;
   std::shared_ptr<table> tt_{nullptr};
-  std::shared_ptr<sided_history_heuristic> hh_{nullptr};
   std::shared_ptr<search::constants> constants_{nullptr};
 
   std::vector<std::shared_ptr<thread_worker<T>>> pool_{};
@@ -404,7 +438,7 @@ struct worker_pool{
     constants_ -> update_(new_size);
     const size_t new_workers = new_size - pool_.size();
     for(size_t i(0); i < new_workers; ++i){
-      pool_.push_back(std::make_shared<thread_worker<T>>(weights_, tt_, hh_, constants_));
+      pool_.push_back(std::make_shared<thread_worker<T>>(weights_, tt_, constants_));
     }
   }
 
@@ -426,17 +460,14 @@ struct worker_pool{
   }
 
   void set_position(const position_history& hist, const board& bd){
-    (hh_ -> white).clear();
-    (hh_ -> black).clear();
     for(auto& worker : pool_){ worker -> set_position(hist, bd); }
   }
 
   worker_pool(const nnue::half_kp_weights<T>* weights, size_t hash_table_size, size_t num_workers) : weights_{weights} {
     tt_ = std::make_shared<table>(hash_table_size);
-    hh_ = std::make_shared<sided_history_heuristic>();
     constants_ = std::make_shared<search::constants>(num_workers);
     for(size_t i(0); i < num_workers; ++i){
-      pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, hh_, constants_));
+      pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, constants_));
     }
   }
 };

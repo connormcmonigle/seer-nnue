@@ -23,6 +23,7 @@ struct constants{
   constexpr depth_type max_depth() const { return 128; }
   constexpr depth_type aspiration_depth() const { return 4; }
   constexpr depth_type nmp_depth() const { return 2; }
+  constexpr depth_type history_prune_depth() const { return 2; }
   
   template<bool is_pv>
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
@@ -32,6 +33,16 @@ struct constants{
   
   constexpr depth_type R(const depth_type& depth) const {
     return 4 + depth / 6;
+  }
+
+  template<typename H>
+  constexpr H history_prune_threshold() const { return static_cast<H>(0); }
+
+  template<typename H>
+  constexpr depth_type history_reduction(H& history_value) const {
+    constexpr depth_type limit = 2;
+    const depth_type raw = -static_cast<depth_type>(history_value / 5000);
+    return std::max(-limit, std::min(limit, raw));
   }
 
   constants& update_(const size_t& thread_count){

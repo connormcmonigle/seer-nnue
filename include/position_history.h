@@ -77,6 +77,16 @@ struct move_history : base_history<move_history, move>{
       !(history_.crbegin() -> is_null()) &&
       !((history_.crbegin()+1) -> is_null());
   }
+  
+  move counter() const {
+    if(history_.empty()){ return move::null(); }
+    return *history_.rbegin();
+  }
+  
+  move follow() const {
+    if(history_.size() < 2){ return move::null(); }
+    return *(history_.rbegin()+1);
+  }
 };
 
 template<typename T>

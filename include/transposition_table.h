@@ -10,6 +10,7 @@
 
 #include <bit_field.h>
 #include <zobrist_util.h>
+#include <search_util.h>
 #include <move.h>
 
 namespace chess{
@@ -37,14 +38,14 @@ struct tt_entry{
 
   zobrist::hash_type key_;
   zobrist::hash_type value_;
-  int depth_;
+  search::depth_type depth_;
   
   //table assigned field
   std::uint8_t gen{0};
 
   const zobrist::hash_type& key() const { return key_; }
   const zobrist::hash_type& value() const { return value_; }
-  int depth() const { return depth_; }
+  search::depth_type depth() const { return depth_; }
 
   bound_type bound() const {
     return type_::get(value_);
@@ -66,7 +67,7 @@ struct tt_entry{
     const bound_type type,
     const float score,
     const chess::move& mv,
-    const int depth) : key_{key}, value_{0}, depth_{depth}
+    const search::depth_type depth) : key_{key}, value_{0}, depth_{depth}
   {
     type_::set(value_, type);
     std::uint32_t raw; std::memcpy(&raw, &score, score_byte_count);
@@ -74,7 +75,7 @@ struct tt_entry{
     best_move_::set(value_, mv.data);
   }
 
-  tt_entry(const zobrist::hash_type& k, const zobrist::hash_type& v, const int depth) : key_{k}, value_{v}, depth_{depth} {}
+  tt_entry(const zobrist::hash_type& k, const zobrist::hash_type& v, const search::depth_type& depth) : key_{k}, value_{v}, depth_{depth} {}
   tt_entry() : key_{0}, value_{0}, depth_{0} {}
 };
 
