@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 3.10)
-project(nnue)
+cmake_minimum_required (VERSION 3.10)
+project (nnue)
+
+find_package (Threads REQUIRED)
 
 set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_FLAGS "-O3 -fconstexpr-ops-limit=1000000000  -march=native -fopenmp -Wall -Wextra")
@@ -27,10 +29,10 @@ add_executable (test_eval_history test/test_eval_history.cc)
 add_executable (test_history_heuristic test/test_history_heuristic.cc)
 
 add_executable (test_worker test/test_worker.cc)
-target_link_libraries (test_worker pthread)
+target_link_libraries (test_worker Threads::Threads)
 
 add_executable (test_tt test/test_tt.cc)
-target_link_libraries (test_tt pthread)
+target_link_libraries (test_tt Threads::Threads)
 
 add_executable (seer src/seer.cc)
-target_link_libraries (seer pthread)
+target_link_libraries (seer Threads::Threads)

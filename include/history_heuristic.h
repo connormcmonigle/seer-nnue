@@ -56,7 +56,7 @@ struct history_heuristic{
     constexpr value_type history_multiplier = 32;
     constexpr value_type history_divisor = 512;
     assert((!tried.has(best_move)));
-    auto single_update = [counter, follow, this](const auto& mv, const value_type& gain){
+    auto single_update = [&, this](const auto& mv, const value_type& gain){
       // update butterfly history
       {
         const size_t idx = butterfly_idx_(mv);
