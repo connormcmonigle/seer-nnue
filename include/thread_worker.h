@@ -12,6 +12,7 @@
 #include <board.h>
 #include <move.h>
 #include <search_util.h>
+#include <search_stack.h>
 #include <move_orderer.h>
 #include <transposition_table.h>
 #include <history_heuristic.h>
@@ -52,7 +53,8 @@ struct thread_worker{
   std::atomic<bool> go_{false};
   std::atomic<search::depth_type> depth_;
   std::atomic<size_t> nodes_;
-
+  std::atomic<size_t> nodes_at_depth_;
+  
   std::atomic<std::uint32_t> score_;
   std::atomic<std::uint32_t> best_move_{};
 
@@ -66,7 +68,7 @@ struct thread_worker{
   board position_{};
   position_history history_{};
 
-  auto q_search(position_history& hist, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T& beta) -> T{
+  T q_search(const search::stack_view<T>& ss, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T& beta){
     ++nodes_;
     
     const auto list = bd.generate_moves();
@@ -74,10 +76,10 @@ struct thread_worker{
     const bool is_check = bd.is_check();
     if(list.size() == 0 && is_check){ return mate_score<T>; }
     if(list.size() == 0) { return draw_score<T>; }
-    if(hist.is_three_fold(bd.hash())){ return draw_score<T>; }
+    if(ss.is_three_fold(bd.hash())){ return draw_score<T>; }
     
     const auto loud_list = list.loud();
-    auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), &bd, loud_list, &hh_.us(bd.turn())});
+    auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, loud_list, &hh_.us(bd.turn())});
     
     if(const std::optional<tt_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
       const tt_entry entry = maybe.value();
@@ -93,7 +95,8 @@ struct thread_worker{
     alpha = std::max(alpha, static_eval);
     T best_score = static_eval;
     
-    auto _ = hist.scoped_push_(bd.hash());
+    ss.set_hash(bd.hash()).set_eval(static_eval);
+
     for(auto [idx, mv] : orderer){
       assert((mv != move::null()));
       if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
@@ -101,7 +104,7 @@ struct thread_worker{
         const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
         const board bd_ = bd.forward(mv);
       
-        const T score = -q_search(hist, eval_, bd_, -beta, -alpha);
+        const T score = -q_search(ss.next(), eval_, bd_, -beta, -alpha);
         alpha = std::max(alpha, score);
         best_score = std::max(best_score, score);
       }
@@ -111,11 +114,7 @@ struct thread_worker{
   }
 
   template<bool is_pv, bool is_root=false>
-  auto pv_search(
-    position_history& pos_hist, move_history& mv_hist, eval_history<T>& eval_hist,
-    const nnue::half_kp_eval<T>& eval, const board& bd,
-    T alpha, const T& beta, search::depth_type depth
-  ) -> pv_search_result_t<T, is_root>{
+  auto pv_search(const search::stack_view<T>& ss, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T& beta, search::depth_type depth) -> pv_search_result_t<T, is_root>{
     auto make_result = [](const T& score, const move& mv){
       if constexpr(is_root){ return pv_search_result_t<T, is_root>{score, mv}; }
       if constexpr(!is_root){ return score; }
@@ -126,20 +125,21 @@ struct thread_worker{
     const bool is_check = bd.is_check();
     if(list.size() == 0 && is_check){ return make_result(mate_score<T>, move::null()); }
     if(list.size() == 0) { return make_result(draw_score<T>, move::null()); }
-    if(pos_hist.is_three_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
+    if(ss.is_three_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
     
     if(is_check){ depth += 1; }
   
     // step 2. drop into qsearch if depth reaches zero
-    if(depth <= 0) { return make_result(q_search(pos_hist, eval, bd, alpha, beta), move::null()); }
+    if(depth <= 0) { return make_result(q_search(ss, eval, bd, alpha, beta), move::null()); }
     ++nodes_;
 
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
-    const move follow = mv_hist.follow();
-    const move counter = mv_hist.counter();
+    const move killer = ss.killer();
+    const move follow = ss.follow();
+    const move counter = ss.counter();
     
-    auto orderer = move_orderer(move_orderer_data{follow, counter, &bd, list, &hh_.us(bd.turn())});
+    auto orderer = move_orderer(move_orderer_data{killer, follow, counter, &bd, list, &hh_.us(bd.turn())});
     const std::optional<tt_entry> maybe = tt_ -> find(bd.hash());
     if(maybe.has_value()){
       const tt_entry entry = maybe.value();
@@ -162,10 +162,9 @@ struct thread_worker{
       return val;
     }();
 
-    // step 5. add position and static eval to histories
-    auto pos_hist_del_guard_ = pos_hist.scoped_push_(bd.hash());
-    auto eval_hist_del_guard_ = eval_hist.scoped_push_(static_eval);
-    const bool improving = eval_hist.improving();
+    // step 5. add position and static eval to stack
+    ss.set_hash(bd.hash()).set_eval(static_eval);
+    const bool improving = ss.improving();
 
     // step 6. null move pruning
     const bool try_nmp = 
@@ -173,14 +172,14 @@ struct thread_worker{
       !is_check && 
       depth >= constants_ -> nmp_depth() &&
       static_eval > beta &&
-      mv_hist.nmp_valid() &&
+      ss.nmp_valid() &&
       bd.has_non_pawn_material();
 
     if(try_nmp){
-      auto mv_hist_del_guard_ = mv_hist.scoped_push_(move::null());
+      ss.set_played(move::null());
       const search::depth_type R = constants_ -> R(depth);
       const search::depth_type adjusted_depth = std::max(0, depth - R);
-      const T nmp_score = -pv_search<is_pv>(pos_hist, mv_hist, eval_hist, eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth);
+      const T nmp_score = -pv_search<is_pv>(ss.next(), eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth);
       if(nmp_score > beta){ return make_result(nmp_score, move::null()); }
     }
     
@@ -194,7 +193,7 @@ struct thread_worker{
     for(auto [idx, mv] : orderer){
       assert((mv != move::null()));
       if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
-      auto mv_del_guard_ = mv_hist.scoped_push_(mv);
+      ss.set_played(mv);
       
       const history_heuristic::value_type history_value = hh_.us(bd.turn()).compute_value(follow, counter, mv);
       
@@ -218,7 +217,7 @@ struct thread_worker{
       
       const T score = [&, this]{
         const search::depth_type next_depth = depth - 1;
-        auto full_width = [&]{ return -pv_search<is_pv>(pos_hist, mv_hist, eval_hist, eval_, bd_, -beta, -alpha, next_depth); };
+        auto full_width = [&]{ return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
           
         const bool try_lmr = 
           !is_check &&
@@ -244,12 +243,12 @@ struct thread_worker{
           reduction = std::max(reduction, 0);
           
           const search::depth_type lmr_depth = std::max(1, next_depth - reduction);
-          zw_score = -pv_search<false>(pos_hist, mv_hist, eval_hist, eval_, bd_, -alpha - epsilon<T>, -alpha, lmr_depth);
+          zw_score = -pv_search<false>(ss.next(), eval_, bd_, -alpha - epsilon<T>, -alpha, lmr_depth);
         }
         
         // search again at full depth if necessary
         if(!try_lmr || (try_lmr && (zw_score > alpha))){
-          zw_score = -pv_search<false>(pos_hist, mv_hist, eval_hist, eval_, bd_, -alpha - epsilon<T>, -alpha, next_depth);
+          zw_score = -pv_search<false>(ss.next(), eval_, bd_, -alpha - epsilon<T>, -alpha, next_depth);
         }
         
         // search again with full window on pv nodes
@@ -273,7 +272,10 @@ struct thread_worker{
       if(best_score > beta){
         const tt_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
         tt_-> insert(entry);
-        if(best_move.is_quiet()){ hh_.us(bd.turn()).update(follow, counter, best_move, quiets_tried, depth); }
+        if(best_move.is_quiet()){
+          hh_.us(bd.turn()).update(follow, counter, best_move, quiets_tried, depth);
+          ss.set_killer(best_move);
+        }
       }else{
         const tt_entry entry(bd.hash(), bound_type::upper, best_score, best_move, depth);
         tt_-> insert(entry);
@@ -284,13 +286,10 @@ struct thread_worker{
   }
 
 
-  auto root_search(position_history& pos_hist, const board bd, const T& alpha, const T& beta, const search::depth_type depth) -> pv_search_result_t<T, true> const {
+  auto root_search(const position_history& pos_hist, const board bd, const T& alpha, const T& beta, const search::depth_type depth) -> pv_search_result_t<T, true> const {
     assert(alpha < beta);
-    move_history mv_hist{};
-    eval_history<T> eval_hist{};
-    auto result = pv_search<true, true>(pos_hist, mv_hist, eval_hist, evaluator_, bd, alpha, beta, depth);
-    assert((mv_hist.len() == 0));
-    assert((eval_hist.len() == 0));
+    search::stack<T> record(pos_hist);
+    auto result = pv_search<true, true>(search::stack_view<T>::root(record), evaluator_, bd, alpha, beta, depth);
     return result;
   }
 
@@ -303,13 +302,15 @@ struct thread_worker{
       // store new search data locally 
       std::unique_lock<std::mutex> position_lk(position_mutex_);
       const auto bd = position_;
-      auto hist = history_;
+      const auto hist = history_;
       position_lk.unlock();
       
       // iterative deepening
       auto alpha = -big_number<T>;
       auto beta = big_number<T>;
       for(; go_.load(std::memory_order_relaxed) && depth_.load() < (constants_ -> max_depth()); ++depth_){
+        // update nodes_at_depth_
+        nodes_at_depth_.store(nodes_.load());
         // increment table generation on every new root search
         tt_ -> update_gen();
       
@@ -366,6 +367,10 @@ struct thread_worker{
     return nodes_.load();
   }
 
+  size_t nodes_at_depth() const {
+    return nodes_at_depth_.load();
+  }
+
   move best_move() const {
     return move{best_move_.load()};
   }
@@ -380,6 +385,7 @@ struct thread_worker{
     std::unique_lock<std::mutex> go_lk(go_mutex_);
     depth_.store(start_depth);
     nodes_.store(0);
+    nodes_at_depth_.store(0);
     go_.store(true);
     go_lk.unlock();
     cv_.notify_one();

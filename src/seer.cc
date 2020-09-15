@@ -1,13 +1,11 @@
-#include <future>
 #include <thread>
-#include <fstream>
+#include <future>
+
 #include <uci.h>
 
 std::string read_line(){
-  std::fstream file("/home/connor/Documents/GitHub/seer-nnue/build/log.txt", std::ios::app);
   std::string line{};
   std::getline(std::cin, line);
-  file << line << '\n';
   return line;
 }
 

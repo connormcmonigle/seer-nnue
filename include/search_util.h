@@ -12,6 +12,7 @@
 namespace search{
 
 using depth_type = int;
+inline constexpr depth_type max_depth_ = 128;
 
 struct constants{
   static constexpr search::depth_type lmr_tbl_dim = 64;
@@ -20,7 +21,7 @@ struct constants{
   
   const size_t& thread_count() const { return thread_count_; }
   constexpr depth_type reduce_depth() const { return 3; }
-  constexpr depth_type max_depth() const { return 128; }
+  constexpr depth_type max_depth() const { return max_depth_; }
   constexpr depth_type aspiration_depth() const { return 4; }
   constexpr depth_type nmp_depth() const { return 2; }
   constexpr depth_type history_prune_depth() const { return 2; }

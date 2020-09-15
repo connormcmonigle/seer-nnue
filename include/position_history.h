@@ -69,33 +69,4 @@ struct position_history : base_history<position_history, zobrist::hash_type>{
 };
 
 
-struct move_history : base_history<move_history, move>{
-
-  bool nmp_valid() const {
-    return 
-      (history_.size() >= 2) &&
-      !(history_.crbegin() -> is_null()) &&
-      !((history_.crbegin()+1) -> is_null());
-  }
-  
-  move counter() const {
-    if(history_.empty()){ return move::null(); }
-    return *history_.rbegin();
-  }
-  
-  move follow() const {
-    if(history_.size() < 2){ return move::null(); }
-    return *(history_.rbegin()+1);
-  }
-};
-
-template<typename T>
-struct eval_history : base_history<eval_history<T>, T>{
-
-  bool improving() const {
-    const auto& hist_ref = this -> history_;
-    return (hist_ref.size() >= 3) && (*hist_ref.crbegin() > *(hist_ref.crbegin()+2));
-  }
-};
-
 }

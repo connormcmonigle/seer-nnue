@@ -11,6 +11,7 @@
 namespace chess{
 
 struct move_orderer_data{
+  move killer{};
   move follow{};
   move counter{};
   const board* bd{nullptr};
@@ -18,8 +19,8 @@ struct move_orderer_data{
   const history_heuristic* hh{nullptr};
   move first{move::null()};
 
-  move_orderer_data(const move& follow_, const move& counter_, const board* bd_, const move_list& list_, const history_heuristic* hh_) : 
-  follow{follow_}, counter{counter_}, bd{bd_}, list{list_}, hh{hh_} {}
+  move_orderer_data(const move& killer_, const move& follow_, const move& counter_, const board* bd_, const move_list& list_, const history_heuristic* hh_) : 
+  killer{killer_}, follow{follow_}, counter{counter_}, bd{bd_}, list{list_}, hh{hh_} {}
   
   move_orderer_data(){}
 };
@@ -49,6 +50,8 @@ struct move_orderer_iterator{
         const int b_score = data_.bd -> see<int>(b);
         return (a_score > b_score) ? i0 : i1;
       }
+      if(a == data_.killer){ return i0; }
+      if(b == data_.killer){ return i1; }
       const auto a_value = data_.hh -> compute_value(data_.follow, data_.counter, a);
       const auto b_value = data_.hh -> compute_value(data_.follow, data_.counter, b);
       return a_value >= b_value ? i0 : i1;
