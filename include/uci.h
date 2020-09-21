@@ -9,6 +9,7 @@
 #include <move.h>
 #include <thread_worker.h>
 #include <option_parser.h>
+#include <time_manager.h>
 
 namespace engine{
 
@@ -23,13 +24,13 @@ struct uci{
 
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
+  
   nnue::half_kp_weights<engine::uci::real_t> weights_{};
-
   chess::worker_pool<real_t> pool_;
 
   bool go_{false};
-  std::chrono::milliseconds budget{0};
-  std::chrono::steady_clock::time_point search_start{};
+  time_manager manager_{};
+
   std::ostream& os = std::cout;
 
   auto options(){
@@ -80,17 +81,17 @@ struct uci{
   }
 
   void info_string(){
-    constexpr real_t score_scale{600.0};
-    constexpr int eval_limit{25600};
+    constexpr real_t score_scale = static_cast<real_t>(600.0);
+    constexpr int eval_limit = 256 * 100;
     
-    const real_t raw_score = pool_.pool_[0] -> score();
+    const real_t raw_score = pool_.primary_worker().score();
     const int scaled_score = static_cast<int>(score_scale * raw_score);
     const int score = std::min(std::max(scaled_score, -eval_limit), eval_limit);
     
     static int last_reported_depth{0};
     
-    const int depth = pool_.pool_[0] -> depth();
-    const size_t elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - search_start).count();
+    const int depth = pool_.primary_worker().depth();
+    const size_t elapsed_ms = manager_.elapsed().count();
     const size_t node_count = pool_.nodes();
     const size_t nps = static_cast<size_t>(1000) * node_count / (elapsed_ms+1);
     
@@ -103,24 +104,13 @@ struct uci{
 
   void go(const std::string& line){
     go_ = true;
-    std::regex go_w_time("go .*wtime ([0-9]+) .*btime ([0-9]+)");
-    std::smatch matches{};
+    manager_.init(position.turn(), line);
     pool_.set_position(history, position);
     pool_.go();
-    if(std::regex_search(line, matches, go_w_time)){
-      const long long our_time = std::stoll(position.turn() ? matches.str(1) : matches.str(2));
-      //budget 1/7 remaing time
-      budget = std::chrono::milliseconds(our_time / 7);
-      search_start = std::chrono::steady_clock::now();
-    }else{
-      //this is very dumb
-      budget = std::chrono::milliseconds(1ull << 32ull);
-      search_start = std::chrono::steady_clock::now();
-    }
   }
 
   void stop(){
-    os << "bestmove " << pool_.pool_[0] -> best_move().name(position.turn()) << std::endl;
+    os << "bestmove " << pool_.primary_worker().best_move().name(position.turn()) << std::endl;
     pool_.stop();
     go_ = false;
   }
@@ -160,11 +150,13 @@ struct uci{
     }
 
     if(go_){
-      if((std::chrono::steady_clock::now() - search_start) >= budget){
-        stop();
-      }else{
-        info_string();
-      }
+      search_info info{
+        pool_.primary_worker().depth(),
+        pool_.primary_worker().is_stable()
+      };
+      
+      if(manager_.should_stop(info)){ stop(); }
+      else{ info_string(); }
     }
   }
 

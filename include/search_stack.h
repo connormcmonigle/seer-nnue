@@ -92,9 +92,15 @@ struct stack_view{
   }
 
   stack_view<T> prev() const { return stack_view<T>(view_, height_ - 1); }
+  
   stack_view<T> next() const { return stack_view<T>(view_, height_ + 1); }
   
-  stack_view(stack<T>* view, const depth_type& height) : view_{view}, height_{height} {}
+  stack_view(stack<T>* view, const depth_type& height) : 
+    view_{view},
+    height_{std::min(max_depth_ + stack<T>::margin - 1, height)} 
+  {
+    assert((height >= 0));
+  }
   
   static stack_view root(stack<T>& st){ return stack_view(&st, 0); }
 };

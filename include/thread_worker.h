@@ -51,6 +51,7 @@ struct thread_worker{
   std::mutex go_mutex_{};
   std::condition_variable cv_{};
   std::atomic<bool> go_{false};
+  std::atomic<bool> is_stable_{false};
   std::atomic<search::depth_type> depth_;
   std::atomic<size_t> nodes_;
   std::atomic<size_t> nodes_at_depth_;
@@ -343,6 +344,13 @@ struct thread_worker{
             ++failed_high_count;
           }else{
             //store updated information
+            constexpr T stability_threshold = static_cast<T>(0.05);
+            
+            is_stable_.store(
+              std::abs(score() - search_score) <= stability_threshold && 
+              best_move_.load() == mv.data
+            );
+            
             std::uint32_t as_uint32; std::memcpy(&as_uint32, &search_score, score_num_bytes);
             score_.store(as_uint32);
             best_move_.store(mv.data);
@@ -357,6 +365,10 @@ struct thread_worker{
       // stop search if we reach max_depth, otherwise, go_ is already false 
       go_.store(false);
     }
+  }
+
+  bool is_stable() const {
+    return is_stable_.load();
   }
 
   int depth() const {
@@ -387,6 +399,7 @@ struct thread_worker{
     nodes_.store(0);
     nodes_at_depth_.store(0);
     go_.store(true);
+    is_stable_.store(false);
     go_lk.unlock();
     cv_.notify_one();
   }
@@ -429,18 +442,16 @@ struct worker_pool{
     std::string result{};
     constexpr size_t max_pv_length = 256;
     for(size_t i(0); i < max_pv_length; ++i){
-      if(const std::optional<tt_entry> entry = tt_ -> find(bd.hash()); entry.has_value()){
-        if(bd.generate_moves().has(entry.value().best_move())){
-          result += entry.value().best_move().name(bd.turn()) + " ";
-          bd = bd.forward(entry.value().best_move());
-        }else{ break; }
-      }else{ break; }
+      const std::optional<tt_entry> entry = tt_ -> find(bd.hash());
+      if(!entry.has_value() || !bd.generate_moves().has(entry.value().best_move())){ break; }
+      result += entry.value().best_move().name(bd.turn()) + " ";
+      bd = bd.forward(entry.value().best_move());
     }
     return result;
   }
 
   void grow(size_t new_size){
-    assert((new_size > pool_.size()));
+    assert((new_size >= pool_.size()));
     constants_ -> update_(new_size);
     const size_t new_workers = new_size - pool_.size();
     for(size_t i(0); i < new_workers; ++i){
@@ -467,6 +478,10 @@ struct worker_pool{
 
   void set_position(const position_history& hist, const board& bd){
     for(auto& worker : pool_){ worker -> set_position(hist, bd); }
+  }
+
+  thread_worker<T>& primary_worker(){
+    return *pool_[0];
   }
 
   worker_pool(const nnue::half_kp_weights<T>* weights, size_t hash_table_size, size_t num_workers) : weights_{weights} {
