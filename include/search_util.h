@@ -25,6 +25,7 @@ struct constants{
   constexpr depth_type aspiration_depth() const { return 4; }
   constexpr depth_type nmp_depth() const { return 2; }
   constexpr depth_type history_prune_depth() const { return 2; }
+  constexpr depth_type snmp_depth() const { return 7; }
   
   template<bool is_pv>
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
@@ -38,6 +39,14 @@ struct constants{
 
   template<typename H>
   constexpr H history_prune_threshold() const { return static_cast<H>(0); }
+
+  template<typename T>
+  constexpr T snmp_margin(const bool& improving, const depth_type& depth) const {
+    assert(depth > 0);
+    constexpr T m = static_cast<T>(0.2);
+    constexpr T b = static_cast<T>(0.05);
+    return m * static_cast<T>(depth - improving) + b;
+  }
 
   template<typename H>
   constexpr depth_type history_reduction(H& history_value) const {

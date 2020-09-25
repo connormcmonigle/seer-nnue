@@ -167,6 +167,16 @@ struct thread_worker{
     ss.set_hash(bd.hash()).set_eval(static_eval);
     const bool improving = ss.improving();
 
+    // step 6. static null move pruning
+    const bool snm_prune = 
+      !is_root && !is_pv && 
+      !is_check && 
+      depth <= constants_ -> snmp_depth() &&
+      static_eval > beta + constants_ -> snmp_margin<T>(improving, depth) &&
+      static_eval > mate_score<T>;
+
+    if(snm_prune){ return make_result(static_eval, move::null()); }
+
     // step 6. null move pruning
     const bool try_nmp = 
       !is_root && !is_pv && 
