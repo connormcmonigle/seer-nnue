@@ -120,7 +120,9 @@ struct thread_worker{
       if constexpr(is_root){ return pv_search_result_t<T, is_root>{score, mv}; }
       if constexpr(!is_root){ return score; }
     };
-
+    
+    assert(depth >= 0);
+    
     // step 1. check if node is terminal
     const auto list = bd.generate_moves();
     const bool is_check = bd.is_check();
@@ -128,7 +130,8 @@ struct thread_worker{
     if(list.size() == 0) { return make_result(draw_score<T>, move::null()); }
     if(ss.is_three_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
     
-    if(is_check){ depth += 1; }
+    // don't drop into qsearch if in check
+    if(is_check && depth <= 0){ depth = 1; }
   
     // step 2. drop into qsearch if depth reaches zero
     if(depth <= 0) { return make_result(q_search(ss, eval, bd, alpha, beta), move::null()); }
@@ -177,7 +180,7 @@ struct thread_worker{
 
     if(snm_prune){ return make_result(static_eval, move::null()); }
 
-    // step 6. null move pruning
+    // step 7. null move pruning
     const bool try_nmp = 
       !is_root && !is_pv && 
       !is_check && 
@@ -217,7 +220,7 @@ struct thread_worker{
         idx != 0 && mv.is_quiet() &&
         best_score > mate_score<T>;
       
-      // step 7. pruning
+      // step 8. pruning
       if(try_pruning){
         const bool history_prune = 
           depth <= constants_ -> history_prune_depth() &&
@@ -226,8 +229,14 @@ struct thread_worker{
         if(history_prune){ continue; }
       }
       
+      // step 9. extensions
+      const search::depth_type extension = [&]{
+        if(bd.see<int>(mv) > 0 && bd_.is_check()){ return 1; }
+        return 0;
+      }();
+      
       const T score = [&, this]{
-        const search::depth_type next_depth = depth - 1;
+        const search::depth_type next_depth = depth + extension - 1;
         auto full_width = [&]{ return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
           
         const bool try_lmr = 
@@ -238,7 +247,7 @@ struct thread_worker{
           (depth >= constants_ -> reduce_depth());
         T zw_score{};
         
-        // step 8. late move reductions
+        // step 10. late move reductions
         if(try_lmr){
           search::depth_type reduction = constants_ -> reduction<is_pv>(depth, idx);
           
@@ -278,7 +287,7 @@ struct thread_worker{
       }
     }
     
-    // step 9. update histories if appropriate and maybe insert a new tt_entry
+    // step 11. update histories if appropriate and maybe insert a new tt_entry
     if(go_.load(std::memory_order_relaxed)){
       if(best_score > beta){
         const tt_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
