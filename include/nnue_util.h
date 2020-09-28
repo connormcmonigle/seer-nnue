@@ -16,6 +16,11 @@ struct stack_vector{
   T data[dim];
   
   template<typename F>
+  constexpr stack_vector<T, dim> apply(F&& f) const {
+    return stack_vector<T, dim>{*this}.apply_(std::forward<F>(f));
+  }
+  
+  template<typename F>
   constexpr stack_vector<T, dim>& apply_(F&& f){
     #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
@@ -131,6 +136,16 @@ struct stack_affine{
     #pragma omp simd
     for(size_t i = 0; i < dim0; ++i){
       result.fma_(x.data[i], W + i * dim1);
+    }
+    return result;
+  }
+  
+  constexpr stack_vector<T, dim1> relu_forward(const stack_vector<T, dim0>& x) const {
+    auto result = stack_vector<T, dim1>::from(b);
+    for(size_t i = 0; i < dim0; ++i){
+      if(x.data[i] > T{0}){
+        result.fma_(x.data[i], W + i * dim1);
+      }
     }
     return result;
   }
