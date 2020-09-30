@@ -71,11 +71,11 @@ struct half_kp_eval : chess::sided<half_kp_eval<T>, feature_transformer<T>>{
   constexpr T propagate(bool pov) const {
     const auto w_x = white.active();
     const auto b_x = black.active();
-    const auto x0 = pov ? splice(w_x, b_x) : splice(b_x, w_x);
-    const auto x1 = (weights_ -> fc0).relu_forward(x0).apply_(relu<T>);
+    const auto x0 = pov ? splice(w_x, b_x).apply(relu<T>) : splice(b_x, w_x).apply_(relu<T>);
+    const auto x1 = (weights_ -> fc0).forward(x0).apply_(relu<T>);
     const auto x2 = (weights_ -> fc1).forward(x1).apply_(relu<T>);
     const T val = (weights_ -> fc2).forward(x2).item();
-    return val + (weights_ -> skip).forward(x0.apply(relu<T>)).item();
+    return val + (weights_ -> skip).forward(x0).item();
   }
 
   half_kp_eval(const half_kp_weights<T>* src) : weights_{src}, white{&(src -> w)}, black{&(src -> b)} {}

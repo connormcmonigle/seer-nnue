@@ -4,11 +4,20 @@
 #include <iterator>
 #include <algorithm>
 #include <tuple>
+#include <cstdint>
+#include <limits>
 
+#include <bit_field.h>
 #include <move.h>
 #include <history_heuristic.h>
+#include <move_orderer.h>
 
 namespace chess{
+
+constexpr std::uint32_t make_positive(const std::int32_t& x){
+  constexpr std::uint32_t upper = static_cast<std::uint32_t>(1) + std::numeric_limits<std::int32_t>::max();
+  return upper + x;
+}
 
 struct move_orderer_data{
   move killer{};
@@ -25,6 +34,25 @@ struct move_orderer_data{
   move_orderer_data(){}
 };
 
+struct move_orderer_entry{
+  using first_ = bit_field<bool, 34, 35>;
+  using noisy_ = bit_field<bool, 33, 34>;
+  using killer_ = bit_field<bool, 32, 33>;
+  using value_ = bit_field<std::uint32_t, 0, 32>;
+
+  move mv;
+  std::uint64_t data{0};
+
+  move_orderer_entry(const move& mv_, bool is_first, bool is_noisy, bool is_killer, std::int32_t value) : mv{mv_}{
+    first_::set(data, is_first);
+    noisy_::set(data, is_noisy);
+    killer_::set(data, is_killer);
+    value_::set(data, make_positive(value));
+  }
+
+  move_orderer_entry(){};
+};
+
 struct move_orderer_iterator{
   using difference_type = long;
   using value_type = std::tuple<int, move>;
@@ -32,41 +60,26 @@ struct move_orderer_iterator{
   using reference = std::tuple<int, move>&;
   using iterator_category = std::output_iterator_tag;
 
-
-  move_orderer_data data_;
-
+  size_t move_count_{0};
   int idx_{0};
+  std::array<move_orderer_entry, move_list::max_branching_factor> entries_{};
 
   void update_list_(){
-    auto best = [this](const size_t i0, const size_t i1){
-      const move a = data_.list.data[i0];
-      const move b = data_.list.data[i1];
-      if(!a.is_quiet() && b.is_quiet()){
-        return i0;
-      }else if(a.is_quiet() && !b.is_quiet()){
-        return i1;
-      }else if(!a.is_quiet() && !b.is_quiet()){
-        const int a_score = data_.bd -> see<int>(a);
-        const int b_score = data_.bd -> see<int>(b);
-        return (a_score > b_score) ? i0 : i1;
-      }
-      if(a == data_.killer){ return i0; }
-      if(b == data_.killer){ return i1; }
-      const auto a_value = data_.hh -> compute_value(data_.follow, data_.counter, a);
-      const auto b_value = data_.hh -> compute_value(data_.follow, data_.counter, b);
-      return a_value >= b_value ? i0 : i1;
+    auto best = [this](const size_t& i0, const size_t& i1){
+      return (entries_[i0].data >= entries_[i1].data) ? i0 : i1;
     };
 
     size_t best_idx = idx_;
-    for(size_t i(idx_); i < data_.list.size(); ++i){
+    for(size_t i(idx_); i < move_count_; ++i){
       best_idx = best(best_idx, i);
     }
-    std::swap(data_.list.data[best_idx], data_.list.data[idx_]);
+
+    std::swap(entries_[best_idx], entries_[idx_]);
   }
   
   move_orderer_iterator& operator++(){
     ++idx_;
-    if(idx_ < static_cast<int>(data_.list.size())){ update_list_(); }
+    if(idx_ < static_cast<int>(move_count_)){ update_list_(); }
     return *this;
   }
   
@@ -85,21 +98,24 @@ struct move_orderer_iterator{
   }
   
   std::tuple<int, move> operator*() const {
-    return std::tuple(idx_, (data_.list.data)[idx_]);
+    return std::tuple(idx_, entries_[idx_].mv);
   }
 
-  move_orderer_iterator(const move_orderer_data& data, const int& idx) : data_{data}, idx_{idx}
+  move_orderer_iterator(const move_orderer_data& data, const int& idx) : move_count_{data.list.size()}, idx_{idx}
   {
-    if(!data_.first.is_null()){
-      const auto iter = std::find(data_.list.begin(), data_.list.end(), data_.first);
-      if(iter != data_.list.end()){
-        std::iter_swap(data_.list.begin(), iter);
-      }else{
-        update_list_();
-      }
-    }else{
-      update_list_();
-    }
+    std::transform(data.list.cbegin(), data.list.cend(), entries_.begin(), [&data](const move& mv){
+      const bool quiet = mv.is_quiet();
+      return move_orderer_entry(
+        mv,
+        mv == data.first,
+        !quiet,
+        quiet && mv == data.killer,
+        (quiet ? 
+          data.hh -> compute_value(data.follow, data.counter, mv) : 
+          data.bd -> see<std::int32_t>(mv))
+      );
+    });
+    update_list_();
   }
   
   move_orderer_iterator(const int& idx) : idx_{idx} {}

@@ -4,6 +4,7 @@
 #include <array>
 #include <type_traits>
 #include <algorithm>
+#include <cstdint>
 
 #include <enum_util.h>
 #include <search_util.h>
@@ -13,7 +14,7 @@
 namespace chess{
 
 struct history_heuristic{
-  using value_type = int;
+  using value_type = std::int32_t;
   static constexpr size_t num_squares = 64;
   static constexpr size_t num_pieces = 6;
 
