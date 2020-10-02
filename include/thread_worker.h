@@ -241,8 +241,7 @@ struct thread_worker{
           
         const bool try_lmr = 
           !is_check &&
-          mv.is_quiet() &&
-          !mv.is_promotion() &&
+          (mv.is_quiet() || bd.see<int>(mv) < 0) &&
           idx != 0 &&
           (depth >= constants_ -> reduce_depth());
         T zw_score{};
