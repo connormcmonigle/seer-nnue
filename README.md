@@ -5,7 +5,7 @@ In particular, [Ethereal](https://github.com/AndyGrant/Ethereal), [Winter](https
 
 ### UCI Options
 - Clear Hash
-- Threads (The lazy SMP is largely untested. While increasing the number of threads probably won't crash the engine, it's unlikely to improve playing strength)
+- Threads (for every thread doubling, a gain of about 70-80 elo can be expected)
 - Hash
 - Weights (The absolute path to a binary weights file. This option must be set.)
 
