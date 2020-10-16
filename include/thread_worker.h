@@ -69,29 +69,31 @@ struct thread_worker{
   board position_{};
   position_history history_{};
 
-  T q_search(const search::stack_view<T>& ss, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T& beta){
+  T q_search(const search::stack_view<T>& ss, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T& beta, const search::depth_type& elevation){
     ++nodes_;
     
-    const auto list = bd.generate_moves();
+    const auto all_list = bd.generate_moves();
 
     const bool is_check = bd.is_check();
-    if(list.size() == 0 && is_check){ return mate_score<T>; }
-    if(list.size() == 0) { return draw_score<T>; }
+    if(all_list.size() == 0 && is_check){ return mate_score<T>; }
+    if(all_list.size() == 0) { return draw_score<T>; }
     if(ss.is_three_fold(bd.hash())){ return draw_score<T>; }
     
-    const auto loud_list = list.loud();
-    auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, loud_list, &hh_.us(bd.turn())});
+    const auto list = all_list.loud();
+    auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &hh_.us(bd.turn())});
     
     if(const std::optional<tt_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
       const tt_entry entry = maybe.value();
-      const bool is_cutoff = entry.score() >= beta && entry.bound() == bound_type::lower;
+      const bool is_cutoff = 
+        (entry.score() >= beta && entry.bound() == bound_type::lower) ||
+        (entry.score() <= alpha && entry.bound() == bound_type::upper);
       if(is_cutoff){ return entry.score(); }
       alpha = std::max(alpha, entry.score());
       orderer.set_first(entry.best_move());
     }
 
     const T static_eval = eval.propagate(bd.turn());
-    if(loud_list.size() == 0 || static_eval > beta){ return static_eval; }
+    if(list.size() == 0 || static_eval > beta){ return static_eval; }
 
     alpha = std::max(alpha, static_eval);
     T best_score = static_eval;
@@ -105,7 +107,7 @@ struct thread_worker{
         const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
         const board bd_ = bd.forward(mv);
       
-        const T score = -q_search(ss.next(), eval_, bd_, -beta, -alpha);
+        const T score = -q_search(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
         alpha = std::max(alpha, score);
         best_score = std::max(best_score, score);
       }
@@ -134,7 +136,7 @@ struct thread_worker{
     if(is_check && depth <= 0){ depth = 1; }
   
     // step 2. drop into qsearch if depth reaches zero
-    if(depth <= 0) { return make_result(q_search(ss, eval, bd, alpha, beta), move::null()); }
+    if(depth <= 0) { return make_result(q_search(ss, eval, bd, alpha, beta,  0), move::null()); }
     ++nodes_;
 
     // step 3. initialize move orderer (setting tt move first if applicable)
@@ -411,7 +413,7 @@ struct thread_worker{
     return result;
   }
 
-  void go(const search::depth_type start_depth){
+  void go(const search::depth_type& start_depth){
     std::unique_lock<std::mutex> go_lk(go_mutex_);
     depth_.store(start_depth);
     nodes_.store(0);
@@ -461,9 +463,9 @@ struct worker_pool{
     constexpr size_t max_pv_length = 256;
     for(size_t i(0); i < max_pv_length; ++i){
       const std::optional<tt_entry> entry = tt_ -> find(bd.hash());
-      if(!entry.has_value() || !bd.generate_moves().has(entry.value().best_move())){ break; }
-      result += entry.value().best_move().name(bd.turn()) + " ";
-      bd = bd.forward(entry.value().best_move());
+      if(!entry.has_value() || !bd.generate_moves().has(entry -> best_move())){ break; }
+      result += entry -> best_move().name(bd.turn()) + " ";
+      bd = bd.forward(entry -> best_move());
     }
     return result;
   }
