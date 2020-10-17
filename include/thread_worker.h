@@ -79,7 +79,7 @@ struct thread_worker{
     if(all_list.size() == 0) { return draw_score<T>; }
     if(ss.is_three_fold(bd.hash())){ return draw_score<T>; }
     
-    const auto list = all_list.loud();
+    const auto list = is_check ? all_list : all_list.loud();
     auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &hh_.us(bd.turn())});
     
     if(const std::optional<tt_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
@@ -92,7 +92,7 @@ struct thread_worker{
       orderer.set_first(entry.best_move());
     }
 
-    const T static_eval = eval.propagate(bd.turn());
+    const T static_eval = is_check ? mate_score<T> : eval.propagate(bd.turn());
     if(list.size() == 0 || static_eval > beta){ return static_eval; }
 
     alpha = std::max(alpha, static_eval);
