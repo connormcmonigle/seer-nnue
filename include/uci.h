@@ -120,7 +120,7 @@ struct uci{
   }
 
   void id_info(){
-    os << "id name Seer\n";
+    os << "id name Seer 1.0\n";
     os << "id author C. McMonigle\n";
     os << options();
     os << "uciok\n";

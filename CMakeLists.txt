@@ -28,6 +28,8 @@ add_executable (test_history test/test_history.cc)
 add_executable (test_search_stack test/test_search_stack.cc)
 add_executable (test_history_heuristic test/test_history_heuristic.cc)
 add_executable (test_time_manager test/test_time_manager.cc)
+add_executable (test_streamer test/test_streamer.cc)
+
 
 add_executable (test_worker test/test_worker.cc)
 target_link_libraries (test_worker Threads::Threads)
