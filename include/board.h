@@ -439,6 +439,24 @@ struct board{
   }
 
   template<color c>
+  size_t side_num_pieces() const {
+    return man_.us<c>().pawn().count() + 
+           man_.us<c>().knight().count() +
+           man_.us<c>().bishop().count() +
+           man_.us<c>().rook().count() +
+           man_.us<c>().queen().count() +
+           man_.us<c>().king().count();
+  }
+  
+  size_t num_pieces() const {
+    return side_num_pieces<color::white>() + side_num_pieces<color::black>();
+  }
+  
+  bool is_trivially_drawn() const {
+    return (num_pieces() == 2) || ((num_pieces() == 3) && (man_.white.knight() | man_.white.bishop() | man_.black.knight() | man_.black.bishop()).any());
+  }
+  
+  template<color c>
   board forward_(const move& mv) const {
     auto cpy = *this;
     if(mv.is_null()){

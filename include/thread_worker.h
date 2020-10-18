@@ -78,6 +78,7 @@ struct thread_worker{
     if(all_list.size() == 0 && is_check){ return mate_score<T>; }
     if(all_list.size() == 0) { return draw_score<T>; }
     if(ss.is_three_fold(bd.hash())){ return draw_score<T>; }
+    if(bd.is_trivially_drawn()){ return draw_score<T>; }
     
     const auto list = is_check ? all_list : all_list.loud();
     auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &hh_.us(bd.turn())});
@@ -131,6 +132,7 @@ struct thread_worker{
     if(list.size() == 0 && is_check){ return make_result(mate_score<T>, move::null()); }
     if(list.size() == 0) { return make_result(draw_score<T>, move::null()); }
     if(ss.is_three_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
+    if(!is_root && bd.is_trivially_drawn()){ return make_result(draw_score<T>, move::null()); }
     
     // don't drop into qsearch if in check
     if(is_check && depth <= 0){ depth = 1; }
@@ -175,7 +177,7 @@ struct thread_worker{
     // step 6. static null move pruning
     const bool snm_prune = 
       !is_root && !is_pv && 
-      !is_check && 
+      !is_check &&
       depth <= constants_ -> snmp_depth() &&
       static_eval > beta + constants_ -> snmp_margin<T>(improving, depth) &&
       static_eval > mate_score<T>;
