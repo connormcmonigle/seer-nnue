@@ -3,6 +3,8 @@
 #include <cstring>
 #include <string>
 
+#include <array>
+
 namespace nnue{
 
 template<typename T>
@@ -10,11 +12,11 @@ struct weights_streamer{
   std::fstream file;
   
   weights_streamer<T>& stream(T* dst, const size_t request){
-    const size_t stream_size = sizeof(T) * request;
-    char* char_ptr = new char[stream_size];
-    file.read(char_ptr, stream_size);
-    std::memcpy(dst, char_ptr, stream_size);
-    delete[] char_ptr;
+    std::array<char, sizeof(T)> single_element{};
+    for(size_t i(0); i < request; ++i){
+      file.read(single_element.data(), single_element.size());
+      std::memcpy(dst + i, single_element.data(), single_element.size());
+    }
     return *this;
   }
   
