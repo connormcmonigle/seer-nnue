@@ -1,7 +1,7 @@
 # Seer
 
 Seer is a, from scratch, work in progress, UCI chess engine using NNUE for position evaluation. As an engine, Seer stands on the shoulders of many great (and mostly much stronger) predecessors. 
-In particular, [Ethereal](https://github.com/AndyGrant/Ethereal), [Winter](https://github.com/rosenthj/Winter), and [Stockfish](https://github.com/official-stockfish/Stockfish) have proven useful in the developemnt of Seer.
+In particular, [Ethereal](https://github.com/AndyGrant/Ethereal), [Winter](https://github.com/rosenthj/Winter), and [Stockfish](https://github.com/official-stockfish/Stockfish) have proven useful in the development of Seer.
 
 ### UCI Options
 - Clear Hash
