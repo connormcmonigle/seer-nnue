@@ -18,7 +18,7 @@ struct weights_streamer{
     return *this;
   }
   
-  weights_streamer(const std::string& name) : file(name) {}
+  weights_streamer(const std::string& name) : file(name, std::ios_base::in | std::ios_base::binary) {}
 };
 
 }
