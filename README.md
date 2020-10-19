@@ -15,7 +15,7 @@ In particular, [Ethereal](https://github.com/AndyGrant/Ethereal), [Winter](https
 - Bitboard move generation using PEXT/PDEP instructions with constexpr compile time generated attack tables.
 - Principal variation search inside an iterative deepening framework
 - Lockless shared transposition table (board state Zobrist hash is incrementally updated)
-- Move Ordering (SEE for captures + Combined Butterfly History, Counter Move History and Follow Up History for quiets)
+- Move Ordering (SEE for captures + Killer Move, Combined Butterfly History, Counter Move History and Follow Up History for quiets)
 - History pruning as well as SEE pruning in QSearch
 - Null move pruning
 - Late move reduction
