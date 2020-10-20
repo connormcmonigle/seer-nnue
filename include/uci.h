@@ -5,6 +5,7 @@
 #include <regex>
 #include <chrono>
 
+#include <version.h>
 #include <board.h>
 #include <move.h>
 #include <thread_worker.h>
@@ -33,6 +34,8 @@ struct uci{
 
   std::ostream& os = std::cout;
 
+  bool searching() const { return go_; }
+  
   auto options(){
     auto weight_path = option_callback(string_option("Weights"), [this](const std::string& path){
       weights_.load(path);
@@ -54,7 +57,7 @@ struct uci{
 
     return uci_options(weight_path, hash_size, thread_count, clear_hash);
   }
-
+  
   void uci_new_game(){
     history.clear();
     pool_.tt_ -> clear();
@@ -120,7 +123,7 @@ struct uci{
   }
 
   void id_info(){
-    os << "id name Seer 1.0\n";
+    os << "id name Seer " << version::major << "." << version::minor << "\n";
     os << "id author C. McMonigle\n";
     os << options();
     os << "uciok\n";

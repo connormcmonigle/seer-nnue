@@ -13,7 +13,8 @@ int main(){
   engine::uci u{};
   std::future<std::string> future = std::async(read_line);
   while(true){
-    if(future.wait_for(std::chrono::seconds(0)) == std::future_status::ready){
+    if(!u.searching()){ future.wait(); }
+    if(future.wait_for(std::chrono::milliseconds(1)) == std::future_status::ready){
       u.uci_loop(future.get());
       future = std::async(read_line);
     }else{
