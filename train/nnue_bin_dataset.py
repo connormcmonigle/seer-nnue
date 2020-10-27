@@ -26,6 +26,8 @@ def read_n_bit(string, start_idx, n):
 
 
 def is_quiet(board, from_, to_):
+  if(board.is_check()):
+    return False
   for mv in board.legal_moves:
     if mv.from_square == from_ and mv.to_square == to_:
       return not board.is_capture(mv)
@@ -41,12 +43,14 @@ def worker_init_fn(worker_id):
 
 
 class NNUEBinData(torch.utils.data.IterableDataset):
-  def __init__(self, config):
+  def __init__(self, bin_path, config):
     super(NNUEBinData, self).__init__()
     self.config = config
     self.batch_size = config.batch_size
     self.shuffle_buffer = [None] * config.shuffle_buffer_size
-    self.bits = bitstring.Bits(open(config.nnue_bin_data_path, 'rb'))
+    self.bits = bitstring.Bits(open(bin_path, 'rb'))
+
+
     self.start_idx = 0
     self.end_idx = len(self.bits) // PACKED_SFEN_VALUE_BITS
 

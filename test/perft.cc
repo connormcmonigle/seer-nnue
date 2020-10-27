@@ -50,7 +50,7 @@ void perft_divide(chess::board bd, int depth){
 }
 
 int main(){
-  int depth = 4;
+  int depth = 6;
   std::cout << "fen: ";
   std::string fen; std::getline(std::cin, fen);
   std::cout << fen << std::endl;

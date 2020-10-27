@@ -43,8 +43,8 @@ struct constants{
   template<typename T>
   constexpr T snmp_margin(const bool& improving, const depth_type& depth) const {
     assert(depth > 0);
-    constexpr T m = static_cast<T>(0.28);
-    constexpr T b = static_cast<T>(0.12);
+    constexpr T m = static_cast<T>(0.32);
+    constexpr T b = static_cast<T>(0.16);
     return m * static_cast<T>(depth - improving) + b;
   }
 
