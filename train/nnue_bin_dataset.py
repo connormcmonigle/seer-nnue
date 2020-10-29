@@ -26,7 +26,7 @@ def read_n_bit(string, start_idx, n):
 
 
 def is_quiet(board, from_, to_):
-  if(board.is_check()):
+  if board.is_check():
     return False
   for mv in board.legal_moves:
     if mv.from_square == from_ and mv.to_square == to_:
