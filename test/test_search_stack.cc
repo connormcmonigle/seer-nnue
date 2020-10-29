@@ -19,5 +19,5 @@ int main(){
 
   std::cout << "improving :: " << std::boolalpha << view_2.improving() << std::endl;
   std::cout << "nmp_valid :: " << std::boolalpha << view_2.nmp_valid() << std::endl;
-  std::cout << "is_three_fold(2) :: " << std::boolalpha << view_2.next().is_three_fold(2) << std::endl;
+  std::cout << "is_three_fold(2) :: " << std::boolalpha << view_2.next().is_two_fold(2) << std::endl;
 }

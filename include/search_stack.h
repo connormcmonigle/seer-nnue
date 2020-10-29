@@ -45,8 +45,8 @@ struct stack_view{
   stack<T>* view_;
   depth_type height_{};
 
-  bool is_three_fold(const zobrist::hash_type& hash) const {
-    return view_ -> occurrences(height_, hash) >= 2;
+  bool is_two_fold(const zobrist::hash_type& hash) const {
+    return view_ -> occurrences(height_, hash) >= 1;
   }
 
   chess::move counter() const {

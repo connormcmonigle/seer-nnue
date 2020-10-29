@@ -77,7 +77,7 @@ struct thread_worker{
     const bool is_check = bd.is_check();
     if(all_list.size() == 0 && is_check){ return mate_score<T>; }
     if(all_list.size() == 0) { return draw_score<T>; }
-    if(ss.is_three_fold(bd.hash())){ return draw_score<T>; }
+    if(ss.is_two_fold(bd.hash())){ return draw_score<T>; }
     if(bd.is_trivially_drawn()){ return draw_score<T>; }
     
     const auto list = is_check ? all_list : all_list.loud();
@@ -131,7 +131,7 @@ struct thread_worker{
     const bool is_check = bd.is_check();
     if(list.size() == 0 && is_check){ return make_result(mate_score<T>, move::null()); }
     if(list.size() == 0) { return make_result(draw_score<T>, move::null()); }
-    if(ss.is_three_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
+    if(!is_root && ss.is_two_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
     if(!is_root && bd.is_trivially_drawn()){ return make_result(draw_score<T>, move::null()); }
     
     // don't drop into qsearch if in check
