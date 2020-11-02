@@ -22,4 +22,4 @@ test_rate: 50
 max_queue_size: 128
 
 
-learning_rate: 0.5
+learning_rate: 0.03
