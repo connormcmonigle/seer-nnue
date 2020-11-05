@@ -39,3 +39,6 @@ target_link_libraries (test_tt Threads::Threads)
 
 add_executable (seer src/seer.cc)
 target_link_libraries (seer Threads::Threads)
+
+add_executable (selfplay src/selfplay.cc)
+target_link_libraries (selfplay Threads::Threads)
