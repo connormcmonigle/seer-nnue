@@ -231,6 +231,12 @@ struct thread_worker{
           history_value <= constants_ -> history_prune_threshold<history_heuristic::value_type>();
         
         if(history_prune){ continue; }
+        
+        const bool futility_prune = 
+          depth <= constants_ -> futility_prune_depth() &&
+          static_eval + constants_ -> futility_margin<T>(depth) < alpha;
+        
+        if(futility_prune){ continue; }
       }
       
       // step 9. extensions
