@@ -10,13 +10,13 @@
 
 namespace nnue{
 
-constexpr size_t half_kp_numel = 768*64;
+constexpr size_t half_ka_numel = 768*64;
 constexpr size_t base_dim = 128;
 
 template<typename T>
-struct half_kp_weights{
-  big_affine<T, half_kp_numel, base_dim> w{};
-  big_affine<T, half_kp_numel, base_dim> b{};
+struct weights{
+  big_affine<T, half_ka_numel, base_dim> w{};
+  big_affine<T, half_ka_numel, base_dim> b{};
   stack_affine<T, 2*base_dim, 32> fc0{};
   stack_affine<T, 32, 32> fc1{};
   stack_affine<T, 64, 32> fc2{};
@@ -31,7 +31,7 @@ struct half_kp_weights{
            fc3.num_parameters();
   }
   
-  half_kp_weights<T>& load(weights_streamer<T>& ws){
+  weights<T>& load(weights_streamer<T>& ws){
     w.load_(ws);
     b.load_(ws);
     fc0.load_(ws);
@@ -41,7 +41,7 @@ struct half_kp_weights{
     return *this;
   }
   
-  half_kp_weights<T>& load(const std::string& path){
+  weights<T>& load(const std::string& path){
     auto ws = weights_streamer<T>(path);
     return load(ws);
   }
@@ -49,7 +49,7 @@ struct half_kp_weights{
 
 template<typename T>
 struct feature_transformer{
-  const big_affine<T, half_kp_numel, base_dim>* weights_;
+  const big_affine<T, half_ka_numel, base_dim>* weights_;
   stack_vector<T, base_dim> active_;
   constexpr stack_vector<T, base_dim> active() const { return active_; }
 
@@ -57,14 +57,14 @@ struct feature_transformer{
   void insert(const size_t idx){ weights_ -> insert_idx(idx, active_); }
   void erase(const size_t idx){ weights_ -> erase_idx(idx, active_); }
 
-  feature_transformer(const big_affine<T, half_kp_numel, base_dim>* src) : weights_{src} {
+  feature_transformer(const big_affine<T, half_ka_numel, base_dim>* src) : weights_{src} {
     clear();
   }
 };
 
 template<typename T>
-struct half_kp_eval : chess::sided<half_kp_eval<T>, feature_transformer<T>>{
-  const half_kp_weights<T>* weights_;
+struct eval : chess::sided<eval<T>, feature_transformer<T>>{
+  const weights<T>* weights_;
   feature_transformer<T> white;
   feature_transformer<T> black;
 
@@ -79,7 +79,7 @@ struct half_kp_eval : chess::sided<half_kp_eval<T>, feature_transformer<T>>{
     return val;
   }
 
-  half_kp_eval(const half_kp_weights<T>* src) : weights_{src}, white{&(src -> w)}, black{&(src -> b)} {}
+  eval(const weights<T>* src) : weights_{src}, white{&(src -> w)}, black{&(src -> b)} {}
 };
 
 }

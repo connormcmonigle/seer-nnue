@@ -51,7 +51,7 @@ struct default_random_inserter{
 
 template<typename T, typename R>
 struct generator_config{
-  const nnue::half_kp_weights<T>* weights_{nullptr};
+  const nnue::weights<T>* weights_{nullptr};
   search::depth_type depth_;
   R random_inserter_;
   
@@ -63,7 +63,7 @@ struct generator_config{
     return generator_config<T, R>(weights_, depth_);
   }
   
-  generator_config(const nnue::half_kp_weights<T>* weights, const search::depth_type& depth) : weights_{weights}, depth_{depth},  random_inserter_(std::random_device()()) {
+  generator_config(const nnue::weights<T>* weights, const search::depth_type& depth) : weights_{weights}, depth_{depth},  random_inserter_(std::random_device()()) {
       tt_ = std::make_shared<chess::table>(config_hardcode::tt_mb_size);
       constants_ = std::make_shared<search::constants>(1);
   }

@@ -510,7 +510,7 @@ struct board{
   }
 
   template<color c, typename U>
-  void show_half_kp_indices(U& updatable) const {
+  void show_feature_indices(U& updatable) const {
     using namespace feature_idx;
     const size_t king_idx = man_.us<c>().king().item().index();
     //us
@@ -533,8 +533,8 @@ struct board{
   void show_init(U& u) const {
     u.white.clear();
     u.black.clear();
-    show_half_kp_indices<color::white>(u);
-    show_half_kp_indices<color::black>(u);
+    show_feature_indices<color::white>(u);
+    show_feature_indices<color::black>(u);
   }
 
   template<color c, typename U>
@@ -566,7 +566,7 @@ struct board{
   }
 
   template<typename U>
-  U half_kp_updated(const move& mv, const U& updatable) const {
+  U apply_update(const move& mv, const U& updatable) const {
     U u = updatable;
     if(turn()){ show_delta<color::white, U>(mv, u); } else { show_delta<color::black, U>(mv, u); }
     return u;

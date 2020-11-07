@@ -60,7 +60,7 @@ int main(){
 
       std::uniform_int_distribution<size_t> dist(0, mv_ls.size() - 1);
       const chess::move mv = mv_ls.data[dist(gen)];
-      updatable = bd.half_kp_updated(mv, updatable);
+      updatable = bd.apply_update(mv, updatable);
       bd = bd.forward(mv);
     }
   }

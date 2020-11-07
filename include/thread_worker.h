@@ -8,7 +8,7 @@
 #include <cstring>
 #include <vector>
 
-#include <nnue_half_kp.h>
+#include <nnue_model.h>
 #include <board.h>
 #include <move.h>
 #include <search_util.h>
@@ -59,7 +59,7 @@ struct thread_worker{
   std::atomic<std::uint32_t> score_;
   std::atomic<std::uint32_t> best_move_{};
 
-  nnue::half_kp_eval<T> evaluator_;
+  nnue::eval<T> evaluator_;
   sided_history_heuristic hh_;
 
   std::shared_ptr<table> tt_;
@@ -69,7 +69,7 @@ struct thread_worker{
   board position_{};
   position_history history_{};
 
-  T q_search(const search::stack_view<T>& ss, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T& beta, const search::depth_type& elevation){
+  T q_search(const search::stack_view<T>& ss, const nnue::eval<T>& eval, const board& bd, T alpha, const T& beta, const search::depth_type& elevation){
     ++nodes_;
     
     const auto all_list = bd.generate_moves();
@@ -105,7 +105,7 @@ struct thread_worker{
       assert((mv != move::null()));
       if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
       if(bd.see<int>(mv) >= 0){
-        const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
+        const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
         const board bd_ = bd.forward(mv);
       
         const T score = -q_search(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
@@ -118,7 +118,7 @@ struct thread_worker{
   }
 
   template<bool is_pv, bool is_root=false>
-  auto pv_search(const search::stack_view<T>& ss, const nnue::half_kp_eval<T>& eval, const board& bd, T alpha, const T& beta, search::depth_type depth) -> pv_search_result_t<T, is_root>{
+  auto pv_search(const search::stack_view<T>& ss, const nnue::eval<T>& eval, const board& bd, T alpha, const T& beta, search::depth_type depth) -> pv_search_result_t<T, is_root>{
     auto make_result = [](const T& score, const move& mv){
       if constexpr(is_root){ return pv_search_result_t<T, is_root>{score, mv}; }
       if constexpr(!is_root){ return score; }
@@ -215,7 +215,7 @@ struct thread_worker{
       
       const history_heuristic::value_type history_value = hh_.us(bd.turn()).compute_value(follow, counter, mv);
       
-      const nnue::half_kp_eval<T> eval_ = bd.half_kp_updated(mv, eval);
+      const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
       const board bd_ = bd.forward(mv);
       
       const bool try_pruning = 
@@ -447,7 +447,7 @@ struct thread_worker{
   }
 
   thread_worker(
-    const nnue::half_kp_weights<T>* weights,
+    const nnue::weights<T>* weights,
     std::shared_ptr<table> tt,
     std::shared_ptr<search::constants> constants
   ) : 
@@ -460,7 +460,7 @@ struct thread_worker{
 template<typename T>
 struct worker_pool{
   
-  const nnue::half_kp_weights<T>* weights_;
+  const nnue::weights<T>* weights_;
   std::shared_ptr<table> tt_{nullptr};
   std::shared_ptr<search::constants> constants_{nullptr};
 
@@ -512,7 +512,7 @@ struct worker_pool{
     return *pool_[0];
   }
 
-  worker_pool(const nnue::half_kp_weights<T>* weights, size_t hash_table_size, size_t num_workers) : weights_{weights} {
+  worker_pool(const nnue::weights<T>* weights, size_t hash_table_size, size_t num_workers) : weights_{weights} {
     tt_ = std::make_shared<table>(hash_table_size);
     constants_ = std::make_shared<search::constants>(num_workers);
     for(size_t i(0); i < num_workers; ++i){

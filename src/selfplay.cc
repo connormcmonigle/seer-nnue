@@ -5,7 +5,7 @@
 
 #include <sample.h>
 #include <search_util.h>
-#include <nnue_half_kp.h>
+#include <nnue_model.h>
 #include <data_generator.h>
 
 int main(){
@@ -22,7 +22,7 @@ int main(){
   std::string destination_path{}; std::cin >> destination_path;
   
   auto destination = std::fstream(destination_path);
-  const auto weights = nnue::half_kp_weights<real_t>{}.load(weights_path);
+  const auto weights = nnue::weights<real_t>{}.load(weights_path);
   
   selfplay::generator_config<real_t, selfplay::default_random_inserter> cfg(&weights, depth);
   selfplay::generator<real_t, selfplay::default_random_inserter> generator(cfg, num_threads, num_positions);

@@ -26,7 +26,7 @@ struct uci{
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
   
-  nnue::half_kp_weights<engine::uci::real_t> weights_{};
+  nnue::weights<real_t> weights_{};
   chess::worker_pool<real_t> pool_;
 
   bool go_{false};
@@ -37,7 +37,7 @@ struct uci{
   bool searching() const { return go_; }
   
   auto options(){
-    auto weight_path = option_callback(string_option("Weights"), [this](const std::string& path){
+    auto weight_path = option_callback(string_option("Weights", std::string(default_weight_path)), [this](const std::string& path){
       weights_.load(path);
     });
 
@@ -84,7 +84,7 @@ struct uci{
   }
 
   void info_string(){
-    constexpr real_t score_scale = static_cast<real_t>(600.0);
+    constexpr real_t score_scale = static_cast<real_t>(400.0);
     constexpr int eval_limit = 256 * 100;
     
     const real_t raw_score = pool_.primary_worker().score();
@@ -96,12 +96,15 @@ struct uci{
     const int depth = pool_.primary_worker().depth();
     const size_t elapsed_ms = manager_.elapsed().count();
     const size_t node_count = pool_.nodes();
-    const size_t nps = static_cast<size_t>(1000) * node_count / (elapsed_ms+1);
+    const size_t nps = static_cast<size_t>(1000) * node_count / (1 + elapsed_ms);
     
     if(last_reported_depth != depth){
       last_reported_depth = depth;
-      os << "info depth " << depth << " seldepth " << depth << " multipv 1 score cp " << score;
-      os << " nodes " << node_count << " nps " << nps << " tbhits " << 0 << " time " << elapsed_ms << " pv " << pool_.pv_string(position) << '\n';
+      os 
+         << "info depth " << depth << " score cp " << score
+         << " nodes " << node_count << " nps " << nps
+         << " time " << elapsed_ms << " pv " << pool_.pv_string(position)
+         << '\n';
     }
   }
 
@@ -124,7 +127,7 @@ struct uci{
 
   void id_info(){
     os << "id name Seer " << version::major << "." << version::minor << "\n";
-    os << "id author C. McMonigle\n";
+    os << "id author Connor McMonigle\n";
     os << options();
     os << "uciok\n";
   }

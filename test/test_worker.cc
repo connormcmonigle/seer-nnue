@@ -4,13 +4,13 @@
 
 #include <position_history.h>
 #include <board.h>
-#include <nnue_half_kp.h>
+#include <nnue_model.h>
 #include <thread_worker.h>
 
 
 int main(){
   using real_t = float;
-  const auto weights = nnue::half_kp_weights<real_t>{}.load("../train/model/save.bin");
+  const auto weights = nnue::weights<real_t>{}.load("../train/model/save.bin");
   chess::worker_pool<real_t> pool(&weights, 2048, 1);
   std::cout << "fen: ";
   std::string fen; std::getline(std::cin, fen);

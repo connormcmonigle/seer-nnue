@@ -3,14 +3,14 @@
 #include <cstdint>
 #include <string>
 
-#include <nnue_half_kp.h>
+#include <nnue_model.h>
 #include <nnue_util.h>
 
 template<typename T>
 void time_type(const std::string& type_name){
   constexpr size_t num_runs = 10000000;
-  const auto weights = nnue::half_kp_weights<T>{};
-  nnue::half_kp_eval<T> eval(&weights);
+  const auto weights = nnue::weights<T>{};
+  nnue::eval<T> eval(&weights);
   auto start = std::chrono::high_resolution_clock::now();
   T sum{0};
   
