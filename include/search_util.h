@@ -45,7 +45,7 @@ struct constants{
   template<typename T>
   constexpr T futility_margin(const depth_type& depth) const {
     assert(depth > 0);
-    constexpr T m = static_cast<T>(1.5);
+    constexpr T m = static_cast<T>(2.0);
     return m * static_cast<T>(depth);
   }
   
