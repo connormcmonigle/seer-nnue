@@ -104,10 +104,10 @@ struct thread_worker{
     for(auto [idx, mv] : orderer){
       assert((mv != move::null()));
       if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
-      if(bd.see<int>(mv) >= 0){
+      if(is_check || bd.see<int>(mv) >= 0){
         const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
         const board bd_ = bd.forward(mv);
-      
+        
         const T score = -q_search(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
         alpha = std::max(alpha, score);
         best_score = std::max(best_score, score);
@@ -133,9 +133,6 @@ struct thread_worker{
     if(list.size() == 0) { return make_result(draw_score<T>, move::null()); }
     if(!is_root && ss.is_two_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
     if(!is_root && bd.is_trivially_drawn()){ return make_result(draw_score<T>, move::null()); }
-    
-    // don't drop into qsearch if in check
-    if(is_check && depth <= 0){ depth = 1; }
   
     // step 2. drop into qsearch if depth reaches zero
     if(depth <= 0) { return make_result(q_search(ss, eval, bd, alpha, beta,  0), move::null()); }
