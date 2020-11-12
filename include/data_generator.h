@@ -76,13 +76,13 @@ struct generator_worker{
   chess::thread_worker<T> instance;
   
   std::mutex buffer_mutex;
-  std::vector<sample<T>> buffer{};
+  std::vector<sample> buffer{};
   
   
-  std::vector<sample<T>> generate_single_game(){
+  std::vector<sample> generate_single_game(){
     cfg_.tt_ -> clear();
     chess::position_history history{};
-    std::vector<sample<T>> game_buffer{};
+    std::vector<sample> game_buffer{};
     auto state = chess::board::start_pos();
     // gross
     for(;;){
@@ -94,7 +94,7 @@ struct generator_worker{
       while(instance.depth() < cfg_.depth_){ std::this_thread::sleep_for(std::chrono::microseconds(200)); }
       instance.stop();
       
-      game_buffer.push_back(sample<T>{state, instance.score(), 0});
+      game_buffer.push_back(sample{state, instance.score(), 0});
       history.push_(state.hash());
       
       assert((state.generate_moves().has(instance.best_move())));
@@ -106,19 +106,19 @@ struct generator_worker{
         )
       );
       
-      if(instance.score() == -chess::mate_score<T>){ break; }
-      if(instance.score() == chess::mate_score<T>){ break; }
+      if(instance.score() == -search::mate_score){ break; }
+      if(instance.score() == search::mate_score){ break; }
 
     }
     
     int outcome = [&, this]{
       if(state.generate_moves().size() == 0 && state.is_check()){ return -1; }
-      if(instance.score() == chess::mate_score<T>){ return -1; }
-      if(instance.score() == -chess::mate_score<T>){ return 1; }
+      if(instance.score() == search::mate_score){ return -1; }
+      if(instance.score() == -search::mate_score){ return 1; }
       return 0;
     }();
     
-    std::for_each(game_buffer.rbegin(), game_buffer.rend(), [&outcome](sample<T>& s){
+    std::for_each(game_buffer.rbegin(), game_buffer.rend(), [&outcome](sample& s){
       s.outcome = outcome;
       outcome = -outcome;
     });
@@ -129,7 +129,7 @@ struct generator_worker{
   void generate_n_positions(const size_t& n){
     size_t count{0};
     while(count < n){
-      const std::vector<sample<T>> game = generate_single_game();
+      const std::vector<sample> game = generate_single_game();
       std::lock_guard<std::mutex> lock(buffer_mutex);
       if((count + game.size()) >= n){
         const size_t remainder = n - count;
@@ -161,7 +161,7 @@ struct generator{
     for(auto& worker : workers){
       std::lock_guard<std::mutex>(worker -> buffer_mutex);
       total_written += (worker -> buffer).size();
-      std::for_each((worker -> buffer).begin(), (worker -> buffer).end(), [&file](const sample<T>& s){
+      std::for_each((worker -> buffer).begin(), (worker -> buffer).end(), [&file](const sample& s){
         file << s << '\n';
       });
       (worker -> buffer).clear();

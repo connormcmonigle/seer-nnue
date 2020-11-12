@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <numeric>
 #include <cmath>
+#include <cstdint>
 #include <array>
 
 
@@ -11,8 +12,34 @@
 
 namespace search{
 
-using depth_type = int;
+template<typename T>
+inline constexpr T max_logit = static_cast<T>(256);
+
+template<typename T>
+inline constexpr T min_logit = static_cast<T>(-256);
+
+template<typename T>
+inline constexpr T logit_scale = static_cast<T>(1024);
+
+using score_type = std::int32_t;
+
+inline constexpr score_type big_number = 256 * logit_scale<score_type>;
+
+inline constexpr score_type mate_score = -2 * big_number;
+
+inline constexpr score_type draw_score = 0;
+
+inline constexpr score_type aspiration_delta = 30;
+
+inline constexpr score_type stability_threshold = 50;
+
+  
+using depth_type = std::int32_t;
 inline constexpr depth_type max_depth_ = 128;
+
+using counter_type = std::int32_t;
+
+using see_type = std::int32_t;
 
 struct constants{
   static constexpr search::depth_type lmr_tbl_dim = 64;
@@ -28,8 +55,6 @@ struct constants{
   constexpr depth_type snmp_depth() const { return 7; }
   constexpr depth_type futility_prune_depth() const { return 6; }
   
-  
-  template<bool is_pv>
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
     constexpr search::depth_type last_idx = lmr_tbl_dim - 1;
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
@@ -39,35 +64,30 @@ struct constants{
     return 4 + depth / 6;
   }
 
-  template<typename H>
-  constexpr H history_prune_threshold() const { return static_cast<H>(0); }
+  constexpr counter_type history_prune_threshold() const { return counter_type{}; }
 
-  template<typename T>
-  constexpr T futility_margin(const depth_type& depth) const {
+  constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
-    constexpr T m = static_cast<T>(2.0);
-    return m * static_cast<T>(depth);
+    constexpr score_type m = 2048;
+    return m * static_cast<score_type>(depth);
   }
   
-  template<typename T>
-  constexpr T snmp_margin(const bool& improving, const depth_type& depth) const {
+  constexpr score_type snmp_margin(const bool& improving, const depth_type& depth) const {
     assert(depth > 0);
-    constexpr T m = static_cast<T>(0.32);
-    constexpr T b = static_cast<T>(0.16);
-    return m * static_cast<T>(depth - improving) + b;
+    constexpr score_type m = 328;
+    constexpr score_type b = 164;
+    return m * static_cast<score_type>(depth - improving) + b;
   }
 
-  template<typename H>
-  constexpr depth_type history_reduction(H& history_value) const {
+  constexpr depth_type history_reduction(const counter_type& history_value) const {
     constexpr depth_type limit = 2;
     const depth_type raw = -static_cast<depth_type>(history_value / 5000);
     return std::max(-limit, std::min(limit, raw));
   }
 
-  template<typename T>
-  constexpr T near_margin(const depth_type& parent, const depth_type& child) const {
-    constexpr T m = static_cast<T>(0.03125);
-    return static_cast<T>(std::max(parent - child, 1)) * m;
+  constexpr score_type near_margin(const depth_type& parent, const depth_type& child) const {
+    constexpr score_type m = 32;
+    return m * static_cast<score_type>(std::max(parent - child, 1));
   }
 
   constants& update_(const size_t& thread_count){

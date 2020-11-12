@@ -20,33 +20,16 @@
 
 namespace chess{
 
-template<typename T>
-inline constexpr T epsilon = static_cast<T>(1e-5);
 
-template<typename T>
-inline constexpr T big_number = static_cast<T>(256);
+template<bool is_root> struct pv_search_result{};
+template<> struct pv_search_result<false>{ using type = search::score_type; };
+template<> struct pv_search_result<true>{ using type = std::tuple<search::score_type, move>; };
 
-template<typename T>
-inline constexpr T mate_score = -static_cast<T>(2) * big_number<T>;
-
-template<typename T>
-inline constexpr T draw_score = static_cast<T>(0);
-
-template<typename T>
-inline constexpr T aspiration_delta = static_cast<T>(0.03);
-
-template<typename T, bool is_root> struct pv_search_result{};
-template<typename T> struct pv_search_result<T, false>{ using type = T; };
-template<typename T> struct pv_search_result<T, true>{ using type = std::tuple<T, move>; };
-
-template<typename T, bool is_root>
-using pv_search_result_t = typename pv_search_result<T, is_root>::type;
+template<bool is_root>
+using pv_search_result_t = typename pv_search_result<is_root>::type;
 
 template<typename T>
 struct thread_worker{
-  using real_t = T;
-  static constexpr int score_num_bytes = sizeof(std::uint32_t);
-  static_assert(score_num_bytes == sizeof(T), "4 byte wide T required");
 
   std::mutex go_mutex_{};
   std::condition_variable cv_{};
@@ -56,7 +39,7 @@ struct thread_worker{
   std::atomic<size_t> nodes_;
   std::atomic<size_t> nodes_at_depth_;
   
-  std::atomic<std::uint32_t> score_;
+  std::atomic<search::score_type> score_;
   std::atomic<std::uint32_t> best_move_{};
 
   nnue::eval<T> evaluator_;
@@ -69,16 +52,16 @@ struct thread_worker{
   board position_{};
   position_history history_{};
 
-  T q_search(const search::stack_view<T>& ss, const nnue::eval<T>& eval, const board& bd, T alpha, const T& beta, const search::depth_type& elevation){
+  search::score_type q_search(const search::stack_view& ss, const nnue::eval<T>& eval, const board& bd, search::score_type alpha, const search::score_type& beta, const search::depth_type& elevation){
     ++nodes_;
     
     const auto all_list = bd.generate_moves();
 
     const bool is_check = bd.is_check();
-    if(all_list.size() == 0 && is_check){ return mate_score<T>; }
-    if(all_list.size() == 0) { return draw_score<T>; }
-    if(ss.is_two_fold(bd.hash())){ return draw_score<T>; }
-    if(bd.is_trivially_drawn()){ return draw_score<T>; }
+    if(all_list.size() == 0 && is_check){ return search::mate_score; }
+    if(all_list.size() == 0) { return search::draw_score; }
+    if(ss.is_two_fold(bd.hash())){ return search::draw_score; }
+    if(bd.is_trivially_drawn()){ return search::draw_score; }
     
     const auto list = is_check ? all_list : all_list.loud();
     auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &hh_.us(bd.turn())});
@@ -93,22 +76,22 @@ struct thread_worker{
       orderer.set_first(entry.best_move());
     }
 
-    const T static_eval = is_check ? mate_score<T> : eval.propagate(bd.turn());
+    const search::score_type static_eval = is_check ? search::mate_score : eval.evaluate(bd.turn());
     if(list.size() == 0 || static_eval > beta){ return static_eval; }
 
     alpha = std::max(alpha, static_eval);
-    T best_score = static_eval;
+    search::score_type best_score = static_eval;
     
     ss.set_hash(bd.hash()).set_eval(static_eval);
 
     for(auto [idx, mv] : orderer){
       assert((mv != move::null()));
       if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
-      if(is_check || bd.see<int>(mv) >= 0){
+      if(is_check || bd.see<search::see_type>(mv) >= 0){
         const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
         const board bd_ = bd.forward(mv);
         
-        const T score = -q_search(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
+        const search::score_type score = -q_search(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
         alpha = std::max(alpha, score);
         best_score = std::max(best_score, score);
       }
@@ -118,9 +101,9 @@ struct thread_worker{
   }
 
   template<bool is_pv, bool is_root=false>
-  auto pv_search(const search::stack_view<T>& ss, const nnue::eval<T>& eval, const board& bd, T alpha, const T& beta, search::depth_type depth) -> pv_search_result_t<T, is_root>{
-    auto make_result = [](const T& score, const move& mv){
-      if constexpr(is_root){ return pv_search_result_t<T, is_root>{score, mv}; }
+  auto pv_search(const search::stack_view& ss, const nnue::eval<T>& eval, const board& bd, search::score_type alpha, const search::score_type& beta, search::depth_type depth) -> pv_search_result_t<is_root> {
+    auto make_result = [](const search::score_type& score, const move& mv){
+      if constexpr(is_root){ return pv_search_result_t<is_root>{score, mv}; }
       if constexpr(!is_root){ return score; }
     };
     
@@ -129,10 +112,10 @@ struct thread_worker{
     // step 1. check if node is terminal
     const auto list = bd.generate_moves();
     const bool is_check = bd.is_check();
-    if(list.size() == 0 && is_check){ return make_result(mate_score<T>, move::null()); }
-    if(list.size() == 0) { return make_result(draw_score<T>, move::null()); }
-    if(!is_root && ss.is_two_fold(bd.hash())){ return make_result(draw_score<T>, move::null()); }
-    if(!is_root && bd.is_trivially_drawn()){ return make_result(draw_score<T>, move::null()); }
+    if(list.size() == 0 && is_check){ return make_result(search::mate_score, move::null()); }
+    if(list.size() == 0) { return make_result(search::draw_score, move::null()); }
+    if(!is_root && ss.is_two_fold(bd.hash())){ return make_result(search::draw_score, move::null()); }
+    if(!is_root && bd.is_trivially_drawn()){ return make_result(search::draw_score, move::null()); }
   
     // step 2. drop into qsearch if depth reaches zero
     if(depth <= 0) { return make_result(q_search(ss, eval, bd, alpha, beta,  0), move::null()); }
@@ -156,8 +139,8 @@ struct thread_worker{
     }
     
     // step 4. compute static eval and adjust appropriately if there's a tt hit
-    const T static_eval = [&]{
-      const T val = eval.propagate(bd.turn());
+    const search::score_type static_eval = [&]{
+      const search::score_type val = eval.evaluate(bd.turn());
       if(maybe.has_value()){
         if(maybe -> bound() == bound_type::upper && val > maybe -> score()){ return maybe -> score(); }
         if(maybe -> bound() == bound_type::lower && val < maybe -> score()){ return maybe -> score(); }
@@ -174,8 +157,8 @@ struct thread_worker{
       !is_root && !is_pv && 
       !is_check &&
       depth <= constants_ -> snmp_depth() &&
-      static_eval > beta + constants_ -> snmp_margin<T>(improving, depth) &&
-      static_eval > mate_score<T>;
+      static_eval > beta + constants_ -> snmp_margin(improving, depth) &&
+      static_eval > search::mate_score;
 
     if(snm_prune){ return make_result(static_eval, move::null()); }
 
@@ -192,7 +175,7 @@ struct thread_worker{
       ss.set_played(move::null());
       const search::depth_type R = constants_ -> R(depth);
       const search::depth_type adjusted_depth = std::max(0, depth - R);
-      const T nmp_score = -pv_search<is_pv>(ss.next(), eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth);
+      const search::score_type nmp_score = -pv_search<is_pv>(ss.next(), eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth);
       if(nmp_score > beta){ return make_result(nmp_score, move::null()); }
     }
     
@@ -200,7 +183,7 @@ struct thread_worker{
     move_list quiets_tried{};
     
     // move loop
-    T best_score = mate_score<T>;
+    search::score_type best_score = search::mate_score;
     move best_move = list.data[0];
 
     for(auto [idx, mv] : orderer){
@@ -208,7 +191,7 @@ struct thread_worker{
       if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
       ss.set_played(mv);
       
-      const history_heuristic::value_type history_value = hh_.us(bd.turn()).compute_value(follow, counter, mv);
+      const search::counter_type history_value = hh_.us(bd.turn()).compute_value(follow, counter, mv);
       
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
       const board bd_ = bd.forward(mv);
@@ -217,30 +200,30 @@ struct thread_worker{
         !is_root && !is_pv && 
         !bd_.is_check() && !is_check &&
         idx != 0 && mv.is_quiet() &&
-        best_score > mate_score<T>;
+        best_score > search::mate_score;
       
       // step 8. pruning
       if(try_pruning){
         const bool history_prune = 
           depth <= constants_ -> history_prune_depth() &&
-          history_value <= constants_ -> history_prune_threshold<history_heuristic::value_type>();
+          history_value <= constants_ -> history_prune_threshold();
         
         if(history_prune){ continue; }
         
         const bool futility_prune = 
           depth <= constants_ -> futility_prune_depth() &&
-          static_eval + constants_ -> futility_margin<T>(depth) < alpha;
+          static_eval + constants_ -> futility_margin(depth) < alpha;
         
         if(futility_prune){ continue; }
       }
       
       // step 9. extensions
       const search::depth_type extension = [&]{
-        if(bd.see<int>(mv) > 0 && bd_.is_check()){ return 1; }
+        if(bd.see<search::see_type>(mv) > 0 && bd_.is_check()){ return 1; }
         return 0;
       }();
       
-      const T score = [&, this]{
+      const search::score_type score = [&, this]{
         const search::depth_type next_depth = depth + extension - 1;
         auto full_width = [&]{ return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
           
@@ -249,11 +232,11 @@ struct thread_worker{
           (mv.is_quiet() || bd.see<int>(mv) < 0) &&
           idx != 0 &&
           (depth >= constants_ -> reduce_depth());
-        T zw_score{};
+        search::score_type zw_score{};
         
         // step 10. late move reductions
         if(try_lmr){
-          search::depth_type reduction = constants_ -> reduction<is_pv>(depth, idx);
+          search::depth_type reduction = constants_ -> reduction(depth, idx);
           
           // adjust reduction
           if(bd_.is_check()){ --reduction; }
@@ -266,7 +249,7 @@ struct thread_worker{
             const auto child_entry = tt_ -> find(bd_.hash());
             return child_entry.has_value() &&
               child_entry -> bound() == bound_type::upper &&
-              -(child_entry -> score()) + constants_ -> near_margin<T>(depth, child_entry -> depth()) > alpha;
+              -(child_entry -> score()) + constants_ -> near_margin(depth, child_entry -> depth()) > alpha;
           }();
           
           if(is_near){ --reduction; }
@@ -276,12 +259,12 @@ struct thread_worker{
           reduction = std::max(reduction, 0);
           
           const search::depth_type lmr_depth = std::max(1, next_depth - reduction);
-          zw_score = -pv_search<false>(ss.next(), eval_, bd_, -alpha - epsilon<T>, -alpha, lmr_depth);
+          zw_score = -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, lmr_depth);
         }
         
         // search again at full depth if necessary
         if(!try_lmr || (try_lmr && (zw_score > alpha))){
-          zw_score = -pv_search<false>(ss.next(), eval_, bd_, -alpha - epsilon<T>, -alpha, next_depth);
+          zw_score = -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, next_depth);
         }
         
         // search again with full window on pv nodes
@@ -319,10 +302,10 @@ struct thread_worker{
   }
 
 
-  auto root_search(const position_history& pos_hist, const board bd, const T& alpha, const T& beta, const search::depth_type depth) -> pv_search_result_t<T, true>{
+  auto root_search(const position_history& pos_hist, const board bd, const search::score_type& alpha, const search::score_type& beta, const search::depth_type depth) -> pv_search_result_t<true>{
     assert(alpha < beta);
-    search::stack<T> record(pos_hist);
-    auto result = pv_search<true, true>(search::stack_view<T>::root(record), evaluator_, bd, alpha, beta, depth);
+    search::stack record(pos_hist);
+    auto result = pv_search<true, true>(search::stack_view::root(record), evaluator_, bd, alpha, beta, depth);
     return result;
   }
 
@@ -339,8 +322,8 @@ struct thread_worker{
       position_lk.unlock();
       
       // iterative deepening
-      auto alpha = -big_number<T>;
-      auto beta = big_number<T>;
+      auto alpha = -search::big_number;
+      auto beta = search::big_number;
       for(; go_.load(std::memory_order_relaxed) && depth_.load() < (constants_ -> max_depth()); ++depth_){
         // update nodes_at_depth_
         nodes_at_depth_.store(nodes_.load());
@@ -349,18 +332,18 @@ struct thread_worker{
       
         // update aspiration window once reasonable evaluation is obtained
         if(depth_.load(std::memory_order_relaxed) >= constants_ -> aspiration_depth()){
-          const T previous_score = score();
-          alpha = previous_score - aspiration_delta<T>;
-          beta = previous_score + aspiration_delta<T>;
+          const search::score_type previous_score = score();
+          alpha = previous_score - search::aspiration_delta;
+          beta = previous_score + search::aspiration_delta;
         }
         
-        auto delta = aspiration_delta<T>;
+        auto delta = search::aspiration_delta;
         
         search::depth_type failed_high_count{0};
         for(;;){
           const search::depth_type adjusted_depth = std::max(1, depth_.load() - failed_high_count);
           const auto len_before = hist.history_.size();
-          const auto[search_score, mv] = root_search(hist, bd, alpha, beta, adjusted_depth);
+          const auto [search_score, mv] = root_search(hist, bd, alpha, beta, adjusted_depth);
           const auto len_after = hist.history_.size();
           assert(len_before == len_after);
           
@@ -368,7 +351,7 @@ struct thread_worker{
           
           // update aspiration window if failing low or high
           if(search_score <= alpha){
-            beta = (alpha + beta) / static_cast<T>(2);
+            beta = (alpha + beta) / 2;
             alpha = search_score - delta;
             failed_high_count = 0;
           }else if(search_score >= beta){
@@ -376,21 +359,19 @@ struct thread_worker{
             ++failed_high_count;
           }else{
             //store updated information
-            constexpr T stability_threshold = static_cast<T>(0.05);
             
             is_stable_.store(
-              std::abs(score() - search_score) <= stability_threshold && 
+              std::abs(score() - search_score) <= search::stability_threshold && 
               best_move_.load() == mv.data
             );
             
-            std::uint32_t as_uint32; std::memcpy(&as_uint32, &search_score, score_num_bytes);
-            score_.store(as_uint32);
+            score_.store(search_score);
             best_move_.store(mv.data);
             break;
           }
           
           // exponentially grow window
-          delta += delta / static_cast<T>(3);
+          delta += delta / 3;
         }
       }
       
@@ -419,10 +400,8 @@ struct thread_worker{
     return move{best_move_.load()};
   }
 
-  T score() const {
-    const std::uint32_t raw = score_.load();
-    T result; std::memcpy(&result, &raw, score_num_bytes);
-    return result;
+  search::score_type score() const {
+    return score_.load();
   }
 
   void go(const search::depth_type& start_depth){

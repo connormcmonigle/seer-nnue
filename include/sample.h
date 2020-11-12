@@ -3,20 +3,20 @@
 #include <iostream>
 #include <cstdint>
 
-
+#include <search_util.h>
 #include <board.h>
 
 namespace selfplay{
 
-template<typename T>
+
 struct sample{
     chess::board bd{};
-    T score;
+    search::score_type score;
     int outcome;
 };
 
-template<typename T>
-std::ostream& operator<<(std::ostream& ostr, const sample<T>& x){
+
+std::ostream& operator<<(std::ostream& ostr, const sample& x){
   return ostr << std::setprecision(8) << x.bd.fen() << " [" << x.score << "] " << " [" << x.outcome << "]";
 }
 

@@ -29,11 +29,9 @@ constexpr std::string_view bound_type_name(const bound_type& type){
 }
 
 struct tt_entry{
-  static constexpr int score_byte_count = sizeof(float);
-  static_assert(score_byte_count == 4, "system float type must be 32 bits");
-
+  
   using type_ = bit_field<bound_type, 0, 2>;
-  using score_ = bit_field<std::uint32_t, 2, 34>;
+  using score_ = bit_field<search::score_type, 2, 34>;
   using best_move_ = bit_field<std::uint32_t, 34, 34+move::width>;
 
   zobrist::hash_type key_;
@@ -51,27 +49,23 @@ struct tt_entry{
     return type_::get(value_);
   }
 
-  float score() const {
-    const std::uint32_t raw = score_::get(value_);
-    float result; std::memcpy(&result, &raw, score_byte_count);
-    return result;
+  search::score_type score() const {
+    return score_::get(value_);
   }
 
   move best_move() const {
-    std::uint32_t mv = best_move_::get(value_);
-    return move{mv};
+    return move{best_move_::get(value_)};
   }
 
   tt_entry(
     const zobrist::hash_type& key,
     const bound_type type,
-    const float score,
+    const search::score_type score,
     const chess::move& mv,
     const search::depth_type depth) : key_{key}, value_{0}, depth_{depth}
   {
     type_::set(value_, type);
-    std::uint32_t raw; std::memcpy(&raw, &score, score_byte_count);
-    score_::set(value_, raw);
+    score_::set(value_, score);
     best_move_::set(value_, mv.data);
   }
 

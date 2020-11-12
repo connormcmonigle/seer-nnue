@@ -11,21 +11,19 @@
 
 namespace search{
 
-template<typename T>
 struct stack_entry{
   zobrist::hash_type hash_{};
-  T eval_{};
+  search::score_type eval_{};
   chess::move played_{chess::move::null()};
   chess::move killer_{chess::move::null()};
 };
 
-template<typename T>
 struct stack{
   static constexpr depth_type margin = 16;
   chess::position_history past_;
-  std::array<stack_entry<T>, max_depth_ + margin> present_{};
+  std::array<stack_entry, max_depth_ + margin> present_{};
   
-  stack_entry<T>& at_(const depth_type& height){
+  stack_entry& at_(const depth_type& height){
     return present_[height];
   }
 
@@ -40,9 +38,8 @@ struct stack{
   stack(const chess::position_history& hist) : past_{hist} {}
 };
 
-template<typename T>
 struct stack_view{
-  stack<T>* view_;
+  stack* view_;
   depth_type height_{};
 
   bool is_two_fold(const zobrist::hash_type& hash) const {
@@ -71,38 +68,38 @@ struct stack_view{
     return (height_ > 1) && (view_ -> at_(height_ - 2)).eval_ < (view_ -> at_(height_)).eval_;
   }
 
-  const stack_view<T>& set_hash(const zobrist::hash_type& hash) const {
+  const stack_view& set_hash(const zobrist::hash_type& hash) const {
     (view_ -> at_(height_)).hash_ = hash;
     return *this;
   }
 
-  const stack_view<T>& set_eval(const T& eval) const {
+  const stack_view& set_eval(const search::score_type& eval) const {
     (view_ -> at_(height_)).eval_ = eval;
     return *this;
   }
 
-  const stack_view<T>& set_played(const chess::move& played) const {
+  const stack_view& set_played(const chess::move& played) const {
     (view_ -> at_(height_)).played_ = played;
     return *this;
   }
 
-  const stack_view<T>& set_killer(const chess::move& killer) const {
+  const stack_view& set_killer(const chess::move& killer) const {
     (view_ -> at_(height_)).killer_ = killer;
     return *this;
   }
 
-  stack_view<T> prev() const { return stack_view<T>(view_, height_ - 1); }
+  stack_view prev() const { return stack_view(view_, height_ - 1); }
   
-  stack_view<T> next() const { return stack_view<T>(view_, height_ + 1); }
+  stack_view next() const { return stack_view(view_, height_ + 1); }
   
-  stack_view(stack<T>* view, const depth_type& height) : 
+  stack_view(stack* view, const depth_type& height) : 
     view_{view},
-    height_{std::min(max_depth_ + stack<T>::margin - 1, height)} 
+    height_{std::min(max_depth_ + stack::margin - 1, height)} 
   {
     assert((height >= 0));
   }
   
-  static stack_view root(stack<T>& st){ return stack_view(&st, 0); }
+  static stack_view root(stack& st){ return stack_view(&st, 0); }
 };
 
 

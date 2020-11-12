@@ -14,7 +14,7 @@
 namespace chess{
 
 struct history_heuristic{
-  using value_type = std::int32_t;
+  using value_type = search::counter_type;
   static constexpr size_t num_squares = 64;
   static constexpr size_t num_pieces = 6;
 

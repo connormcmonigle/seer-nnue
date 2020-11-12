@@ -8,6 +8,7 @@
 #include <version.h>
 #include <board.h>
 #include <move.h>
+#include <search_util.h>
 #include <thread_worker.h>
 #include <option_parser.h>
 #include <time_manager.h>
@@ -21,13 +22,13 @@ struct uci{
   static constexpr size_t default_hash_size = 128;
   static constexpr std::string_view default_weight_path = "../train/model/save.bin";
   
-  using real_t = float;
+  using weight_type = float;
 
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
   
-  nnue::weights<real_t> weights_{};
-  chess::worker_pool<real_t> pool_;
+  nnue::weights<weight_type> weights_{};
+  chess::worker_pool<weight_type> pool_;
 
   bool go_{false};
   time_manager manager_{};
@@ -84,11 +85,12 @@ struct uci{
   }
 
   void info_string(){
-    constexpr real_t score_scale = static_cast<real_t>(400.0);
-    constexpr int eval_limit = 256 * 100;
+    constexpr search::score_type raw_multiplier = 400;
+    constexpr search::score_type raw_divisor = 1024;
+    constexpr search::score_type eval_limit = 256 * 100;
     
-    const real_t raw_score = pool_.primary_worker().score();
-    const int scaled_score = static_cast<int>(score_scale * raw_score);
+    const search::score_type raw_score = pool_.primary_worker().score();
+    const search::score_type scaled_score = raw_score * raw_multiplier / raw_divisor;
     const int score = std::min(std::max(scaled_score, -eval_limit), eval_limit);
     
     static int last_reported_depth{0};

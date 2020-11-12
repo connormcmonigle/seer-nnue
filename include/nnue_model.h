@@ -7,6 +7,7 @@
 #include <weights_streamer.h>
 #include <nnue_util.h>
 #include <enum_util.h>
+#include <search_util.h>
 
 namespace nnue{
 
@@ -68,7 +69,7 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>>{
   feature_transformer<T> white;
   feature_transformer<T> black;
 
-  constexpr T propagate(bool pov) const {
+  constexpr T propagate(const bool pov) const {
     const auto w_x = white.active();
     const auto b_x = black.active();
     const auto x0 = pov ? splice(w_x, b_x).apply(relu<T>) : splice(b_x, w_x).apply_(relu<T>);
@@ -79,6 +80,11 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>>{
     return val;
   }
 
+  constexpr T evaluate(const bool pov) const {
+    const T value = search::logit_scale<T> * std::clamp(propagate(pov), search::min_logit<T>, search::max_logit<T>);
+    return static_cast<search::score_type>(value);
+  }
+  
   eval(const weights<T>* src) : weights_{src}, white{&(src -> w)}, black{&(src -> b)} {}
 };
 
