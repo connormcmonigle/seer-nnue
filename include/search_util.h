@@ -27,7 +27,7 @@ struct constants{
   constexpr depth_type history_prune_depth() const { return 2; }
   constexpr depth_type snmp_depth() const { return 7; }
   constexpr depth_type futility_prune_depth() const { return 6; }
-
+  
   
   template<bool is_pv>
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
@@ -62,6 +62,12 @@ struct constants{
     constexpr depth_type limit = 2;
     const depth_type raw = -static_cast<depth_type>(history_value / 5000);
     return std::max(-limit, std::min(limit, raw));
+  }
+
+  template<typename T>
+  constexpr T near_margin(const depth_type& parent, const depth_type& child) const {
+    constexpr T m = static_cast<T>(0.03125);
+    return static_cast<T>(std::max(parent - child, 1)) * m;
   }
 
   constants& update_(const size_t& thread_count){

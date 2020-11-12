@@ -150,9 +150,7 @@ struct thread_worker{
       const tt_entry entry = maybe.value();
       const bool is_cutoff = !is_pv &&
         entry.depth() >= depth &&
-        (entry.score() >= beta ?
-          (entry.bound() == bound_type::lower) :
-          (entry.bound() == bound_type::upper));
+        (entry.score() >= beta ? (entry.bound() == bound_type::lower) : (entry.bound() == bound_type::upper));
       if(is_cutoff){ return make_result(entry.score(), entry.best_move()); }
       orderer.set_first(entry.best_move());
     }
@@ -263,6 +261,15 @@ struct thread_worker{
           if(!improving){ ++reduction; }
           if(!is_pv){ ++reduction; }
           if(bd.see<int>(mv) < 0){ ++reduction; }
+          
+          const bool is_near = [&, this]{
+            const auto child_entry = tt_ -> find(bd_.hash());
+            return child_entry.has_value() &&
+              child_entry -> bound() == bound_type::upper &&
+              -(child_entry -> score()) + constants_ -> near_margin<T>(depth, child_entry -> depth()) > alpha;
+          }();
+          
+          if(is_near){ --reduction; }
 
           reduction += constants_ -> history_reduction(history_value);
           
