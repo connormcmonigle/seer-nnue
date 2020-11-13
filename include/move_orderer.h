@@ -10,7 +10,6 @@
 #include <bit_field.h>
 #include <move.h>
 #include <history_heuristic.h>
-#include <move_orderer.h>
 
 namespace chess{
 

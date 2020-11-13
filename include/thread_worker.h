@@ -244,15 +244,6 @@ struct thread_worker{
           if(!improving){ ++reduction; }
           if(!is_pv){ ++reduction; }
           if(bd.see<int>(mv) < 0){ ++reduction; }
-          
-          const bool is_near = [&, this]{
-            const auto child_entry = tt_ -> find(bd_.hash());
-            return child_entry.has_value() &&
-              child_entry -> bound() == bound_type::upper &&
-              -(child_entry -> score()) + constants_ -> near_margin(depth, child_entry -> depth()) > alpha;
-          }();
-          
-          if(is_near){ --reduction; }
 
           reduction += constants_ -> history_reduction(history_value);
           

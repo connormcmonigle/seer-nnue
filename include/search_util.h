@@ -85,11 +85,6 @@ struct constants{
     return std::max(-limit, std::min(limit, raw));
   }
 
-  constexpr score_type near_margin(const depth_type& parent, const depth_type& child) const {
-    constexpr score_type m = 32;
-    return m * static_cast<score_type>(std::max(parent - child, 1));
-  }
-
   constants& update_(const size_t& thread_count){
     thread_count_ = thread_count;
     for(search::depth_type depth{1}; depth < lmr_tbl_dim; ++depth){

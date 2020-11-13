@@ -59,10 +59,10 @@ struct tt_entry{
 
   tt_entry(
     const zobrist::hash_type& key,
-    const bound_type type,
-    const search::score_type score,
+    const bound_type& type,
+    const search::score_type& score,
     const chess::move& mv,
-    const search::depth_type depth) : key_{key}, value_{0}, depth_{depth}
+    const search::depth_type& depth) : key_{key}, value_{0}, depth_{depth}
   {
     type_::set(value_, type);
     score_::set(value_, score);
