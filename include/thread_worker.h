@@ -243,9 +243,9 @@ struct thread_worker{
           if(bd.is_passed_push(mv)){ --reduction; }
           if(!improving){ ++reduction; }
           if(!is_pv){ ++reduction; }
-          if(bd.see<int>(mv) < 0){ ++reduction; }
+          if(bd.see<int>(mv) < 0 && mv.is_quiet()){ ++reduction; }
 
-          reduction += constants_ -> history_reduction(history_value);
+          if(mv.is_quiet()){ reduction += constants_ -> history_reduction(history_value); }
           
           reduction = std::max(reduction, 0);
           

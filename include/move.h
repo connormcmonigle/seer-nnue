@@ -86,7 +86,7 @@ struct move{
   }
   
   constexpr bool is_quiet() const {
-    return !is_capture() && !is_promotion();
+    return !is_capture() && !(is_promotion() && piece_type::queen == promotion());
   }
   
   template<color c>
