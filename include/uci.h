@@ -160,7 +160,7 @@ struct uci{
 
   void id_info(){
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    os << "id name Seer " << version::major << "." << version::minor << std::endl;
+    os << "id name Seer " << version::major << '.' << version::minor << '.' << version::patch << std::endl;
     os << "id author Connor McMonigle" << std::endl;;
     os << options();
     os << "uciok" << std::endl;
