@@ -61,7 +61,7 @@ struct thread_worker{
     const auto all_list = bd.generate_moves();
 
     const bool is_check = bd.is_check();
-    if(all_list.size() == 0 && is_check){ return search::mate_score; }
+    if(all_list.size() == 0 && is_check){ return ss.effective_mate_score(); }
     if(all_list.size() == 0) { return search::draw_score; }
     if(ss.is_two_fold(bd.hash())){ return search::draw_score; }
     if(bd.is_trivially_drawn()){ return search::draw_score; }
@@ -79,7 +79,7 @@ struct thread_worker{
       orderer.set_first(entry.best_move());
     }
 
-    const search::score_type static_eval = is_check ? search::mate_score : eval.evaluate(bd.turn());
+    const search::score_type static_eval = is_check ? ss.effective_mate_score() : eval.evaluate(bd.turn());
     if(list.size() == 0 || static_eval > beta){ return static_eval; }
 
     alpha = std::max(alpha, static_eval);
@@ -115,7 +115,7 @@ struct thread_worker{
     // step 1. check if node is terminal
     const auto list = bd.generate_moves();
     const bool is_check = bd.is_check();
-    if(list.size() == 0 && is_check){ return make_result(search::mate_score, move::null()); }
+    if(list.size() == 0 && is_check){ return make_result(ss.effective_mate_score(), move::null()); }
     if(list.size() == 0) { return make_result(search::draw_score, move::null()); }
     if(!is_root && ss.is_two_fold(bd.hash())){ return make_result(search::draw_score, move::null()); }
     if(!is_root && bd.is_trivially_drawn()){ return make_result(search::draw_score, move::null()); }
@@ -161,7 +161,7 @@ struct thread_worker{
       !is_check &&
       depth <= constants_ -> snmp_depth() &&
       static_eval > beta + constants_ -> snmp_margin(improving, depth) &&
-      static_eval > search::mate_score;
+      static_eval > ss.effective_mate_score();
 
     if(snm_prune){ return make_result(static_eval, move::null()); }
 
@@ -186,7 +186,7 @@ struct thread_worker{
     move_list quiets_tried{};
     
     // move loop
-    search::score_type best_score = search::mate_score;
+    search::score_type best_score = ss.effective_mate_score();
     move best_move = list.data[0];
 
     for(auto [idx, mv] : orderer){
@@ -203,7 +203,7 @@ struct thread_worker{
         !is_root && !is_pv && 
         !bd_.is_check() && !is_check &&
         idx != 0 && mv.is_quiet() &&
-        best_score > search::mate_score;
+        best_score > ss.effective_mate_score();
       
       // step 8. pruning
       if(try_pruning){

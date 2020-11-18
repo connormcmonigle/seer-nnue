@@ -19,9 +19,8 @@ struct stack_entry{
 };
 
 struct stack{
-  static constexpr depth_type margin = 16;
   chess::position_history past_;
-  std::array<stack_entry, max_depth_ + margin> present_{};
+  std::array<stack_entry, max_depth_ + max_depth_margin_> present_{};
   
   stack_entry& at_(const depth_type& height){
     return present_[height];
@@ -42,6 +41,10 @@ struct stack_view{
   stack* view_;
   depth_type height_{};
 
+  constexpr score_type effective_mate_score() const {
+    return mate_score + height_;
+  }
+  
   bool is_two_fold(const zobrist::hash_type& hash) const {
     return view_ -> occurrences(height_, hash) >= 1;
   }
@@ -94,7 +97,7 @@ struct stack_view{
   
   stack_view(stack* view, const depth_type& height) : 
     view_{view},
-    height_{std::min(max_depth_ + stack::margin - 1, height)} 
+    height_{std::min(max_depth_ + max_depth_margin_ - 1, height)} 
   {
     assert((height >= 0));
   }

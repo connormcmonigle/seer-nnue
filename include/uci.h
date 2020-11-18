@@ -94,6 +94,8 @@ struct uci{
     constexpr search::score_type raw_divisor = 1024;
     constexpr search::score_type eval_limit = 256 * 100;
     
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    
     const search::score_type raw_score = pool_.primary_worker().score();
     const search::score_type scaled_score = raw_score * raw_multiplier / raw_divisor;
     const int score = std::min(std::max(scaled_score, -eval_limit), eval_limit);
@@ -104,7 +106,6 @@ struct uci{
     const size_t node_count = pool_.nodes();
     const size_t nps = static_cast<size_t>(1000) * node_count / (1 + elapsed_ms);
     if(go_.load()){
-      std::lock_guard<std::mutex> os_lk(os_mutex_);
       os << "info depth " << depth << " score cp " << score
          << " nodes " << node_count << " nps " << nps
          << " time " << elapsed_ms << " pv " << pool_.pv_string(position)
@@ -146,9 +147,9 @@ struct uci{
   }
 
   void stop(){
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
     go_.store(false);
     pool_.stop();
-    std::lock_guard<std::mutex> os_lk(os_mutex_);
     os << "bestmove " << pool_.primary_worker().best_move().name(position.turn()) << std::endl;
   }
 
