@@ -16,6 +16,7 @@ constexpr size_t base_dim = 128;
 
 template<typename T>
 struct weights{
+  typename weights_streamer<T>::signature_type signature_{0};
   big_affine<T, half_ka_numel, base_dim> w{};
   big_affine<T, half_ka_numel, base_dim> b{};
   stack_affine<T, 2*base_dim, 32> fc0{};
@@ -23,6 +24,8 @@ struct weights{
   stack_affine<T, 64, 32> fc2{};
   stack_affine<T, 96, 1> fc3{};
 
+  size_t signature() const { return signature_; }
+  
   size_t num_parameters() const {
     return w.num_parameters() +
            b.num_parameters() +
@@ -39,6 +42,7 @@ struct weights{
     fc1.load_(ws);
     fc2.load_(ws);
     fc3.load_(ws);
+    signature_ = ws.signature();
     return *this;
   }
   

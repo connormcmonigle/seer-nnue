@@ -5,7 +5,9 @@
 
 int main(){
   const auto weights = nnue::weights<float>{}.load("../train/model/save.bin");
-  std::cout << weights.num_parameters() << std::endl;
+  std::cout << "numel: " << weights.num_parameters() << std::endl;
+  std::cout << "signature: 0x" << std::hex << weights.signature() << '\n';
+
   nnue::eval<float> eval(&weights);
   
   std::cout << "fen: ";

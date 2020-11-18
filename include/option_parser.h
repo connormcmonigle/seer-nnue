@@ -153,7 +153,7 @@ struct uci_options{
 
 template<typename ... Ts>
 std::ostream& operator<<(std::ostream& ostr, uci_options<Ts...> options){
-  options.apply([&ostr](const auto& opt){ ostr << opt.option_ << '\n'; });
+  options.apply([&ostr](const auto& opt){ ostr << opt.option_ << std::endl; });
   return ostr;
 }
 

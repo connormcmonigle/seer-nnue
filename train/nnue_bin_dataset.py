@@ -118,7 +118,6 @@ class NNUEBinData(torch.utils.data.IterableDataset):
     
     # 1, 0, -1
     outcome = {'00000001': 1.0, '00000000': 0.5, '11111111': 0.0}[game_result_string.bin]
-    assert(padding_string.bin == '00000000')
     return bd, move, outcome, score
 
   def get(self, idx):

@@ -4,6 +4,9 @@
 #include <string>
 #include <regex>
 #include <chrono>
+#include <cstdint>
+#include <atomic>
+#include <thread>
 
 #include <version.h>
 #include <board.h>
@@ -14,15 +17,15 @@
 #include <time_manager.h>
 
 namespace engine{
-
-
-
+  
 struct uci{
+  using weight_type = float;
+  
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 128;
+  static constexpr nnue::weights_streamer<weight_type>::signature_type weights_signature = 0xc2355852;
   static constexpr std::string_view default_weight_path = "../train/model/save.bin";
   
-  using weight_type = float;
 
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
@@ -30,9 +33,10 @@ struct uci{
   nnue::weights<weight_type> weights_{};
   chess::worker_pool<weight_type> pool_;
 
-  bool go_{false};
-  time_manager manager_{};
-
+  std::atomic<bool> go_{false};
+  simple_timer<std::chrono::milliseconds> timer_{};
+  
+  std::mutex os_mutex_{}; 
   std::ostream& os = std::cout;
 
   bool searching() const { return go_; }
@@ -65,12 +69,13 @@ struct uci{
     position = chess::board::start_pos();
   }
 
-  void set_position(const std::string& line){
-    if(line == "position startpos"){ uci_new_game(); return; }
-    std::regex spos_w_moves("position startpos moves((?: [a-h][1-8][a-h][1-8]+(?:q|r|b|n)?)+)");
-    std::regex fen_w_moves("position fen (.*) moves((?: [a-h][1-8][a-h][1-8]+(?:q|r|b|n)?)+)");
-    std::regex fen("position fen (.*)");
+  void set_position(const std::string& line){    
+    const std::regex spos_w_moves("position startpos moves((?: [a-h][1-8][a-h][1-8]+(?:q|r|b|n)?)+)");
+    const std::regex fen_w_moves("position fen (.*) moves((?: [a-h][1-8][a-h][1-8]+(?:q|r|b|n)?)+)");
+    const std::regex fen("position fen (.*)");
     std::smatch matches{};
+    
+    if(line == "position startpos"){ uci_new_game(); return; }
     if(std::regex_search(line, matches, spos_w_moves)){
       auto [h_, p_] = chess::board::start_pos().after_uci_moves(matches.str(1));
       history = h_; position = p_;
@@ -93,82 +98,99 @@ struct uci{
     const search::score_type scaled_score = raw_score * raw_multiplier / raw_divisor;
     const int score = std::min(std::max(scaled_score, -eval_limit), eval_limit);
     
-    static int last_reported_depth{0};
     
     const int depth = pool_.primary_worker().depth();
-    const size_t elapsed_ms = manager_.elapsed().count();
+    const size_t elapsed_ms = timer_.elapsed().count();
     const size_t node_count = pool_.nodes();
     const size_t nps = static_cast<size_t>(1000) * node_count / (1 + elapsed_ms);
-    
-    if(last_reported_depth != depth){
-      last_reported_depth = depth;
-      os 
-         << "info depth " << depth << " score cp " << score
+    if(go_.load()){
+      std::lock_guard<std::mutex> os_lk(os_mutex_);
+      os << "info depth " << depth << " score cp " << score
          << " nodes " << node_count << " nps " << nps
          << " time " << elapsed_ms << " pv " << pool_.pv_string(position)
-         << '\n';
+         << std::endl;
     }
   }
 
   void go(const std::string& line){
-    go_ = true;
-    manager_.init(position.turn(), line);
+    if(weights_.signature() != weights_signature){
+      std::lock_guard<std::mutex> os_lk(os_mutex_);
+      os << "error: weight signature mismatch" << std::endl;;
+      os << "got " << std::hex << weights_.signature() << ", expected " << weights_signature << std::endl;
+      std::terminate();
+    }
+    
+    go_.store(true);
     pool_.set_position(history, position);
     pool_.go();
+    timer_.lap();
+    
+    // manage time using a separate, low utilization thread
+    std::thread([line, this]{
+      auto manager = time_manager{}.init(position.turn(), line);
+      
+      while(go_.load()){
+        search_info info{
+          pool_.primary_worker().depth(),
+          pool_.primary_worker().is_stable()
+        };
+      
+        if(manager.should_stop(info)){
+          stop();
+          break;
+        }
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+    }).detach();
   }
 
   void stop(){
-    os << "bestmove " << pool_.primary_worker().best_move().name(position.turn()) << std::endl;
+    go_.store(false);
     pool_.stop();
-    go_ = false;
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    os << "bestmove " << pool_.primary_worker().best_move().name(position.turn()) << std::endl;
   }
 
   void ready(){
-    os << "readyok\n";
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    os << "readyok" << std::endl;
   }
 
   void id_info(){
-    os << "id name Seer " << version::major << "." << version::minor << "\n";
-    os << "id author Connor McMonigle\n";
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    os << "id name Seer " << version::major << "." << version::minor << std::endl;
+    os << "id author Connor McMonigle" << std::endl;;
     os << options();
-    os << "uciok\n";
+    os << "uciok" << std::endl;
   }
 
   void uci_loop(const std::string& line){
-    std::regex position_rgx("position(.*)");
-    std::regex go_rgx("go(.*)");
-    if(line == "uci"){
+    const std::regex position_rgx("position(.*)");
+    const std::regex go_rgx("go(.*)");
+    
+    if(!go_ && line == "uci"){
       id_info();
     }else if(line == "isready"){
       ready();
-    }else if(line == "ucinewgame"){
+    }else if(!go_.load() && line == "ucinewgame"){
       uci_new_game();
-    }else if(line == "stop"){
+    }else if(go_.load() && line == "stop"){
       stop();
     }else if(line == "_internal_board"){
       os << position << std::endl;
-    }else if(std::regex_match(line, go_rgx)){
+    }else if(!go_.load() && std::regex_match(line, go_rgx)){
       go(line);
-    }else if(std::regex_match(line, position_rgx)){
+    }else if(!go_.load() && std::regex_match(line, position_rgx)){
       set_position(line);
     }else if(line == "quit"){
       std::terminate();
-    }else if(!go_){
+    }else if(!go_.load()){
       options().update(line);
-    }
-
-    if(go_){
-      search_info info{
-        pool_.primary_worker().depth(),
-        pool_.primary_worker().is_stable()
-      };
-      
-      if(manager_.should_stop(info)){ stop(); }
-      else{ info_string(); }
     }
   }
 
-  uci() : pool_(&weights_, default_hash_size, default_thread_count) {
+  uci() : pool_(&weights_, default_hash_size, default_thread_count, [this]{ info_string(); }) {
     weights_.load(std::string(default_weight_path));
   }
 };

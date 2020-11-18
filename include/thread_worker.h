@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <cstring>
 #include <vector>
+#include <functional>
 
 #include <nnue_model.h>
 #include <board.h>
@@ -37,21 +38,23 @@ struct thread_worker{
   std::atomic<bool> is_stable_{false};
   std::atomic<search::depth_type> depth_;
   std::atomic<size_t> nodes_;
-  std::atomic<size_t> nodes_at_depth_;
   
   std::atomic<search::score_type> score_;
   std::atomic<std::uint32_t> best_move_{};
 
   nnue::eval<T> evaluator_;
   sided_history_heuristic hh_;
-
+  
   std::shared_ptr<table> tt_;
   std::shared_ptr<search::constants> constants_;
 
+  std::function<void()> iteration_callback;
+  
   std::mutex position_mutex_{};
   board position_{};
   position_history history_{};
 
+  
   search::score_type q_search(const search::stack_view& ss, const nnue::eval<T>& eval, const board& bd, search::score_type alpha, const search::score_type& beta, const search::depth_type& elevation){
     ++nodes_;
     
@@ -229,7 +232,7 @@ struct thread_worker{
           
         const bool try_lmr = 
           !is_check &&
-          (mv.is_quiet() || bd.see<int>(mv) < 0) &&
+          (mv.is_quiet() || bd.see<search::see_type>(mv) < 0) &&
           idx != 0 &&
           (depth >= constants_ -> reduce_depth());
         search::score_type zw_score{};
@@ -243,7 +246,7 @@ struct thread_worker{
           if(bd.is_passed_push(mv)){ --reduction; }
           if(!improving){ ++reduction; }
           if(!is_pv){ ++reduction; }
-          if(bd.see<int>(mv) < 0 && mv.is_quiet()){ ++reduction; }
+          if(bd.see<search::see_type>(mv) < 0 && mv.is_quiet()){ ++reduction; }
 
           if(mv.is_quiet()){ reduction += constants_ -> history_reduction(history_value); }
           
@@ -316,8 +319,6 @@ struct thread_worker{
       auto alpha = -search::big_number;
       auto beta = search::big_number;
       for(; go_.load(std::memory_order_relaxed) && depth_.load() < (constants_ -> max_depth()); ++depth_){
-        // update nodes_at_depth_
-        nodes_at_depth_.store(nodes_.load());
         // increment table generation on every new root search
         tt_ -> update_gen();
       
@@ -364,6 +365,9 @@ struct thread_worker{
           // exponentially grow window
           delta += delta / 3;
         }
+        
+        //callback on iteration completion
+        if(go_.load(std::memory_order_relaxed)){ iteration_callback(); }
       }
       
       // stop search if we reach max_depth, otherwise, go_ is already false 
@@ -383,10 +387,6 @@ struct thread_worker{
     return nodes_.load();
   }
 
-  size_t nodes_at_depth() const {
-    return nodes_at_depth_.load();
-  }
-
   move best_move() const {
     return move{best_move_.load()};
   }
@@ -399,7 +399,6 @@ struct thread_worker{
     std::unique_lock<std::mutex> go_lk(go_mutex_);
     depth_.store(start_depth);
     nodes_.store(0);
-    nodes_at_depth_.store(0);
     go_.store(true);
     is_stable_.store(false);
     go_lk.unlock();
@@ -423,9 +422,10 @@ struct thread_worker{
   thread_worker(
     const nnue::weights<T>* weights,
     std::shared_ptr<table> tt,
-    std::shared_ptr<search::constants> constants
+    std::shared_ptr<search::constants> constants,
+    std::function<void()> callback = []{}
   ) : 
-    evaluator_(weights), hh_{}, tt_{tt}, constants_{constants}
+    evaluator_(weights), hh_{}, tt_{tt}, constants_{constants}, iteration_callback{callback}
   {
     std::thread([this]{ iterative_deepening_loop_(); }).detach();
   }
@@ -433,6 +433,7 @@ struct thread_worker{
 
 template<typename T>
 struct worker_pool{
+  static constexpr size_t primary_id = 0;
   
   const nnue::weights<T>* weights_;
   std::shared_ptr<table> tt_{nullptr};
@@ -467,7 +468,7 @@ struct worker_pool{
       pool_[i] -> go(start_depth);
     }
   }
-  
+    
   void stop(){
     for(auto& worker : pool_){ worker -> stop(); }
   }
@@ -483,13 +484,15 @@ struct worker_pool{
   }
 
   thread_worker<T>& primary_worker(){
-    return *pool_[0];
+    return *pool_[primary_id];
   }
 
-  worker_pool(const nnue::weights<T>* weights, size_t hash_table_size, size_t num_workers) : weights_{weights} {
+  worker_pool(const nnue::weights<T>* weights, size_t hash_table_size, size_t num_workers, std::function<void()> primary_callback = []{}) : weights_{weights} {
     tt_ = std::make_shared<table>(hash_table_size);
     constants_ = std::make_shared<search::constants>(num_workers);
-    for(size_t i(0); i < num_workers; ++i){
+    
+    pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, constants_, primary_callback));
+    for(size_t i(1); i < num_workers; ++i){
       pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, constants_));
     }
   }

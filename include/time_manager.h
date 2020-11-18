@@ -5,6 +5,7 @@
 #include <string_view>
 #include <tuple>
 #include <regex>
+#include <mutex>
 
 #include <search_util.h>
 
@@ -124,8 +125,7 @@ struct time_manager{
   
   std::chrono::milliseconds our_time(const bool& pov) const {
     const auto x = pov ? get<go::wtime>() : get<go::btime>();
-    assert((x.has_value()));
-    return std::chrono::milliseconds(x.value());
+    return std::chrono::milliseconds(x.value_or(10000));
   } 
   
   std::chrono::milliseconds our_increment(const bool& pov) const {
@@ -189,13 +189,32 @@ struct time_manager{
     if(get<go::infinite>()){ return false; }
     // stopping conditions
     if(get<go::depth>().has_value()){
-      return get<go::depth>().value() <= info.depth;
+      return get<go::depth>().value() < info.depth;
     }
     if(elapsed() >= max_budget){ return true; }
     if(elapsed() >= min_budget && info.is_stable){ return true; }
     return false;
   }
 
+};
+
+template<typename T>
+struct simple_timer{
+  std::mutex start_mutex_;
+  std::chrono::steady_clock::time_point start_;
+
+  T elapsed(){
+    std::lock_guard<std::mutex> start_lk(start_mutex_);
+    return std::chrono::duration_cast<T>(std::chrono::steady_clock::now() - start_);
+  }
+  
+  simple_timer<T>& lap(){
+    std::lock_guard<std::mutex> start_lk(start_mutex_);
+    start_ = std::chrono::steady_clock::now();
+    return *this;
+  }
+  
+  simple_timer() : start_{std::chrono::steady_clock::now()} {}
 };
 
 }

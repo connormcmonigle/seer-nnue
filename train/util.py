@@ -27,7 +27,7 @@ def king_idx():
   return 5
 
 
-def cp_conversion(x, alpha=0.0016):
+def cp_conversion(x, alpha=0.00167):
   return (x * alpha).sigmoid()
 
 
