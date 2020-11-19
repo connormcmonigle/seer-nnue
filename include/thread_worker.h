@@ -84,6 +84,7 @@ struct thread_worker{
 
     alpha = std::max(alpha, static_eval);
     search::score_type best_score = static_eval;
+    move best_move = list.data[0];
     
     ss.set_hash(bd.hash()).set_eval(static_eval);
 
@@ -96,10 +97,20 @@ struct thread_worker{
         
         const search::score_type score = -q_search(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
         alpha = std::max(alpha, score);
-        best_score = std::max(best_score, score);
+
+        if(score > best_score){
+          best_score = score;
+          best_move = mv;
+        }
       }
     }
 
+    if(go_.load(std::memory_order_relaxed)){
+      const auto bound = best_score > beta ? bound_type::lower : bound_type::upper;
+      const tt_entry entry(bd.hash(), bound, best_score, best_move, 0);
+      tt_-> insert(entry);
+    }
+    
     return best_score;
   }
 
