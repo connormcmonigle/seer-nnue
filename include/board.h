@@ -206,7 +206,7 @@ struct board{
     return mv_ls;
   }
 
-  template<color c>
+  template<color c, bool gen_quiet=true>
   move_list generate_moves_() const {
     move_list result{};
     constexpr auto last_rank = pawn_delta<c>::last_rank;
@@ -221,35 +221,35 @@ struct board{
       for(const auto from : (man_.us<c>().pawn() & ~pinned_)){
         const auto to_quiet = pawn_push_tbl<c>.look_up(from, occ);
         const auto to_loud = pawn_attack_tbl<c>.look_up(from) & man_.them<c>().all();
-        for(const auto to : (to_quiet & ~last_rank)){ result.add_(from, to, piece_type::pawn); }
+        if constexpr (gen_quiet){ for(const auto to : (to_quiet & ~last_rank)){ result.add_(from, to, piece_type::pawn); } }
         for(const auto to : (to_loud & ~last_rank)){ result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
-        for(const auto to : (to_quiet & last_rank)){ result.add_promotion_(from, to, piece_type::pawn); }
-        for(const auto to : (to_loud & last_rank)){ result.add_promotion_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
+        for(const auto to : (to_quiet & last_rank)){ result.add_promotion_<gen_quiet>(from, to, piece_type::pawn); }
+        for(const auto to : (to_loud & last_rank)){ result.add_promotion_<gen_quiet>(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
       }
       for(const auto from : (man_.us<c>().knight() & ~pinned_)){
         const auto to_mask = knight_attack_tbl.look_up(from);
-        for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::knight); }
+        if constexpr (gen_quiet){ for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::knight); } }
         for(const auto to : (to_mask & man_.them<c>().all())){
           result.add_(from, to, piece_type::knight, true, man_.them<c>().occ(to));
         }
       }
       for(const auto from : (man_.us<c>().rook() & ~pinned_)){
         const auto to_mask = rook_attack_tbl.look_up(from, occ);
-        for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::rook); }
+        if constexpr (gen_quiet){ for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::rook); } }
         for(const auto to : (to_mask & man_.them<c>().all())){
           result.add_(from, to, piece_type::rook, true, man_.them<c>().occ(to));
         }
       }
       for(const auto from : (man_.us<c>().bishop() & ~pinned_)){
         const auto to_mask = bishop_attack_tbl.look_up(from, occ);
-        for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::bishop); }
+        if constexpr (gen_quiet){ for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::bishop); } }
         for(const auto to : (to_mask & man_.them<c>().all())){
           result.add_(from, to, piece_type::bishop, true, man_.them<c>().occ(to));
         }
       }
       for(const auto from : (man_.us<c>().queen() & ~pinned_)){
         const auto to_mask = bishop_attack_tbl.look_up(from, occ) | rook_attack_tbl.look_up(from, occ);
-        for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::queen); }
+        if constexpr (gen_quiet){ for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::queen); } }
         for(const auto to : (to_mask & man_.them<c>().all())){
           result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to));
         }
@@ -263,49 +263,33 @@ struct board{
       if(pinned_.any()){
         for(const auto from : (man_.us<c>().pawn() & pinned_ & k_x_diag)){
           const auto to_mask = pawn_attack_tbl<c>.look_up(from) & k_x_diag;
-          for(const auto to : (to_mask & ~last_rank & man_.them<c>().all())){
-            result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
-          }
-          for(const auto to : (to_mask & last_rank & man_.them<c>().all())){
-            result.add_promotion_(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
-          }
+          for(const auto to : (to_mask & ~last_rank & man_.them<c>().all())){ result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
+          for(const auto to : (to_mask & last_rank & man_.them<c>().all())){ result.add_promotion_<gen_quiet>(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
         }
         for(const auto from : (man_.us<c>().pawn() & pinned_ & k_x_hori)){
           const auto to_mask = pawn_push_tbl<c>.look_up(from, occ) & k_x_hori;
-          for(const auto to : (to_mask & ~last_rank)){
-            result.add_(from, to, piece_type::pawn);
-          }
-          for(const auto to : (to_mask & last_rank)){
-            result.add_promotion_(from, to, piece_type::pawn);
-          }
+          if constexpr (gen_quiet){ for(const auto to : (to_mask & ~last_rank)){ result.add_(from, to, piece_type::pawn); } }
+          for(const auto to : (to_mask & last_rank)){ result.add_promotion_<gen_quiet>(from, to, piece_type::pawn); }
         }
         for(const auto from : (man_.us<c>().bishop() & pinned_ & k_x_diag)){
           const auto to_mask = bishop_attack_tbl.look_up(from, occ) & k_x_diag;
-          for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::bishop); }
-          for(const auto to : (to_mask & man_.them<c>().all())){
-            result.add_(from, to, piece_type::bishop, true, man_.them<c>().occ(to));
-          }
+          if constexpr (gen_quiet){ for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::bishop); } }
+          for(const auto to : (to_mask & man_.them<c>().all())){ result.add_(from, to, piece_type::bishop, true, man_.them<c>().occ(to)); }
         }
         for(const auto from : (man_.us<c>().rook() & pinned_ & k_x_hori)){
           const auto to_mask = rook_attack_tbl.look_up(from, occ) & k_x_hori;
-          for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::rook); }
-          for(const auto to : (to_mask & man_.them<c>().all())){
-            result.add_(from, to, piece_type::rook, true, man_.them<c>().occ(to));
-          }
+          if constexpr (gen_quiet){ for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::rook); } }
+          for(const auto to : (to_mask & man_.them<c>().all())){ result.add_(from, to, piece_type::rook, true, man_.them<c>().occ(to)); }
         }
         for(const auto from : (man_.us<c>().queen() & pinned_ & k_x_diag)){
           const auto to_mask = bishop_attack_tbl.look_up(from, occ) & k_x_diag;
-          for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::queen); }
-          for(const auto to : (to_mask & man_.them<c>().all())){
-            result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to));
-          }
+          if constexpr (gen_quiet){ for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::queen); } }
+          for(const auto to : (to_mask & man_.them<c>().all())){ result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); }
         }
         for(const auto from : (man_.us<c>().queen() & pinned_ & k_x_hori)){
           const auto to_mask = rook_attack_tbl.look_up(from, occ) & k_x_hori;
-          for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::queen); }
-          for(const auto to : (to_mask & man_.them<c>().all())){
-            result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to));
-          }
+          if constexpr(gen_quiet){ for(const auto to : (to_mask & ~occ)){ result.add_(from, to, piece_type::queen); } }
+          for(const auto to : (to_mask & man_.them<c>().all())){ result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); }
         }
       }
     }else if(num_checkers == 1){
@@ -318,8 +302,8 @@ struct board{
         const auto to_loud = capture_mask & pawn_attack_tbl<c>.look_up(from);
         for(const auto to : (to_quiet & ~last_rank)){ result.add_(from, to, piece_type::pawn); }
         for(const auto to : (to_loud & ~last_rank)){ result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
-        for(const auto to : (to_quiet & last_rank)){ result.add_promotion_(from, to, piece_type::pawn); }
-        for(const auto to : (to_loud & last_rank)){ result.add_promotion_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
+        for(const auto to : (to_quiet & last_rank)){ result.add_promotion_<gen_quiet>(from, to, piece_type::pawn); }
+        for(const auto to : (to_loud & last_rank)){ result.add_promotion_<gen_quiet>(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
       }
       for(const auto from : (man_.us<c>().knight() & ~pinned_)){
         const auto to_mask = knight_attack_tbl.look_up(from);
@@ -351,17 +335,17 @@ struct board{
       }
     }
     const square_set to_mask = ~king_danger_ & king_attack_tbl.look_up(man_.us<c>().king().item());
-    for(const square to : (to_mask & ~occ)){
-      result.add_(man_.us<c>().king().item(), to, piece_type::king);
-    }
-    for(const square to : (to_mask & man_.them<c>().all())){
-      result.add_(man_.us<c>().king().item(), to, piece_type::king, true, man_.them<c>().occ(to));
-    }
+    if(gen_quiet || checkers_.any()){ for(const square to : (to_mask & ~occ)){ result.add_(man_.us<c>().king().item(), to, piece_type::king); } }
+    for(const square to : (to_mask & man_.them<c>().all())){ result.add_(man_.us<c>().king().item(), to, piece_type::king, true, man_.them<c>().occ(to)); }
     return append_en_passant<c>(result);
   }
 
   move_list generate_moves() const {
-    return turn() ? generate_moves_<color::white>() : generate_moves_<color::black>();
+    return turn() ? generate_moves_<color::white, true>() : generate_moves_<color::black, true>();
+  }
+
+  move_list generate_loud_moves() const {
+    return turn() ? generate_moves_<color::white, false>() : generate_moves_<color::black, false>();
   }
 
   template<color c>

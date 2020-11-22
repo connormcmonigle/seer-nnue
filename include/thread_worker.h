@@ -58,15 +58,13 @@ struct thread_worker{
   search::score_type q_search(const search::stack_view& ss, const nnue::eval<T>& eval, const board& bd, search::score_type alpha, const search::score_type& beta, const search::depth_type& elevation){
     ++nodes_;
     
-    const auto all_list = bd.generate_moves();
-
+    const auto list = bd.generate_loud_moves();
     const bool is_check = bd.is_check();
-    if(all_list.size() == 0 && is_check){ return ss.effective_mate_score(); }
-    if(all_list.size() == 0) { return search::draw_score; }
+
+    if(list.size() == 0 && is_check){ return ss.effective_mate_score(); }
     if(ss.is_two_fold(bd.hash())){ return search::draw_score; }
     if(bd.is_trivially_drawn()){ return search::draw_score; }
-    
-    const auto list = is_check ? all_list : all_list.loud();
+
     auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &hh_.us(bd.turn())});
     
     if(const std::optional<tt_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
@@ -122,8 +120,12 @@ struct thread_worker{
     };
     
     assert(depth >= 0);
-    
-    // step 1. check if node is terminal
+
+    // step 1. drop into qsearch if depth reaches zero
+    if(depth <= 0) { return make_result(q_search(ss, eval, bd, alpha, beta,  0), move::null()); }
+    ++nodes_;
+
+    // step 2. check if node is terminal
     const auto list = bd.generate_moves();
     const bool is_check = bd.is_check();
     if(list.size() == 0 && is_check){ return make_result(ss.effective_mate_score(), move::null()); }
@@ -131,10 +133,6 @@ struct thread_worker{
     if(!is_root && ss.is_two_fold(bd.hash())){ return make_result(search::draw_score, move::null()); }
     if(!is_root && bd.is_trivially_drawn()){ return make_result(search::draw_score, move::null()); }
   
-    // step 2. drop into qsearch if depth reaches zero
-    if(depth <= 0) { return make_result(q_search(ss, eval, bd, alpha, beta,  0), move::null()); }
-    ++nodes_;
-
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
     const move killer = ss.killer();
@@ -207,7 +205,6 @@ struct thread_worker{
       
       const search::counter_type history_value = hh_.us(bd.turn()).compute_value(follow, counter, mv);
       
-      const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
       const board bd_ = bd.forward(mv);
       
       const bool try_pruning = 
@@ -230,7 +227,9 @@ struct thread_worker{
         
         if(futility_prune){ continue; }
       }
-      
+
+      const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
+
       // step 9. extensions
       const search::depth_type extension = [&]{
         if(bd.see<search::see_type>(mv) > 0 && bd_.is_check()){ return 1; }
@@ -345,10 +344,7 @@ struct thread_worker{
         search::depth_type failed_high_count{0};
         for(;;){
           const search::depth_type adjusted_depth = std::max(1, depth_.load() - failed_high_count);
-          const auto len_before = hist.history_.size();
           const auto [search_score, mv] = root_search(hist, bd, alpha, beta, adjusted_depth);
-          const auto len_after = hist.history_.size();
-          assert(len_before == len_after);
           
           if(!go_.load()){ break; }
           

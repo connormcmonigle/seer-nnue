@@ -11,7 +11,8 @@ int main(){
   std::cout << bd << std::endl;
   for(;;){
     const chess::move_list mv_ls = bd.generate_moves();
-    std::cout << mv_ls << std::endl;
+    std::cout << "noisy:\n" << bd.generate_noisy_moves() << std::endl;
+    std::cout << "all:\n" << bd.generate_moves() << std::endl;
     size_t i; std::cin >> i;
     bd = bd.forward(mv_ls.data[i]);
     std::cout << bd << std::endl;
