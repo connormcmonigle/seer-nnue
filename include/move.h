@@ -176,26 +176,6 @@ struct move_list{
     return size() == 0;
   }
 
-  move_list loud() const {
-    move_list result{};
-    std::for_each(cbegin(), cend(), [this, &result](const move &mv){
-      if(!mv.is_quiet()){
-        result.add_(mv);
-      }
-    });
-    return result;
-  }
-
-  move_list quiet() const {
-    move_list result{};
-    std::for_each(cbegin(), cend(), [this, &result](const move &mv){
-      if(mv.is_quiet()){
-        result.add_(mv);
-      }
-    });
-    return result;
-  }
-
   move_list& add_(move mv){
     data[size_] = mv;
     ++size_;
@@ -207,11 +187,13 @@ struct move_list{
     return add_(move(ts...));
   }
   
-  template<typename ... Ts>
+  template<bool gen_quiet, typename ... Ts>
   move_list& add_promotion_(const Ts& ... ts){
     assert((move(ts...).piece() == piece_type::pawn));
-    for(const auto& pt : promotion_types){
-      add_(move(ts...).set_field_<move::promotion_>(pt));
+    if constexpr(gen_quiet){
+      for(const auto& pt : promotion_types){ add_(move(ts...).set_field_<move::promotion_>(pt)); }
+    }else{
+      add_(move(ts...).set_field_<move::promotion_>(piece_type::queen));
     }
     return *this;
   }
