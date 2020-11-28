@@ -185,7 +185,7 @@ struct uci{
     }else if(!go_.load() && std::regex_match(line, position_rgx)){
       set_position(line);
     }else if(line == "quit"){
-      std::terminate();
+      std::exit(0);
     }else if(!go_.load()){
       options().update(line);
     }
