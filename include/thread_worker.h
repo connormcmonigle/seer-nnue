@@ -329,9 +329,6 @@ struct thread_worker{
       auto alpha = -search::big_number;
       auto beta = search::big_number;
       for(; go_.load(std::memory_order_relaxed) && depth_.load() < (constants_ -> max_depth()); ++depth_){
-        // increment table generation on every new root search
-        tt_ -> update_gen();
-      
         // update aspiration window once reasonable evaluation is obtained
         if(depth_.load(std::memory_order_relaxed) >= constants_ -> aspiration_depth()){
           const search::score_type previous_score = score();
@@ -470,6 +467,9 @@ struct worker_pool{
   }
 
   void go(){
+    // increment table generation at start of search
+    tt_ -> update_gen();
+    
     for(size_t i(0); i < pool_.size(); ++i){
       const search::depth_type start_depth = 1 + static_cast<search::depth_type>(i % 2);
       pool_[i] -> go(start_depth);
