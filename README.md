@@ -1,6 +1,6 @@
 # Seer
 
-Seer is a, from scratch, work in progress, UCI chess engine using a neural network for position evaluation. Seer's neural network architecture takes inspiration from the halfkp NNUE architecture in that its input features include the outer product of the king position and all other piece positions. Additionally, the network's first layer is incrementally updated as in NNUE. As an engine, Seer stands on the shoulders of many great (and mostly much stronger) predecessors. 
+Seer is a UCI chess engine using a neural network for position evaluation. Seer's neural network architecture takes inspiration from the halfkp NNUE architecture in that its input features include the outer product of the king position and all other piece positions. Additionally, the network's first layer is incrementally updated as in NNUE. As an engine, Seer stands on the shoulders of many great (and mostly much stronger) predecessors. 
 In particular, [Ethereal](https://github.com/AndyGrant/Ethereal), [Winter](https://github.com/rosenthj/Winter), and [Stockfish](https://github.com/official-stockfish/Stockfish) have proven useful in the development of Seer.
 
 ### UCI Options
