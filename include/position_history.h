@@ -49,7 +49,7 @@ struct base_history{
   }
 
   base_history() : history_{} {}
-  base_history(std::vector<stored_type>& h) : history_{h} {}
+  base_history(const std::vector<stored_type>& h) : history_{h} {}
 };
 
 

@@ -12,6 +12,7 @@
 #include <board.h>
 #include <move.h>
 #include <search_util.h>
+#include <search_stack.h>
 #include <thread_worker.h>
 #include <option_parser.h>
 #include <time_manager.h>
@@ -89,26 +90,27 @@ struct uci{
     }
   }
 
-  void info_string(){
+  template<typename T>
+  void info_string(const T& worker){
     constexpr search::score_type raw_multiplier = 400;
     constexpr search::score_type raw_divisor = 1024;
     constexpr search::score_type eval_limit = 256 * 100;
     
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     
-    const search::score_type raw_score = pool_.primary_worker().score();
+    const search::score_type raw_score = worker.score();
     const search::score_type scaled_score = raw_score * raw_multiplier / raw_divisor;
     const int score = std::min(std::max(scaled_score, -eval_limit), eval_limit);
     
     
-    const int depth = pool_.primary_worker().depth();
+    const int depth = worker.depth();
     const size_t elapsed_ms = timer_.elapsed().count();
     const size_t node_count = pool_.nodes();
     const size_t nps = static_cast<size_t>(1000) * node_count / (1 + elapsed_ms);
     if(go_.load()){
       os << "info depth " << depth << " score cp " << score
          << " nodes " << node_count << " nps " << nps
-         << " time " << elapsed_ms << " pv " << pool_.pv_string(position)
+         << " time " << elapsed_ms << " pv " << worker.stack_.pv_string()
          << std::endl;
     }
   }
@@ -191,7 +193,7 @@ struct uci{
     }
   }
 
-  uci() : pool_(&weights_, default_hash_size, default_thread_count, [this]{ info_string(); }) {
+  uci() : pool_(&weights_, default_hash_size, default_thread_count, [this](auto&&... args){ info_string(args...); }) {
     weights_.load(std::string(default_weight_path));
   }
 };

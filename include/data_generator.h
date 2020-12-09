@@ -106,15 +106,15 @@ struct generator_worker{
         )
       );
       
-      if(instance.score() == -search::mate_score){ break; }
-      if(instance.score() == search::mate_score){ break; }
+      if(instance.score() >= -search::max_mate_score){ break; }
+      if(instance.score() <= search::max_mate_score){ break; }
 
     }
     
     int outcome = [&, this]{
       if(state.generate_moves().size() == 0 && state.is_check()){ return -1; }
-      if(instance.score() == search::mate_score){ return -1; }
-      if(instance.score() == -search::mate_score){ return 1; }
+      if(instance.score() <= search::max_mate_score){ return -1; }
+      if(instance.score() >= -search::max_mate_score){ return 1; }
       return 0;
     }();
     

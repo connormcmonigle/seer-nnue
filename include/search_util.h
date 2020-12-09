@@ -31,7 +31,9 @@ using score_type = std::int32_t;
 
 inline constexpr score_type big_number = 256 * logit_scale<score_type>;
 
-inline constexpr score_type mate_score = -2 * big_number - (max_depth_ + max_depth_margin_);
+inline constexpr score_type max_mate_score = -2 * big_number;
+
+inline constexpr score_type mate_score = max_mate_score - (max_depth_ + max_depth_margin_);
 
 inline constexpr score_type draw_score = 0;
 
@@ -100,7 +102,5 @@ struct constants{
   
   constants(const size_t& thread_count){ update_(thread_count); }
 };
-
-
 
 }

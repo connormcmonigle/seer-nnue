@@ -29,7 +29,7 @@ template<> struct pv_search_result<true>{ using type = std::tuple<search::score_
 template<bool is_root>
 using pv_search_result_t = typename pv_search_result<is_root>::type;
 
-template<typename T>
+template<typename T, bool is_active=true>
 struct thread_worker{
 
   std::mutex go_mutex_{};
@@ -48,13 +48,11 @@ struct thread_worker{
   std::shared_ptr<table> tt_;
   std::shared_ptr<search::constants> constants_;
 
-  std::function<void()> iteration_callback;
+  std::function<void(const thread_worker<T, is_active>&)> iteration_callback;
   
-  std::mutex position_mutex_{};
-  board position_{};
-  position_history history_{};
+  std::mutex stack_mutex_{};
+  search::stack stack_;
 
-  
   search::score_type q_search(const search::stack_view& ss, const nnue::eval<T>& eval, const board& bd, search::score_type alpha, const search::score_type& beta, const search::depth_type& elevation){
     ++nodes_;
     
@@ -90,6 +88,7 @@ struct thread_worker{
       assert((mv != move::null()));
       if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
       if(is_check || bd.see<search::see_type>(mv) >= 0){
+        ss.set_played(mv);
         const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
         const board bd_ = bd.forward(mv);
         
@@ -284,6 +283,9 @@ struct thread_worker{
       if(score > best_score){
         best_score = score;
         best_move = mv;
+
+        if constexpr(is_pv){ ss.prepend_to_pv(mv); }
+
       }
     }
     
@@ -305,80 +307,73 @@ struct thread_worker{
     return make_result(best_score, best_move);
   }
 
-
-  auto root_search(const position_history& pos_hist, const board bd, const search::score_type& alpha, const search::score_type& beta, const search::depth_type depth) -> pv_search_result_t<true>{
-    assert(alpha < beta);
-    search::stack record(pos_hist);
-    auto result = pv_search<true, true>(search::stack_view::root(record), evaluator_, bd, alpha, beta, depth);
-    return result;
-  }
-
-
   void iterative_deepening_loop_(){
-    for(;;){
-      std::unique_lock<std::mutex> go_lk(go_mutex_);
-      cv_.wait(go_lk, [this]{ return go_.load(std::memory_order_relaxed); });
+    // acquire stack
+    std::lock_guard<std::mutex> stack_lk(stack_mutex_);
       
-      // store new search data locally 
-      std::unique_lock<std::mutex> position_lk(position_mutex_);
-      const auto bd = position_;
-      const auto hist = history_;
-      position_lk.unlock();
-      
-      // iterative deepening
-      auto alpha = -search::big_number;
-      auto beta = search::big_number;
-      for(; go_.load(std::memory_order_relaxed) && depth_.load() < (constants_ -> max_depth()); ++depth_){
-        // update aspiration window once reasonable evaluation is obtained
-        if(depth_.load(std::memory_order_relaxed) >= constants_ -> aspiration_depth()){
-          const search::score_type previous_score = score();
-          alpha = previous_score - search::aspiration_delta;
-          beta = previous_score + search::aspiration_delta;
+    // iterative deepening
+    auto alpha = -search::big_number;
+    auto beta = search::big_number;
+    for(; go_.load(std::memory_order_relaxed) && depth_.load() < (constants_ -> max_depth()); ++depth_){
+      // update aspiration window once reasonable evaluation is obtained
+      if(depth_.load(std::memory_order_relaxed) >= constants_ -> aspiration_depth()){
+        const search::score_type previous_score = score();
+        alpha = previous_score - search::aspiration_delta;
+        beta = previous_score + search::aspiration_delta;
+      }
+
+      auto delta = search::aspiration_delta;
+      search::depth_type failed_high_count{0};
+
+      for(;;){
+        stack_.clear_future();
+
+        const search::depth_type adjusted_depth = std::max(1, depth_.load() - failed_high_count);
+        const auto [search_score, search_move] = pv_search<true, true>(search::stack_view::root(stack_), evaluator_, stack_.root_pos(), alpha, beta, adjusted_depth);
+          
+        if(!go_.load()){ break; }
+          
+        // update aspiration window if failing low or high
+        if(search_score <= alpha){
+          beta = (alpha + beta) / 2;
+          alpha = search_score - delta;
+          failed_high_count = 0;
+        }else if(search_score >= beta){
+          beta = search_score + delta;
+          ++failed_high_count;
+        }else{
+          //store updated information
+            
+          is_stable_.store(
+            std::abs(score() - search_score) <= search::stability_threshold && 
+            best_move_.load() == search_move.data
+          );
+            
+          score_.store(search_score);
+          best_move_.store(search_move.data);
+          break;
         }
-        
-        auto delta = search::aspiration_delta;
-        
-        search::depth_type failed_high_count{0};
-        for(;;){
-          const search::depth_type adjusted_depth = std::max(1, depth_.load() - failed_high_count);
-          const auto [search_score, mv] = root_search(hist, bd, alpha, beta, adjusted_depth);
-          
-          if(!go_.load()){ break; }
-          
-          // update aspiration window if failing low or high
-          if(search_score <= alpha){
-            beta = (alpha + beta) / 2;
-            alpha = search_score - delta;
-            failed_high_count = 0;
-          }else if(search_score >= beta){
-            beta = search_score + delta;
-            ++failed_high_count;
-          }else{
-            //store updated information
-            
-            is_stable_.store(
-              std::abs(score() - search_score) <= search::stability_threshold && 
-              best_move_.load() == mv.data
-            );
-            
-            score_.store(search_score);
-            best_move_.store(mv.data);
-            break;
-          }
           
           // exponentially grow window
           delta += delta / 3;
         }
         
         //callback on iteration completion
-        if(go_.load(std::memory_order_relaxed)){ iteration_callback(); }
+        if(go_.load(std::memory_order_relaxed)){ iteration_callback(*this); }
       }
-      
-      // stop search if we reach max_depth, otherwise, go_ is already false 
+
+      // stops search if we reached max_depth, otherwise, go_ is already false 
       go_.store(false);
+  }
+  
+  void active_loop_(){
+    for(;;){
+      std::unique_lock<std::mutex> go_lk(go_mutex_);
+      cv_.wait(go_lk, [this]{ return go_.load(std::memory_order_relaxed); });
+      iterative_deepening_loop_();
     }
   }
-
+  
   bool is_stable() const {
     return is_stable_.load();
   }
@@ -401,10 +396,12 @@ struct thread_worker{
 
   void go(const search::depth_type& start_depth){
     std::unique_lock<std::mutex> go_lk(go_mutex_);
+    
     depth_.store(start_depth);
     nodes_.store(0);
     go_.store(true);
     is_stable_.store(false);
+
     go_lk.unlock();
     cv_.notify_one();
   }
@@ -413,13 +410,11 @@ struct thread_worker{
     go_.store(false, std::memory_order_relaxed);
   }
 
-
   thread_worker<T>& set_position(const position_history& hist, const board& bd){
-    std::lock_guard<std::mutex> position_lk(position_mutex_);
+    std::lock_guard<std::mutex> stack_lk(stack_mutex_);
     bd.show_init(evaluator_);
     hh_.clear();
-    history_ = hist;
-    position_ = bd;
+    stack_ = search::stack(hist, bd);
     return *this;
   }
 
@@ -427,11 +422,13 @@ struct thread_worker{
     const nnue::weights<T>* weights,
     std::shared_ptr<table> tt,
     std::shared_ptr<search::constants> constants,
-    std::function<void()> callback = []{}
+    std::function<void(const thread_worker<T, is_active>&)> callback = [](auto&&...){}
   ) : 
-    evaluator_(weights), hh_{}, tt_{tt}, constants_{constants}, iteration_callback{callback}
+    evaluator_(weights), hh_{}, tt_{tt}, 
+    constants_{constants}, iteration_callback{callback}, 
+    stack_(position_history{}, board::start_pos())
   {
-    std::thread([this]{ iterative_deepening_loop_(); }).detach();
+    if constexpr(is_active){ std::thread([this]{ active_loop_(); }).detach(); }
   }
 };
 
@@ -444,18 +441,6 @@ struct worker_pool{
   std::shared_ptr<search::constants> constants_{nullptr};
 
   std::vector<std::shared_ptr<thread_worker<T>>> pool_{};
-
-  std::string pv_string(chess::board bd) const {
-    std::string result{};
-    constexpr size_t max_pv_length = 256;
-    for(size_t i(0); i < max_pv_length; ++i){
-      const std::optional<tt_entry> entry = tt_ -> find(bd.hash());
-      if(!entry.has_value() || !bd.generate_moves().has(entry -> best_move())){ break; }
-      result += entry -> best_move().name(bd.turn()) + " ";
-      bd = bd.forward(entry -> best_move());
-    }
-    return result;
-  }
 
   void grow(size_t new_size){
     assert((new_size >= pool_.size()));
@@ -494,7 +479,13 @@ struct worker_pool{
     return *pool_[primary_id];
   }
 
-  worker_pool(const nnue::weights<T>* weights, size_t hash_table_size, size_t num_workers, std::function<void()> primary_callback = []{}) : weights_{weights} {
+  worker_pool(
+    const nnue::weights<T>* weights, 
+    size_t hash_table_size, size_t num_workers, 
+    std::function<void(const thread_worker<T, true>&)> primary_callback = [](auto&&...){}
+  ) : 
+      weights_{weights} 
+  {
     tt_ = std::make_shared<table>(hash_table_size);
     constants_ = std::make_shared<search::constants>(num_workers);
     

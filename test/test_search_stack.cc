@@ -1,10 +1,11 @@
 #include <iostream>
 
+#include <board.h>
 #include <position_history.h>
 #include <search_stack.h>
 
 int main(){
-  search::stack stack{chess::position_history{}};
+  search::stack stack{chess::position_history{}, chess::board::start_pos()};
   const auto view_0 = search::stack_view::root(stack);
   
   view_0.set_eval(100).set_hash(2).set_played(chess::move{1});
