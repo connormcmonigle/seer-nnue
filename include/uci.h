@@ -108,9 +108,13 @@ struct uci{
     const size_t node_count = pool_.nodes();
     const size_t nps = static_cast<size_t>(1000) * node_count / (1 + elapsed_ms);
     if(go_.load()){
-      os << "info depth " << depth << " score cp " << score
-         << " nodes " << node_count << " nps " << nps
-         << " time " << elapsed_ms << " pv " << worker.stack_.pv_string()
+      os << "info depth " << depth
+         << " seldepth " << worker.stack_.sel_depth()
+         << " score cp " << score
+         << " nodes " << node_count 
+         << " nps " << nps
+         << " time " << elapsed_ms
+         << " pv " << worker.stack_.pv_string()
          << std::endl;
     }
   }

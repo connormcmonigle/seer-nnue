@@ -26,16 +26,20 @@ struct stack_entry{
 };
 
 struct stack{
+  depth_type sel_depth_{0};
+  
   chess::position_history past_;
   chess::board present_;
   std::array<stack_entry, safe_depth_> future_{};
   
   stack_entry& at_(const depth_type& height){
+    sel_depth_ = std::max(sel_depth_, height);
     return future_[height];
   }
 
   chess::board root_pos() const { return present_; }
-
+  depth_type sel_depth() const { return sel_depth_; }
+  
   size_t occurrences(const size_t& height, const zobrist::hash_type& hash) const {
     size_t occurrences_{0};
     for(auto it = future_.cbegin(); it != (future_.cbegin() + height); ++it){
@@ -56,6 +60,7 @@ struct stack{
   }
 
   stack& clear_future(){
+    sel_depth_ = 0;
     future_.fill(stack_entry{});
     return *this;
   }
