@@ -56,7 +56,7 @@ struct constants{
   constexpr depth_type max_depth() const { return max_depth_; }
   constexpr depth_type aspiration_depth() const { return 4; }
   constexpr depth_type nmp_depth() const { return 2; }
-  constexpr depth_type history_prune_depth() const { return 2; }
+  constexpr depth_type history_prune_depth() const { return 8; }
   constexpr depth_type snmp_depth() const { return 7; }
   constexpr depth_type futility_prune_depth() const { return 6; }
   
@@ -69,7 +69,9 @@ struct constants{
     return 4 + depth / 6;
   }
 
-  constexpr counter_type history_prune_threshold() const { return counter_type{}; }
+  constexpr counter_type history_prune_threshold(const bool& improving, const depth_type& depth) const {
+    return  -256 * static_cast<counter_type>(depth) * static_cast<counter_type>(depth + improving);
+  }
 
   constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);

@@ -216,7 +216,7 @@ struct thread_worker{
       if(try_pruning){
         const bool history_prune = 
           depth <= constants_ -> history_prune_depth() &&
-          history_value <= constants_ -> history_prune_threshold();
+          history_value <= constants_ -> history_prune_threshold(improving, depth);
         
         if(history_prune){ continue; }
         
