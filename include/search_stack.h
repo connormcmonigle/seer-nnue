@@ -76,6 +76,8 @@ struct stack_view{
     return mate_score + height_;
   }
   
+  bool reached_max_height() const { return height_ >= (safe_depth_-1); }
+  
   chess::board root_pos() const { return view_ -> root_pos(); }
 
   bool is_two_fold(const zobrist::hash_type& hash) const {
@@ -143,7 +145,7 @@ struct stack_view{
   
   stack_view(stack* view, const depth_type& height) : 
     view_{view},
-    height_{std::min(safe_depth_ - 1, height)} 
+    height_{height} 
   {
     assert((height >= 0));
   }

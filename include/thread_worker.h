@@ -36,18 +36,17 @@ struct thread_worker{
   std::condition_variable cv_{};
   std::atomic<bool> go_{false};
   std::atomic<bool> is_stable_{false};
-  std::atomic<search::depth_type> depth_;
-  std::atomic<size_t> nodes_;
+  std::atomic<search::depth_type> depth_{};
+  std::atomic<size_t> nodes_{};
   
-  std::atomic<search::score_type> score_;
+  std::atomic<search::score_type> score_{};
   std::atomic<std::uint32_t> best_move_{};
 
-  nnue::eval<T> evaluator_;
-  sided_history_heuristic hh_;
+  sided_history_heuristic hh_{};
   
+  nnue::eval<T> evaluator_;
   std::shared_ptr<table> tt_;
   std::shared_ptr<search::constants> constants_;
-
   std::function<void(const thread_worker<T, is_active>&)> iteration_callback;
   
   std::mutex stack_mutex_{};
@@ -77,13 +76,13 @@ struct thread_worker{
 
     const search::score_type static_eval = is_check ? ss.effective_mate_score() : eval.evaluate(bd.turn());
     if(list.size() == 0 || static_eval > beta){ return static_eval; }
-
+    if(ss.reached_max_height()){ return static_eval; }
+    
     alpha = std::max(alpha, static_eval);
     search::score_type best_score = static_eval;
     move best_move = list.data[0];
     
     ss.set_hash(bd.hash()).set_eval(static_eval);
-
     for(auto [idx, mv] : orderer){
       assert((mv != move::null()));
       if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
@@ -159,11 +158,14 @@ struct thread_worker{
       return val;
     }();
 
-    // step 5. add position and static eval to stack
+    // step 5. return static eval if max depth was reached
+    if(ss.reached_max_height()){ return make_result(static_eval, move::null()); }
+    
+    // step 6. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_eval);
     const bool improving = ss.improving();
 
-    // step 6. static null move pruning
+    // step 7. static null move pruning
     const bool snm_prune = 
       !is_root && !is_pv && 
       !is_check &&
@@ -173,7 +175,7 @@ struct thread_worker{
 
     if(snm_prune){ return make_result(static_eval, move::null()); }
 
-    // step 7. null move pruning
+    // step 8. null move pruning
     const bool try_nmp = 
       !is_root && !is_pv && 
       !is_check && 
@@ -212,7 +214,7 @@ struct thread_worker{
         idx != 0 && mv.is_quiet() &&
         best_score > ss.effective_mate_score();
       
-      // step 8. pruning
+      // step 9. pruning
       if(try_pruning){
         const bool history_prune = 
           depth <= constants_ -> history_prune_depth() &&
@@ -229,9 +231,20 @@ struct thread_worker{
 
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
-      // step 9. extensions
+      // step 10. extensions
       const search::depth_type extension = [&]{
-        if(bd.see<search::see_type>(mv) > 0 && bd_.is_check()){ return 1; }
+        const bool check_ext = bd.see<search::see_type>(mv) > 0 && bd_.is_check();
+
+        if(check_ext){ return 1; }
+        
+        const bool history_ext = 
+          !is_root && maybe.has_value() && 
+          mv == maybe -> best_move() && mv.is_quiet() &&
+          depth >= constants_ -> history_extension_depth() &&
+          history_value >= constants_ -> history_extension_threshold();
+        
+        if(history_ext){ return 1; }
+
         return 0;
       }();
       
@@ -246,7 +259,7 @@ struct thread_worker{
           (depth >= constants_ -> reduce_depth());
         search::score_type zw_score{};
         
-        // step 10. late move reductions
+        // step 11. late move reductions
         if(try_lmr){
           search::depth_type reduction = constants_ -> reduction(depth, idx);
           
@@ -289,7 +302,7 @@ struct thread_worker{
       }
     }
     
-    // step 11. update histories if appropriate and maybe insert a new tt_entry
+    // step 12. update histories if appropriate and maybe insert a new tt_entry
     if(go_.load(std::memory_order_relaxed)){
       if(best_score > beta){
         const tt_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
@@ -424,7 +437,7 @@ struct thread_worker{
     std::shared_ptr<search::constants> constants,
     std::function<void(const thread_worker<T, is_active>&)> callback = [](auto&&...){}
   ) : 
-    evaluator_(weights), hh_{}, tt_{tt}, 
+    evaluator_(weights), tt_{tt}, 
     constants_{constants}, iteration_callback{callback}, 
     stack_(position_history{}, board::start_pos())
   {
