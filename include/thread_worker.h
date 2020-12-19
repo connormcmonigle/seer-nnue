@@ -54,7 +54,6 @@ struct thread_worker{
 
   search::score_type q_search(const search::stack_view& ss, const nnue::eval<T>& eval, const board& bd, search::score_type alpha, const search::score_type& beta, const search::depth_type& elevation){
     ++nodes_;
-    
     const auto list = bd.generate_loud_moves();
     const bool is_check = bd.is_check();
 

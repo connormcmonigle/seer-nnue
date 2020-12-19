@@ -177,8 +177,10 @@ struct move_list{
   }
 
   move_list& add_(move mv){
+    constexpr size_t last_idx = max_branching_factor - 1;
     data[size_] = mv;
     ++size_;
+    if(size_ > last_idx){ size_ = last_idx; }
     return *this;
   }
 
