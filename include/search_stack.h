@@ -17,7 +17,7 @@ constexpr depth_type safe_depth_ = max_depth_ + max_depth_margin_;
 
 struct stack_entry{
   zobrist::hash_type hash_{};
-  search::score_type eval_{};
+  score_type eval_{};
   chess::move played_{chess::move::null()};
   chess::move killer_{chess::move::null()};
   std::array<chess::move, safe_depth_> pv_{};
@@ -115,7 +115,7 @@ struct stack_view{
     return *this;
   }
 
-  const stack_view& set_eval(const search::score_type& eval) const {
+  const stack_view& set_eval(const score_type& eval) const {
     (view_ -> at_(height_)).eval_ = eval;
     return *this;
   }

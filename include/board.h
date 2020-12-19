@@ -402,7 +402,7 @@ struct board{
 
   template<typename T>
   T see(const move& mv) const {
-    return turn() ? see_<chess::color::white, T>(mv) : see_<chess::color::black, T>(mv);
+    return turn() ? see_<color::white, T>(mv) : see_<color::black, T>(mv);
   }
 
   bool has_non_pawn_material() const {

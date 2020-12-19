@@ -47,9 +47,9 @@ using counter_type = std::int32_t;
 using see_type = std::int32_t;
 
 struct constants{
-  static constexpr search::depth_type lmr_tbl_dim = 64;
+  static constexpr depth_type lmr_tbl_dim = 64;
   size_t thread_count_;
-  std::array<search::depth_type, lmr_tbl_dim * lmr_tbl_dim> lmr_tbl{}; 
+  std::array<depth_type, lmr_tbl_dim * lmr_tbl_dim> lmr_tbl{}; 
   
   const size_t& thread_count() const { return thread_count_; }
   constexpr depth_type reduce_depth() const { return 3; }
@@ -62,7 +62,7 @@ struct constants{
   constexpr depth_type history_extension_depth() const { return 8; }
   
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
-    constexpr search::depth_type last_idx = lmr_tbl_dim - 1;
+    constexpr depth_type last_idx = lmr_tbl_dim - 1;
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
   }
   
@@ -98,9 +98,9 @@ struct constants{
 
   constants& update_(const size_t& thread_count){
     thread_count_ = thread_count;
-    for(search::depth_type depth{1}; depth < lmr_tbl_dim; ++depth){
-      for(search::depth_type played{1}; played < lmr_tbl_dim; ++played){
-        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<search::depth_type>(0.75 + std::log(depth) * std::log(played) / 2.25);
+    for(depth_type depth{1}; depth < lmr_tbl_dim; ++depth){
+      for(depth_type played{1}; played < lmr_tbl_dim; ++played){
+        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(0.75 + std::log(depth) * std::log(played) / 2.25);
       }
     }
     return *this;
