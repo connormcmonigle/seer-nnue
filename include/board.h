@@ -423,14 +423,7 @@ struct board{
   }
 
   template<color c>
-  size_t side_num_pieces() const {
-    return man_.us<c>().pawn().count() + 
-           man_.us<c>().knight().count() +
-           man_.us<c>().bishop().count() +
-           man_.us<c>().rook().count() +
-           man_.us<c>().queen().count() +
-           man_.us<c>().king().count();
-  }
+  size_t side_num_pieces() const { return man_.us<c>().all().count(); }
   
   size_t num_pieces() const {
     return side_num_pieces<color::white>() + side_num_pieces<color::black>();

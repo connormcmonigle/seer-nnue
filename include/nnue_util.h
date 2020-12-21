@@ -29,6 +29,18 @@ struct stack_vector{
     return *this;
   }
 
+  constexpr stack_vector<T, dim>& softmax_(){
+    static_assert(dim != 0, "can't softmax empty vector.");
+    T maximum_value = data[0];
+    for(size_t i = 0; i < dim; ++i){
+      if(data[i] > maximum_value){ maximum_value = data[i]; }
+    }
+    apply_([maximum_value](const T& x){ return std::exp(x - maximum_value); });
+    const T z = sum();
+    apply_([z](const T& x){ return x / z; });
+    return *this;
+  }
+
   constexpr stack_vector<T, dim>& add_(const T* other){
     #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
@@ -66,6 +78,15 @@ struct stack_vector{
     return data[0];
   }
   
+  constexpr T sum() const {
+    T result{};
+    #pragma omp simd
+    for(size_t i = 0; i < dim; ++i){
+      result += data[i];
+    }
+    return result;
+  }
+
   static constexpr stack_vector<T, dim> zeros(){
     stack_vector<T, dim> result{};
     #pragma omp simd
