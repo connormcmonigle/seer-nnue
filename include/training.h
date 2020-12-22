@@ -18,8 +18,10 @@
 
 namespace train{
 
+using real_type = float;
 using state_type = chess::board;
 using score_type = search::score_type;
+using wdl_type = search::wdl_type;
 constexpr score_type wdl_scale = search::wdl_scale<score_type>;
 
 
@@ -69,10 +71,10 @@ struct train_interface{
     if(const auto [is_terminal, wdl] = terminality(chess::position_history{}, state); is_terminal){ return wdl; }
     auto evaluator = nnue::eval(&weights_);
     state.show_init(evaluator);
-    return evaluator.get_wdl(state.turn());
+    return evaluator.wdl(state.turn());
   }
 
-  std::optional<state_type> get_continution(state_type state){
+  std::optional<state_type> get_continuation(state_type state){
     const size_t man_0 = state.num_pieces();
 
     chess::thread_worker<T, false> worker(
@@ -102,7 +104,7 @@ struct train_interface{
 
       if(last_move.is_capture() && worker.best_move().is_quiet()){ return state; }
 
-      chess::move last_move = worker.best_move();
+      last_move = worker.best_move();
       state = state.forward(worker.best_move());
     }
 
