@@ -22,9 +22,13 @@ using real_type = float;
 using state_type = chess::board;
 using score_type = search::score_type;
 using wdl_type = search::wdl_type;
+
+constexpr size_t half_feature_numel = nnue::half_ka_numel;
 constexpr score_type wdl_scale = search::wdl_scale<score_type>;
 
-
+constexpr auto win = wdl_type(wdl_scale<search::score_type>, 0, 0);
+constexpr auto draw = wdl_type(0, wdl_scale<search::score_type>, 0);
+constexpr auto loss = wdl_type(0, 0, wdl_scale<search::score_type>);
 
 struct feature_set : chess::sided<feature_set, std::set<size_t>>{
   std::set<size_t> white;
@@ -35,7 +39,7 @@ struct feature_set : chess::sided<feature_set, std::set<size_t>>{
 
 namespace config{
 
-constexpr size_t tt_mb_size = 2;
+constexpr size_t tt_mb_size = 256;
 constexpr search::depth_type continuation_depth = 4;
 constexpr search::depth_type continuation_max_length = 9;
 
@@ -43,9 +47,6 @@ constexpr search::depth_type continuation_max_length = 9;
 
 std::tuple<bool, search::wdl_type> terminality(const chess::position_history& hist, const state_type& state){
   using return_type = std::tuple<bool, search::wdl_type>;
-  
-  constexpr auto draw = search::wdl_type(0, search::wdl_scale<search::score_type>, 0);
-  constexpr auto loss = search::wdl_type(0, 0, search::wdl_scale<search::score_type>);
 
   if(hist.is_three_fold(state.hash())){ return return_type(true, draw); }
   if(state.generate_moves().size() == 0){ return return_type(true, state.is_check() ? loss : draw); }
@@ -101,8 +102,6 @@ struct train_interface{
       worker.set_position(hist, state);
       worker.iterative_deepening_loop_();
       hist.push_(state.hash());
-
-      if(last_move.is_capture() && worker.best_move().is_quiet()){ return state; }
 
       last_move = worker.best_move();
       state = state.forward(worker.best_move());
