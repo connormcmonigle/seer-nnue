@@ -23,12 +23,12 @@ using state_type = chess::board;
 using score_type = search::score_type;
 using wdl_type = search::wdl_type;
 
-constexpr size_t half_feature_numel = nnue::half_ka_numel;
+constexpr size_t half_feature_numel_ = nnue::half_ka_numel;
 constexpr score_type wdl_scale = search::wdl_scale<score_type>;
 
-constexpr auto win = wdl_type(wdl_scale<search::score_type>, 0, 0);
-constexpr auto draw = wdl_type(0, wdl_scale<search::score_type>, 0);
-constexpr auto loss = wdl_type(0, 0, wdl_scale<search::score_type>);
+constexpr auto win = wdl_type(wdl_scale, 0, 0);
+constexpr auto draw = wdl_type(0, wdl_scale, 0);
+constexpr auto loss = wdl_type(0, 0, wdl_scale);
 
 struct feature_set : chess::sided<feature_set, std::set<size_t>>{
   std::set<size_t> white;
