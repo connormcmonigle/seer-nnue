@@ -40,7 +40,8 @@ struct feature_set : chess::sided<feature_set, std::set<size_t>>{
 namespace config{
 
 constexpr size_t tt_mb_size = 256;
-constexpr search::depth_type continuation_depth = 4;
+constexpr search::depth_type init_depth = 1;
+constexpr search::depth_type continuation_depth = 3;
 constexpr search::depth_type continuation_max_length = 9;
 
 }
@@ -77,15 +78,16 @@ struct train_interface{
 
   std::optional<state_type> get_continuation(state_type state){
     const size_t man_0 = state.num_pieces();
+    auto hist = chess::position_history{};
+    if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return state; }
 
     chess::thread_worker<T, false> worker(
       &weights_, tt_, constants_,
       [&worker](auto&&...){ if(worker.depth() >= config::continuation_depth){ worker.stop(); } }
     );
 
-    auto hist = chess::position_history{};
-
     worker.set_position(hist, state);
+    worker.go(config::init_depth);
     worker.iterative_deepening_loop_();
     hist.push_(state.hash());
 
@@ -100,6 +102,7 @@ struct train_interface{
       if(last_move.is_quiet() && state.num_pieces() != man_0){ return state; }
 
       worker.set_position(hist, state);
+      worker.go(config::init_depth);
       worker.iterative_deepening_loop_();
       hist.push_(state.hash());
 
