@@ -77,7 +77,7 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>>{
   constexpr stack_vector<T, 3> propagate(const bool pov) const {
     const auto w_x = white.active();
     const auto b_x = black.active();
-    const auto x0 = pov ? splice(w_x, b_x).apply(relu<T>) : splice(b_x, w_x).apply_(relu<T>);
+    const auto x0 = pov ? splice(w_x, b_x).apply_(relu<T>) : splice(b_x, w_x).apply_(relu<T>);
     const auto x1 = (weights_ -> fc0).forward(x0).apply_(relu<T>);
     const auto x2 = splice(x1, (weights_ -> fc1).forward(x1).apply_(relu<T>));
     const auto x3 = splice(x2, (weights_ -> fc2).forward(x2).apply_(relu<T>));

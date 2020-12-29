@@ -39,7 +39,7 @@ struct feature_set : chess::sided<feature_set, std::set<size_t>>{
 
 namespace config{
 
-constexpr size_t tt_mb_size = 256;
+constexpr size_t tt_mb_size = 1024;
 constexpr search::depth_type init_depth = 1;
 constexpr search::depth_type continuation_depth = 3;
 constexpr search::depth_type continuation_max_length = 9;
