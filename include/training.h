@@ -23,6 +23,14 @@ using state_type = chess::board;
 using score_type = search::score_type;
 using wdl_type = search::wdl_type;
 
+struct continuation_type{
+  chess::position_history history_{};
+  state_type state_{};
+  
+  const chess::position_history& history() const { return history_; }
+  const state_type& state() const { return state_; }
+};
+
 constexpr size_t half_feature_numel_ = nnue::half_ka_numel;
 constexpr score_type wdl_scale = search::wdl_scale<score_type>;
 
@@ -49,7 +57,7 @@ constexpr search::depth_type continuation_max_length = 9;
 std::tuple<bool, search::wdl_type> terminality(const chess::position_history& hist, const state_type& state){
   using return_type = std::tuple<bool, search::wdl_type>;
 
-  if(hist.is_three_fold(state.hash())){ return return_type(true, draw); }
+  if(hist.is_two_fold(state.hash())){ return return_type(true, draw); }
   if(state.generate_moves().size() == 0){ return return_type(true, state.is_check() ? loss : draw); }
 
   return return_type(false, search::wdl_type(0, 0, 0));
@@ -69,17 +77,17 @@ struct train_interface{
 
   void load_weights(const std::string& path){ weights_.load(path); }
 
-  search::wdl_type get_wdl(const state_type& state) const {
-    if(const auto [is_terminal, wdl] = terminality(chess::position_history{}, state); is_terminal){ return wdl; }
+  search::wdl_type get_wdl(const continuation_type& continuation) const {
+    if(const auto [is_terminal, wdl] = terminality(continuation.history(), continuation.state()); is_terminal){ return wdl; }
     auto evaluator = nnue::eval(&weights_);
-    state.show_init(evaluator);
-    return evaluator.wdl(state.turn());
+    continuation.state().show_init(evaluator);
+    return evaluator.wdl(continuation.state().turn());
   }
 
-  std::optional<state_type> get_continuation(state_type state){
+  std::optional<continuation_type> get_continuation(state_type state){
     const size_t man_0 = state.num_pieces();
     auto hist = chess::position_history{};
-    if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return state; }
+    if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return continuation_type{hist, state}; }
 
     chess::thread_worker<T, false> worker(
       &weights_, tt_, constants_,
@@ -98,8 +106,8 @@ struct train_interface{
 
     for(search::depth_type length{0}; length < config::continuation_max_length; ++length){
       
-      if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return state; }
-      if(last_move.is_quiet() && state.num_pieces() != man_0){ return state; }
+      if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return continuation_type{hist, state}; }
+      if(last_move.is_quiet() && state.num_pieces() != man_0){ return continuation_type{hist, state}; }
 
       worker.set_position(hist, state);
       worker.go(config::init_depth);

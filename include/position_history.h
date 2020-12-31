@@ -63,8 +63,8 @@ struct position_history : base_history<position_history, zobrist::hash_type>{
     return occurrences_;
   }
 
-  bool is_three_fold(const zobrist::hash_type& hash) const {
-    return occurrences(hash) >= 2;
+  bool is_two_fold(const zobrist::hash_type& hash) const {
+    return occurrences(hash) >= 1;
   }
 };
 
