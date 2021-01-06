@@ -96,9 +96,11 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>>{
     constexpr T epsilon = static_cast<T>(0.0001);
 
     const stack_vector<T, 3> wdl = propagate(pov);
-    const T advantage = (wdl.data[0] + half * wdl.data[1]) / (wdl.data[2] + half * wdl.data[1]);
-    const T eval = std::log(std::clamp(advantage, epsilon, one-epsilon));
-
+        
+    const T expectation = std::clamp(wdl.data[0] + half * wdl.data[1], epsilon, one - epsilon);
+    const T advantage = std::max(expectation / (one - expectation), epsilon);
+    const T eval = std::log(advantage);
+    
     const T value = search::logit_scale<T> * std::clamp(eval, search::min_logit<T>, search::max_logit<T>);
     return static_cast<search::score_type>(value);
   }
