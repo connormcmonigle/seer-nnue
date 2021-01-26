@@ -1,6 +1,7 @@
 #pragma once
 #include <fstream>
 #include <set>
+#include <chrono>
 #include <thread>
 #include <memory>
 #include <atomic>
@@ -13,6 +14,7 @@
 #include <nnue_model.h>
 #include <transposition_table.h>
 #include <search_util.h>
+#include <time_manager.h>
 #include <thread_worker.h>
 
 
@@ -32,6 +34,7 @@ struct continuation_type{
 };
 
 constexpr size_t half_feature_numel_ = nnue::half_ka_numel;
+constexpr size_t max_active_half_features_ = 32;
 constexpr score_type wdl_scale = search::wdl_scale<score_type>;
 
 constexpr auto win = wdl_type(wdl_scale, 0, 0);
@@ -51,6 +54,7 @@ constexpr size_t tt_mb_size = 1024;
 constexpr search::depth_type init_depth = 1;
 constexpr search::depth_type continuation_depth = 3;
 constexpr search::depth_type continuation_max_length = 9;
+constexpr std::chrono::seconds timeout = std::chrono::seconds(1);
 
 }
 
@@ -85,18 +89,24 @@ struct train_interface{
   }
 
   std::optional<continuation_type> get_continuation(state_type state){
+    engine::simple_timer<std::chrono::milliseconds> timer{};
+
     const size_t man_0 = state.num_pieces();
     auto hist = chess::position_history{};
     if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return continuation_type{hist, state}; }
 
     chess::thread_worker<T, false> worker(
       &weights_, tt_, constants_,
-      [&worker](auto&&...){ if(worker.depth() >= config::continuation_depth){ worker.stop(); } }
+      [&timer, &worker](auto&&...){
+        if(timer.elapsed() >= config::timeout){ worker.stop(); }
+        if(worker.depth() >= config::continuation_depth){ worker.stop(); } 
+      }
     );
 
     worker.set_position(hist, state);
     worker.go(config::init_depth);
     worker.iterative_deepening_loop_();
+    if(timer.elapsed() >= config::timeout){ return std::nullopt; }
     hist.push_(state.hash());
 
     if(!worker.best_move().is_quiet()){ return std::nullopt; }
@@ -105,13 +115,13 @@ struct train_interface{
     state = state.forward(worker.best_move());
 
     for(search::depth_type length{0}; length < config::continuation_max_length; ++length){
-      
       if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return continuation_type{hist, state}; }
       if(last_move.is_quiet() && state.num_pieces() != man_0){ return continuation_type{hist, state}; }
 
       worker.set_position(hist, state);
       worker.go(config::init_depth);
       worker.iterative_deepening_loop_();
+      if(timer.elapsed() >= config::timeout){ return std::nullopt; }
       hist.push_(state.hash());
 
       last_move = worker.best_move();
