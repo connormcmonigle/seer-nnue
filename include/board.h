@@ -486,6 +486,26 @@ struct board{
     return turn() ? forward_<color::white>(mv) : forward_<color::black>(mv);
   }
 
+  board mirrored() const {
+    board mirror{};
+    // manifest
+    over_types([&mirror, this](const piece_type& pt){
+      for(const auto sq : man_.white.get_plane(pt).mirrored()){ mirror.man_.black.add_piece(pt, sq); }
+      for(const auto sq : man_.black.get_plane(pt).mirrored()){ mirror.man_.white.add_piece(pt, sq); }
+    });
+    // latent
+    mirror.lat_.white.set_ooo(lat_.black.ooo());
+    mirror.lat_.black.set_ooo(lat_.white.ooo());
+    mirror.lat_.white.set_oo(lat_.black.oo());
+    mirror.lat_.black.set_oo(lat_.white.oo());
+    if(lat_.black.ep_mask().any()){ mirror.lat_.white.set_ep_mask(lat_.black.ep_mask().mirrored().item()); }
+    if(lat_.white.ep_mask().any()){ mirror.lat_.black.set_ep_mask(lat_.white.ep_mask().mirrored().item()); }
+    mirror.lat_.move_count = lat_.move_count ^ static_cast<size_t>(1);
+    mirror.lat_.half_clock = lat_.half_clock;
+    
+    return mirror;
+  }
+
   template<color c, typename U>
   void show_feature_indices(U& updatable) const {
     using namespace feature_idx;

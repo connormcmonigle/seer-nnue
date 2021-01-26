@@ -238,12 +238,25 @@ struct square_set{
     return *this;
   }
 
+  constexpr square_set mirrored() const {
+    return square_set{
+      (data << 56) |
+      ((data << 40) & static_cast<std::uint64_t>(0x00ff000000000000)) |
+      ((data << 24) & static_cast<std::uint64_t>(0x0000ff0000000000)) |
+      ((data <<  8) & static_cast<std::uint64_t>(0x000000ff00000000)) |
+      ((data >>  8) & static_cast<std::uint64_t>(0x00000000ff000000)) |
+      ((data >> 24) & static_cast<std::uint64_t>(0x0000000000ff0000)) |
+      ((data >> 40) & static_cast<std::uint64_t>(0x000000000000ff00)) |
+      (data >> 56)
+    };
+  }
+
   template<typename I>
   constexpr bool occ(I idx) const {
     static_assert(std::is_integral_v<I>, "idx must be of integral type");
     return static_cast<bool>(data & (one << static_cast<std::uint64_t>(idx)));
   }
-  
+
   constexpr square_set() : data{0} {}
   constexpr square_set(std::uint64_t set) : data{set} {}
 };
