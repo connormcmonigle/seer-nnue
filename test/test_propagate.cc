@@ -4,7 +4,7 @@
 #include <board.h>
 
 int main(){
-  const auto weights = nnue::weights<float>{}.load("../train/model/save.bin");
+  const auto weights = nnue::weights<float>{}.load("../../seer-training/scripts/model/save.bin");
   std::cout << "numel: " << weights.num_parameters() << std::endl;
   std::cout << "signature: 0x" << std::hex << weights.signature() << '\n';
 
@@ -16,9 +16,9 @@ int main(){
   bd.show_init(eval);
   
   for(;;){
-    const float result = eval.propagate(bd.turn());
+    const auto result = eval.propagate(bd.turn());
     std::cout << bd.fen();
-    std::cout << " -> real: " << result << '\n';
+    std::cout << " -> " << result << '\n';
     
     const chess::move_list mv_ls = bd.generate_moves();
     std::cout << mv_ls << std::endl;
