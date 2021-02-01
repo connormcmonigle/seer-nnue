@@ -4,6 +4,7 @@
 #include <utility>
 #include <algorithm>
 
+#include <simd.h>
 #include <weights_streamer.h>
 
 namespace nnue{
@@ -13,7 +14,7 @@ constexpr T relu(const T& x){ return std::max(x, T{0}); }
 
 template<typename T, size_t dim>
 struct stack_vector{
-  T data[dim];
+  alignas(simd::alignment) T data[dim];
   
   template<typename F>
   constexpr stack_vector<T, dim> apply(F&& f) const {
@@ -22,7 +23,7 @@ struct stack_vector{
   
   template<typename F>
   constexpr stack_vector<T, dim>& apply_(F&& f){
-    #pragma omp simd
+#pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] = f(data[i]);
     }
@@ -42,7 +43,7 @@ struct stack_vector{
   }
 
   constexpr stack_vector<T, dim>& add_(const T* other){
-    #pragma omp simd
+#pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] += other[i];
     }
@@ -50,28 +51,22 @@ struct stack_vector{
   }
   
   constexpr stack_vector<T, dim>& sub_(const T* other){
-    #pragma omp simd
+#pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] -= other[i];
     }
     return *this;
   }
-  
-  constexpr stack_vector<T, dim>& fma_(const T c, const T* other){
-    #pragma omp simd
-    for(size_t i = 0; i < dim; ++i){
-      data[i] += c * other[i];
-    }
-    return *this;
-  }
-  
+    
   constexpr stack_vector<T, dim>& set_(const T* other){
-    #pragma omp simd
+#pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] = other[i];
     }
     return *this;
   }
+
+  inline T dot(const T* other) const { return simd::dot_product<T, dim>(data, other); }
 
   constexpr T item() const {
     static_assert(dim == 1, "called item() on vector with dim != 1");
@@ -80,7 +75,7 @@ struct stack_vector{
   
   constexpr T sum() const {
     T result{};
-    #pragma omp simd
+#pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       result += data[i];
     }
@@ -89,7 +84,7 @@ struct stack_vector{
 
   static constexpr stack_vector<T, dim> zeros(){
     stack_vector<T, dim> result{};
-    #pragma omp simd
+#pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       result.data[i] = T(0);
     }
@@ -98,7 +93,7 @@ struct stack_vector{
   
   static constexpr stack_vector<T, dim> ones(){
     stack_vector<T, dim> result{};
-    #pragma omp simd
+#pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       result.data[i] = T(1);
     }
@@ -107,7 +102,7 @@ struct stack_vector{
   
   static constexpr stack_vector<T, dim> from(const T* data){
     stack_vector<T, dim> result{};
-    #pragma omp simd
+#pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       result.data[i] = data[i];
     }
@@ -129,7 +124,7 @@ std::ostream& operator<<(std::ostream& ostr, const stack_vector<T, dim>& vec){
 template<typename T, size_t dim0, size_t dim1>
 constexpr stack_vector<T, dim0 + dim1> splice(const stack_vector<T, dim0>& a, const stack_vector<T, dim1>& b){
   auto c = stack_vector<T, dim0 + dim1>::zeros();
-  #pragma omp simd
+#pragma omp simd
   for(size_t i = 0; i < dim0; ++i){
     c.data[i] = a.data[i];
   }
@@ -145,28 +140,18 @@ struct stack_affine{
   static constexpr size_t W_numel = dim0*dim1;
   static constexpr size_t b_numel = dim1;
   
-  T W[W_numel];
-  T b[b_numel];
+  alignas(simd::alignment) T W[W_numel];
+  alignas(simd::alignment) T b[b_numel];
   
   constexpr size_t num_parameters() const {
     return W_numel + b_numel;
   }
   
-  constexpr stack_vector<T, dim1> forward(const stack_vector<T, dim0>& x) const {
+  inline stack_vector<T, dim1> forward(const stack_vector<T, dim0>& x) const {
     auto result = stack_vector<T, dim1>::from(b);
-    #pragma omp simd
-    for(size_t i = 0; i < dim0; ++i){
-      result.fma_(x.data[i], W + i * dim1);
-    }
-    return result;
-  }
-  
-  constexpr stack_vector<T, dim1> relu_forward(const stack_vector<T, dim0>& x) const {
-    auto result = stack_vector<T, dim1>::from(b);
-    for(size_t i = 0; i < dim0; ++i){
-      if(x.data[i] > T{0}){
-        result.fma_(x.data[i], W + i * dim1);
-      }
+#pragma omp simd
+    for(size_t i = 0; i < dim1; ++i){
+      result.data[i] += x.dot(W + i * dim0);
     }
     return result;
   }
@@ -183,7 +168,7 @@ struct big_affine{
   static constexpr size_t b_numel = dim1;
 
   T* W{nullptr};
-  T b[b_numel];
+  alignas(simd::alignment) T b[b_numel];
 
   constexpr size_t num_parameters() const {
     return W_numel + b_numel;
@@ -205,7 +190,7 @@ struct big_affine{
   }
 
   big_affine<T, dim0, dim1>& operator=(const big_affine<T, dim0, dim1>& other){
-    #pragma omp simd
+#pragma omp simd
     for(size_t i = 0; i < W_numel; ++i){ W[i] = other.W[i]; }
     for(size_t i = 0; i < b_numel; ++i){ b[i] = other.b[i]; }
     return *this;
@@ -219,7 +204,7 @@ struct big_affine{
 
   big_affine(const big_affine<T, dim0, dim1>& other){
     W = new T[W_numel];
-    #pragma omp simd
+#pragma omp simd
     for(size_t i = 0; i < W_numel; ++i){ W[i] = other.W[i]; }
     for(size_t i = 0; i < b_numel; ++i){ b[i] = other.b[i]; }
   }

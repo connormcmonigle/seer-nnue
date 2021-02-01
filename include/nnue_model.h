@@ -74,7 +74,7 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>>{
   feature_transformer<T> white;
   feature_transformer<T> black;
 
-  constexpr stack_vector<T, 3> propagate(const bool pov) const {
+  inline stack_vector<T, 3> propagate(const bool pov) const {
     const auto w_x = white.active();
     const auto b_x = black.active();
     const auto x0 = pov ? splice(w_x, b_x).apply_(relu<T>) : splice(b_x, w_x).apply_(relu<T>);
@@ -84,13 +84,13 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>>{
     return (weights_ -> fc3).forward(x3).softmax_();
   }
 
-  constexpr search::wdl_type wdl(const bool pov) const {
-    auto map = [](const T x){ return  static_cast<search::score_type>(search::wdl_scale<T> * x); };
+  inline search::wdl_type wdl(const bool pov) const {
+    auto map = [](const T x){ return static_cast<search::score_type>(search::wdl_scale<T> * x); };
     const stack_vector<T, 3> wdl = propagate(pov);
     return std::tuple(map(wdl.data[0]), map(wdl.data[1]), map(wdl.data[2]));
   }
 
-  constexpr T evaluate(const bool pov) const {
+  inline T evaluate(const bool pov) const {
     constexpr T one = static_cast<T>(1.0);
     constexpr T half = static_cast<T>(0.5);
     constexpr T epsilon = static_cast<T>(0.0001);
