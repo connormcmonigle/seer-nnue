@@ -23,7 +23,7 @@ constexpr T dot_product_(const T* a, const T* b){
 template<typename T, size_t N>
 inline T dot_product(const T* a, const T* b){
 #ifdef __AVX2__
-  if(std::is_same_v<T, float>){
+  if constexpr(std::is_same_v<T, float>){
     static_assert(alignment % sizeof(T) == 0, "alignment must be divisible by sizeof(T)");
     constexpr size_t num_units = 4;
     constexpr size_t per_unit = alignment / sizeof(T);
