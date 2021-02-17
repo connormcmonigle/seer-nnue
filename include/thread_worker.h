@@ -422,7 +422,7 @@ struct thread_worker{
     go_.store(false, std::memory_order_relaxed);
   }
 
-  thread_worker<T>& set_position(const position_history& hist, const board& bd){
+  thread_worker<T, is_active>& set_position(const position_history& hist, const board& bd){
     std::lock_guard<std::mutex> stack_lk(stack_mutex_);
     bd.show_init(evaluator_);
     hh_.clear();

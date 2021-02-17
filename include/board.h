@@ -423,14 +423,7 @@ struct board{
   }
 
   template<color c>
-  size_t side_num_pieces() const {
-    return man_.us<c>().pawn().count() + 
-           man_.us<c>().knight().count() +
-           man_.us<c>().bishop().count() +
-           man_.us<c>().rook().count() +
-           man_.us<c>().queen().count() +
-           man_.us<c>().king().count();
-  }
+  size_t side_num_pieces() const { return man_.us<c>().all().count(); }
   
   size_t num_pieces() const {
     return side_num_pieces<color::white>() + side_num_pieces<color::black>();
@@ -491,6 +484,26 @@ struct board{
 
   board forward(const move& mv) const {
     return turn() ? forward_<color::white>(mv) : forward_<color::black>(mv);
+  }
+
+  board mirrored() const {
+    board mirror{};
+    // manifest
+    over_types([&mirror, this](const piece_type& pt){
+      for(const auto sq : man_.white.get_plane(pt).mirrored()){ mirror.man_.black.add_piece(pt, sq); }
+      for(const auto sq : man_.black.get_plane(pt).mirrored()){ mirror.man_.white.add_piece(pt, sq); }
+    });
+    // latent
+    mirror.lat_.white.set_ooo(lat_.black.ooo());
+    mirror.lat_.black.set_ooo(lat_.white.ooo());
+    mirror.lat_.white.set_oo(lat_.black.oo());
+    mirror.lat_.black.set_oo(lat_.white.oo());
+    if(lat_.black.ep_mask().any()){ mirror.lat_.white.set_ep_mask(lat_.black.ep_mask().mirrored().item()); }
+    if(lat_.white.ep_mask().any()){ mirror.lat_.black.set_ep_mask(lat_.white.ep_mask().mirrored().item()); }
+    mirror.lat_.move_count = lat_.move_count ^ static_cast<size_t>(1);
+    mirror.lat_.half_clock = lat_.half_clock;
+    
+    return mirror;
   }
 
   template<color c, typename U>

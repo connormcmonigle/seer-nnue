@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <cmath>
 
 #include <weights_streamer.h>
 #include <nnue_util.h>
@@ -22,7 +23,7 @@ struct weights{
   stack_affine<T, 2*base_dim, 32> fc0{};
   stack_affine<T, 32, 32> fc1{};
   stack_affine<T, 64, 32> fc2{};
-  stack_affine<T, 96, 1> fc3{};
+  stack_affine<T, 96, 3> fc3{};
 
   size_t signature() const { return signature_; }
   
@@ -73,19 +74,34 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>>{
   feature_transformer<T> white;
   feature_transformer<T> black;
 
-  constexpr T propagate(const bool pov) const {
+  inline stack_vector<T, 3> propagate(const bool pov) const {
     const auto w_x = white.active();
     const auto b_x = black.active();
     const auto x0 = pov ? splice(w_x, b_x).apply_(relu<T>) : splice(b_x, w_x).apply_(relu<T>);
     const auto x1 = (weights_ -> fc0).forward(x0).apply_(relu<T>);
     const auto x2 = splice(x1, (weights_ -> fc1).forward(x1).apply_(relu<T>));
     const auto x3 = splice(x2, (weights_ -> fc2).forward(x2).apply_(relu<T>));
-    const T val = (weights_ -> fc3).forward(x3).item();
-    return val;
+    return (weights_ -> fc3).forward(x3).softmax_();
   }
 
-  constexpr T evaluate(const bool pov) const {
-    const T value = search::logit_scale<T> * std::clamp(propagate(pov), search::min_logit<T>, search::max_logit<T>);
+  inline search::wdl_type wdl(const bool pov) const {
+    auto map = [](const T x){ return static_cast<search::score_type>(search::wdl_scale<T> * x); };
+    const stack_vector<T, 3> wdl = propagate(pov);
+    return std::tuple(map(wdl.data[0]), map(wdl.data[1]), map(wdl.data[2]));
+  }
+
+  inline T evaluate(const bool pov) const {
+    constexpr T one = static_cast<T>(1.0);
+    constexpr T half = static_cast<T>(0.5);
+    constexpr T epsilon = static_cast<T>(0.0001);
+
+    const stack_vector<T, 3> wdl = propagate(pov);
+        
+    const T expectation = std::clamp(wdl.data[0] + half * wdl.data[1], epsilon, one - epsilon);
+    const T advantage = std::max(expectation / (one - expectation), epsilon);
+    const T eval = std::log(advantage);
+    
+    const T value = search::logit_scale<T> * std::clamp(eval, search::min_logit<T>, search::max_logit<T>);
     return static_cast<search::score_type>(value);
   }
   

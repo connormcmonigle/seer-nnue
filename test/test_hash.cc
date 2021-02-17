@@ -32,11 +32,16 @@ int main(){
         const auto h2 = bd.forward(chess::move::null()).hash();
         if(h0 == h2){
           std::cout << bd_from_bd << std::endl;
-          std::cout << "FAIL" << std::endl;
+          std::cout << "FAIL - null move" << std::endl;
           std::terminate();
         }
       }
       
+      if(bd.mirrored().mirrored().hash() != h0){
+        std::cout << "FAIL - mirror" << std::endl;
+        std::terminate();
+      } 
+
       const chess::move_list mv_ls = bd.generate_moves();
       if(mv_ls.size() == 0 || bd.lat_.move_count > 500){
         std::cout << "SUCCESS" << std::endl;

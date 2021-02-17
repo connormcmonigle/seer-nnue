@@ -21,6 +21,9 @@ inline constexpr T min_logit = static_cast<T>(-256);
 template<typename T>
 inline constexpr T logit_scale = static_cast<T>(1024);
 
+template<typename T>
+inline constexpr T wdl_scale = static_cast<T>(1024);
+
 using depth_type = std::int32_t;
 
 inline constexpr depth_type max_depth_ = 128;
@@ -28,6 +31,8 @@ inline constexpr depth_type max_depth_ = 128;
 inline constexpr depth_type max_depth_margin_ = 8;
 
 using score_type = std::int32_t;
+
+using wdl_type = std::tuple<search::score_type, search::score_type, search::score_type>;
 
 inline constexpr score_type big_number = 256 * logit_scale<score_type>;
 

@@ -7,8 +7,10 @@ int main(){
   std::string fen; std::getline(std::cin, fen);
   std::cout << fen << std::endl;
   auto bd = chess::board::parse_fen(fen);
-  //auto bd = chess::board::start_pos();
   std::cout << bd << std::endl;
+  std::cout << bd.fen() << std::endl;
+  std::cout << bd.mirrored().fen() << std::endl;
+  
   for(;;){
     const chess::move_list mv_ls = bd.generate_moves();
     std::cout << "noisy:\n" << bd.generate_loud_moves() << std::endl;
@@ -16,5 +18,7 @@ int main(){
     size_t i; std::cin >> i;
     bd = bd.forward(mv_ls.data[i]);
     std::cout << bd << std::endl;
+    std::cout << bd.fen() << std::endl;
+    std::cout << bd.mirrored().fen() << std::endl;
   }
 }
