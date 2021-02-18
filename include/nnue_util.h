@@ -22,7 +22,7 @@ struct stack_vector{
   }
   
   template<typename F>
-  constexpr stack_vector<T, dim>& apply_(F&& f){
+  inline stack_vector<T, dim>& apply_(F&& f){
 #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] = f(data[i]);
@@ -30,7 +30,7 @@ struct stack_vector{
     return *this;
   }
 
-  constexpr stack_vector<T, dim>& softmax_(){
+  inline stack_vector<T, dim>& softmax_(){
     static_assert(dim != 0, "can't softmax empty vector.");
     T maximum_value = data[0];
     for(size_t i = 0; i < dim; ++i){
@@ -42,7 +42,7 @@ struct stack_vector{
     return *this;
   }
 
-  constexpr stack_vector<T, dim>& add_(const T* other){
+  inline stack_vector<T, dim>& add_(const T* other){
 #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] += other[i];
@@ -50,7 +50,7 @@ struct stack_vector{
     return *this;
   }
   
-  constexpr stack_vector<T, dim>& sub_(const T* other){
+  inline stack_vector<T, dim>& sub_(const T* other){
 #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] -= other[i];
@@ -58,7 +58,7 @@ struct stack_vector{
     return *this;
   }
     
-  constexpr stack_vector<T, dim>& set_(const T* other){
+  inline stack_vector<T, dim>& set_(const T* other){
 #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] = other[i];
@@ -68,12 +68,12 @@ struct stack_vector{
 
   inline T dot(const T* other) const { return simd::dot_product<T, dim>(data, other); }
 
-  constexpr T item() const {
+  inline T item() const {
     static_assert(dim == 1, "called item() on vector with dim != 1");
     return data[0];
   }
   
-  constexpr T sum() const {
+  inline T sum() const {
     T result{};
 #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
@@ -82,7 +82,7 @@ struct stack_vector{
     return result;
   }
 
-  static constexpr stack_vector<T, dim> zeros(){
+  static inline stack_vector<T, dim> zeros(){
     stack_vector<T, dim> result{};
 #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
@@ -91,7 +91,7 @@ struct stack_vector{
     return result;
   }
   
-  static constexpr stack_vector<T, dim> ones(){
+  static inline stack_vector<T, dim> ones(){
     stack_vector<T, dim> result{};
 #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
@@ -100,7 +100,7 @@ struct stack_vector{
     return result;
   }
   
-  static constexpr stack_vector<T, dim> from(const T* data){
+  static inline stack_vector<T, dim> from(const T* data){
     stack_vector<T, dim> result{};
 #pragma omp simd
     for(size_t i = 0; i < dim; ++i){
@@ -122,7 +122,7 @@ std::ostream& operator<<(std::ostream& ostr, const stack_vector<T, dim>& vec){
 }
 
 template<typename T, size_t dim0, size_t dim1>
-constexpr stack_vector<T, dim0 + dim1> splice(const stack_vector<T, dim0>& a, const stack_vector<T, dim1>& b){
+inline stack_vector<T, dim0 + dim1> splice(const stack_vector<T, dim0>& a, const stack_vector<T, dim1>& b){
   auto c = stack_vector<T, dim0 + dim1>::zeros();
 #pragma omp simd
   for(size_t i = 0; i < dim0; ++i){
