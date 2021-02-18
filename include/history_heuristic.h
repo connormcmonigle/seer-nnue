@@ -76,7 +76,7 @@ struct history_heuristic{
     };
     // limit gain to prevent saturation
     const value_type gain = std::min(history_max, static_cast<value_type>(depth) * static_cast<value_type>(depth));
-    std::for_each(tried.cbegin(), tried.cend(), [single_update, gain, this](const move& mv){ single_update(mv, -gain); });
+    std::for_each(tried.cbegin(), tried.cend(), [single_update, gain](const move& mv){ single_update(mv, -gain); });
     single_update(best_move, gain);
     return *this;
   }

@@ -4,7 +4,14 @@ project (nnue)
 find_package (Threads REQUIRED)
 
 set (CMAKE_CXX_STANDARD 17)
-set (CMAKE_CXX_FLAGS "-Ofast -g -DNDEBUG -fconstexpr-ops-limit=1000000000  -march=native -mtune=native -fopenmp -Wall -Wextra")
+
+set (OPS_LIMIT 1000000000)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set (CMAKE_CXX_FLAGS "-Ofast -g -DNDEBUG -fconstexpr-ops-limit=${OPS_LIMIT} -march=native -mtune=native -fopenmp -Wall -Wextra")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  set (CMAKE_CXX_FLAGS "-Ofast -g -DNDEBUG -fconstexpr-steps=${OPS_LIMIT} -march=native -mtune=native -fopenmp -Wall -Wextra")
+endif()
 
 include_directories (include)
 

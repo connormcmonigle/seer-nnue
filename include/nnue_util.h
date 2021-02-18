@@ -149,7 +149,6 @@ struct stack_affine{
   
   inline stack_vector<T, dim1> forward(const stack_vector<T, dim0>& x) const {
     auto result = stack_vector<T, dim1>::from(b);
-#pragma omp simd
     for(size_t i = 0; i < dim1; ++i){
       result.data[i] += x.dot(W + i * dim0);
     }

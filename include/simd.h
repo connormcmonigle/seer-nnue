@@ -11,7 +11,7 @@ namespace simd{
 constexpr size_t alignment = 32;
 
 template<typename T, size_t N>
-constexpr T dot_product_(const T* a, const T* b){
+inline T dot_product_(const T* a, const T* b){
   T sum{};
 #pragma omp simd
   for(size_t i = 0; i < N; ++i){

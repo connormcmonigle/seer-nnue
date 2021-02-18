@@ -231,7 +231,7 @@ struct thread_worker{
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
       // step 10. extensions
-      const search::depth_type extension = [&]{
+      const search::depth_type extension = [&, mv = mv]{
         const bool check_ext = bd.see<search::see_type>(mv) > 0 && bd_.is_check();
 
         if(check_ext){ return 1; }
@@ -247,7 +247,7 @@ struct thread_worker{
         return 0;
       }();
       
-      const search::score_type score = [&, this]{
+      const search::score_type score = [&, this, idx = idx, mv = mv]{
         const search::depth_type next_depth = depth + extension - 1;
         auto full_width = [&]{ return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
           
