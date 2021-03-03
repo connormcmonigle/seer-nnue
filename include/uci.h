@@ -24,7 +24,7 @@ struct uci{
   
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 128;
-  static constexpr nnue::weights_streamer<weight_type>::signature_type weights_signature = 0xc2355852;
+  static constexpr nnue::weights_streamer<weight_type>::signature_type weights_signature = 0x319651dd;
   static constexpr std::string_view default_weight_path = "../../seer-training/scripts/model/save.bin";
   
 
@@ -120,12 +120,12 @@ struct uci{
   }
 
   void go(const std::string& line){
-    /*if(weights_.signature() != weights_signature){
+    if(weights_.signature() != weights_signature){
       std::lock_guard<std::mutex> os_lk(os_mutex_);
-      os << "error: weight signature mismatch" << std::endl;;
+      os << "error: weight signature mismatch" << std::endl;
       os << "got " << std::hex << weights_.signature() << ", expected " << weights_signature << std::endl;
       std::terminate();
-    }*/
+    }
     
     go_.store(true);
     pool_.set_position(history, position);
