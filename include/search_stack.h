@@ -77,7 +77,9 @@ struct stack_view{
   }
   
   bool reached_max_height() const { return height_ >= (safe_depth_-1); }
-  
+
+  depth_type height() const { return height_; }
+
   chess::board root_pos() const { return view_ -> root_pos(); }
 
   bool is_two_fold(const zobrist::hash_type& hash) const {
