@@ -34,9 +34,9 @@ struct move_orderer_data{
 };
 
 struct move_orderer_entry{
-  using first_ = bit_field<bool, 34, 35>;
-  using noisy_ = bit_field<bool, 33, 34>;
-  using killer_ = bit_field<bool, 32, 33>;
+  using first_ =             bit_field<bool, 34, 35>;
+  using nonnegative_noisy_ = bit_field<bool, 33, 34>;
+  using killer_ =            bit_field<bool, 32, 33>;
   using value_ = bit_field<std::uint32_t, 0, 32>;
 
   move mv;
@@ -44,7 +44,7 @@ struct move_orderer_entry{
 
   move_orderer_entry(const move& mv_, bool is_first, bool is_noisy, bool is_killer, std::int32_t value) : mv{mv_}{
     first_::set(data, is_first);
-    noisy_::set(data, is_noisy);
+    nonnegative_noisy_::set(data, is_noisy);
     killer_::set(data, is_killer);
     value_::set(data, make_positive(value));
   }
@@ -104,14 +104,13 @@ struct move_orderer_iterator{
   {
     std::transform(data.list.cbegin(), data.list.cend(), entries_.begin(), [&data](const move& mv){
       const bool quiet = mv.is_quiet();
+      const std::int32_t value = quiet ? data.hh -> compute_value(data.follow, data.counter, mv) : data.bd -> see<std::int32_t>(mv);
       return move_orderer_entry(
         mv,
         mv == data.first,
-        !quiet,
+        !quiet && value >= 0,
         quiet && mv == data.killer,
-        (quiet ? 
-          data.hh -> compute_value(data.follow, data.counter, mv) : 
-          data.bd -> see<std::int32_t>(mv))
+        value
       );
     });
     update_list_();
