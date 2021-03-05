@@ -52,9 +52,9 @@ namespace config{
 
 constexpr size_t tt_mb_size = 1024;
 constexpr search::depth_type init_depth = 1;
-constexpr search::depth_type continuation_depth = 3;
-constexpr search::depth_type continuation_max_length = 9;
-constexpr std::chrono::seconds timeout = std::chrono::seconds(1);
+constexpr search::depth_type continuation_depth = 4;
+constexpr search::depth_type continuation_max_length = 16;
+constexpr std::chrono::seconds timeout = std::chrono::seconds(10);
 
 }
 
