@@ -45,7 +45,7 @@ struct thread_worker{
   sided_history_heuristic hh_{};
   
   nnue::eval<T> evaluator_;
-  std::shared_ptr<table> tt_;
+  std::shared_ptr<transposition_table> tt_;
   std::shared_ptr<search::constants> constants_;
   std::function<void(const thread_worker<T, is_active>&)> iteration_callback;
   
@@ -63,8 +63,8 @@ struct thread_worker{
 
     auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &hh_.us(bd.turn())});
     
-    if(const std::optional<tt_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
-      const tt_entry entry = maybe.value();
+    if(const std::optional<transposition_table_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
+      const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = 
         (entry.score() >= beta && entry.bound() == bound_type::lower) ||
         (entry.score() <= alpha && entry.bound() == bound_type::upper);
@@ -102,7 +102,7 @@ struct thread_worker{
 
     if(go_.load(std::memory_order_relaxed)){
       const auto bound = best_score > beta ? bound_type::lower : bound_type::upper;
-      const tt_entry entry(bd.hash(), bound, best_score, best_move, 0);
+      const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
       tt_-> insert(entry);
     }
     
@@ -137,9 +137,9 @@ struct thread_worker{
     const move counter = ss.counter();
     
     auto orderer = move_orderer(move_orderer_data{killer, follow, counter, &bd, list, &hh_.us(bd.turn())});
-    const std::optional<tt_entry> maybe = tt_ -> find(bd.hash());
+    const std::optional<transposition_table_entry> maybe = tt_ -> find(bd.hash());
     if(maybe.has_value()){
-      const tt_entry entry = maybe.value();
+      const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = !is_pv &&
         entry.depth() >= depth &&
         (entry.score() >= beta ? (entry.bound() == bound_type::lower) : (entry.bound() == bound_type::upper));
@@ -299,17 +299,17 @@ struct thread_worker{
       }
     }
     
-    // step 12. update histories if appropriate and maybe insert a new tt_entry
+    // step 12. update histories if appropriate and maybe insert a new transposition_table_entry
     if(go_.load(std::memory_order_relaxed)){
       if(best_score > beta){
-        const tt_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
+        const transposition_table_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
         tt_-> insert(entry);
         if(best_move.is_quiet()){
           hh_.us(bd.turn()).update(follow, counter, best_move, quiets_tried, depth);
           ss.set_killer(best_move);
         }
       }else{
-        const tt_entry entry(bd.hash(), bound_type::upper, best_score, best_move, depth);
+        const transposition_table_entry entry(bd.hash(), bound_type::upper, best_score, best_move, depth);
         tt_-> insert(entry);
       }
     }
@@ -430,7 +430,7 @@ struct thread_worker{
 
   thread_worker(
     const nnue::weights<T>* weights,
-    std::shared_ptr<table> tt,
+    std::shared_ptr<transposition_table> tt,
     std::shared_ptr<search::constants> constants,
     std::function<void(const thread_worker<T, is_active>&)> callback = [](auto&&...){}
   ) : 
@@ -447,7 +447,7 @@ struct worker_pool{
   static constexpr size_t primary_id = 0;
   
   const nnue::weights<T>* weights_;
-  std::shared_ptr<table> tt_{nullptr};
+  std::shared_ptr<transposition_table> tt_{nullptr};
   std::shared_ptr<search::constants> constants_{nullptr};
 
   std::vector<std::shared_ptr<thread_worker<T>>> pool_{};
@@ -496,7 +496,7 @@ struct worker_pool{
   ) : 
       weights_{weights} 
   {
-    tt_ = std::make_shared<table>(hash_table_size);
+    tt_ = std::make_shared<transposition_table>(hash_table_size);
     constants_ = std::make_shared<search::constants>(num_workers);
     
     pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, constants_, primary_callback));

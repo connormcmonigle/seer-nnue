@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <algorithm>
 
-#include <bit_field.h>
+#include <bit_range.h>
 #include <enum_util.h>
 #include <square.h>
 #include <table_generation.h>
@@ -23,22 +23,22 @@ struct move{
   std::uint32_t data{0};
 
   static constexpr size_t width = 29;
-  using from_ = bit_field<std::uint8_t, 0, 6>;
-  using to_ = bit_field<std::uint8_t, 6, 12>;
-  using piece_ = bit_field<piece_type, 12, 15>;
-  using is_capture_ = bit_field<bool, 15, 16>;
-  using is_enpassant_ = bit_field<bool, 16, 17>;
-  using captured_ = bit_field<piece_type, 17, 20>;
-  using enpassant_sq_ = bit_field<std::uint8_t, 20, 26>;
-  using promotion_ = bit_field<piece_type, 26, 29>;
+  using from_ = bit::range<std::uint8_t, 0, 6>;
+  using to_ = bit::range<std::uint8_t, 6, 12>;
+  using piece_ = bit::range<piece_type, 12, 15>;
+  using is_capture_ = bit::flag<15>;
+  using is_enpassant_ = bit::flag<16>;
+  using captured_ = bit::range<piece_type, 17, 20>;
+  using enpassant_sq_ = bit::range<std::uint8_t, 20, 26>;
+  using promotion_ = bit::range<piece_type, 26, 29>;
 
   template<typename B>
-  constexpr typename B::field_type get_field_() const {
+  constexpr typename B::type get_field_() const {
     return B::get(data);
   }
 
   template<typename B>
-  constexpr move& set_field_(const typename B::field_type info){
+  constexpr move& set_field_(const typename B::type info){
     B::set(data, info);
     return *this;
   }

@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <limits>
 
-#include <bit_field.h>
+#include <bit_range.h>
 #include <move.h>
 #include <history_heuristic.h>
 
@@ -34,10 +34,10 @@ struct move_orderer_data{
 };
 
 struct move_orderer_entry{
-  using first_ = bit_field<bool, 34, 35>;
-  using nonnegative_noisy_ = bit_field<bool, 33, 34>;
-  using killer_ = bit_field<bool, 32, 33>;
-  using value_ = bit_field<std::uint32_t, 0, 32>;
+  using first_ = bit::flag<34>;
+  using nonnegative_noisy_ = bit::flag<33>;
+  using killer_ = bit::flag<32>;
+  using value_ = bit::range<std::uint32_t, 0, 32>;
 
   move mv;
   std::uint64_t data{0};

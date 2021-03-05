@@ -3,12 +3,12 @@
 #include <utility>
 #include <cstdint>
 
-namespace chess{
+namespace bit{
 
 template<typename T, size_t B0, size_t B1>
-struct bit_field{
+struct range{
   static_assert(B0 < B1, "wrong bit order");
-  using field_type = T;
+  using type = T;
   static constexpr size_t first = B0;
   static constexpr size_t last = B1;
   
@@ -36,5 +36,8 @@ struct bit_field{
     i |= (info_ << b0) & mask;
   }
 };
+
+template<size_t B> 
+using flag = range<bool, B, B+1>;
 
 }

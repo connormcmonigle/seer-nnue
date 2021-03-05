@@ -76,7 +76,7 @@ feature_set get_features(const state_type& state){
 template<typename T>
 struct train_interface{
   std::shared_ptr<search::constants> constants_ = std::make_shared<search::constants>(1);
-  std::shared_ptr<chess::table> tt_ = std::make_shared<chess::table>(config::tt_mb_size);
+  std::shared_ptr<chess::transposition_table> tt_ = std::make_shared<chess::transposition_table>(config::tt_mb_size);
   nnue::weights<T> weights_{};
 
   void load_weights(const std::string& path){ weights_.load(path); }

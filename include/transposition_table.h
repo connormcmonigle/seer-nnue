@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -8,7 +9,7 @@
 #include <string_view>
 #include <optional>
 
-#include <bit_field.h>
+#include <bit_range.h>
 #include <zobrist_util.h>
 #include <search_constants.h>
 #include <move.h>
@@ -28,18 +29,19 @@ constexpr std::string_view bound_type_name(const bound_type& type){
   }
 }
 
-struct tt_entry{
-  
-  using type_ = bit_field<bound_type, 0, 2>;
-  using score_ = bit_field<search::score_type, 2, 34>;
-  using best_move_ = bit_field<std::uint32_t, 34, 34+move::width>;
+struct transposition_table_entry{
+  using generation_type = std::uint32_t;
+
+  using type_ = bit::range<bound_type, 0, 2>;
+  using score_ = bit::range<search::score_type, 2, 34>;
+  using best_move_ = bit::range<std::uint32_t, 34, 34+move::width>;
 
   zobrist::hash_type key_;
   zobrist::hash_type value_;
   search::depth_type depth_;
   
   //table assigned field
-  std::uint8_t gen{0};
+  generation_type gen{0};
 
   const zobrist::hash_type& key() const { return key_; }
   const zobrist::hash_type& value() const { return value_; }
@@ -57,7 +59,7 @@ struct tt_entry{
     return move{best_move_::get(value_)};
   }
 
-  tt_entry(
+  transposition_table_entry(
     const zobrist::hash_type& key,
     const bound_type& type,
     const search::score_type& score,
@@ -69,12 +71,12 @@ struct tt_entry{
     best_move_::set(value_, mv.data);
   }
 
-  tt_entry(const zobrist::hash_type& k, const zobrist::hash_type& v, const search::depth_type& depth) : key_{k}, value_{v}, depth_{depth} {}
-  tt_entry() : key_{0}, value_{0}, depth_{0} {}
+  transposition_table_entry(const zobrist::hash_type& k, const zobrist::hash_type& v, const search::depth_type& depth) : key_{k}, value_{v}, depth_{depth} {}
+  transposition_table_entry() : key_{0}, value_{0}, depth_{0} {}
 };
 
-std::ostream& operator<<(std::ostream& ostr, const tt_entry& entry){
-  ostr << "tt_entry(key=" << entry.key();
+std::ostream& operator<<(std::ostream& ostr, const transposition_table_entry& entry){
+  ostr << "transposition_table_entry(key=" << entry.key();
   ostr << ", key^value=" << (entry.key() ^ entry.value());
   ostr << ", best_move=" << entry.best_move();
   ostr << ", bound=" << bound_type_name(entry.bound());
@@ -82,31 +84,34 @@ std::ostream& operator<<(std::ostream& ostr, const tt_entry& entry){
   return ostr << ", depth=" << entry.depth() << ')';
 }
 
-struct table{
-  using iterator = std::vector<tt_entry>::const_iterator;
+struct transposition_table{
+  using iterator = std::vector<transposition_table_entry>::const_iterator;
 
   static constexpr size_t bucket_size = 4;
-  static constexpr size_t idx_mask = ~(0x3);
+  static constexpr size_t idx_mask = ~0x3;
 
-  static constexpr size_t MiB = (static_cast<size_t>(1) << static_cast<size_t>(20)) / sizeof(tt_entry);
-  std::vector<tt_entry> data;
-  std::atomic<std::uint8_t> current_gen{0};
+  static constexpr size_t MiB = (static_cast<size_t>(1) << static_cast<size_t>(20)) / sizeof(transposition_table_entry);
+  std::vector<transposition_table_entry> data;
+  std::atomic<transposition_table_entry::generation_type> current_gen{0};
 
-  std::vector<tt_entry>::const_iterator begin() const { return data.cbegin(); }
-  std::vector<tt_entry>::const_iterator end() const { return data.cend(); }
+  std::vector<transposition_table_entry>::const_iterator begin() const { return data.cbegin(); }
+  std::vector<transposition_table_entry>::const_iterator end() const { return data.cend(); }
 
   void resize(size_t size){
     const size_t new_size = size * MiB - ((size * MiB) % bucket_size);
-    data.resize(new_size, tt_entry{});
+    data.resize(new_size, transposition_table_entry{});
   }
 
   void clear(){
     std::transform(data.begin(), data.end(), data.begin(), [](auto){
-      return tt_entry{};
+      return transposition_table_entry{};
     });
   }
 
-  void update_gen(){ ++current_gen; }
+  void update_gen(){
+    constexpr auto limit = std::numeric_limits<transposition_table_entry::generation_type>::max();
+    current_gen = (current_gen + 1) % limit; 
+  }
 
   size_t hash_function(const zobrist::hash_type& hash) const {
     return idx_mask & (hash % data.size());
@@ -123,19 +128,16 @@ struct table{
   
   size_t replacement_idx(const zobrist::hash_type& hash, const size_t& base_idx){
     auto heuristic = [this](const size_t& idx){
-      constexpr int b = 1024;
       constexpr int m0 = 1;
       constexpr int m1 = 512;
-      return b + m0 * data[idx].depth() - m1 * static_cast<int>(current_gen.load() != data[idx].gen);
+      return m0 * data[idx].depth() - m1 * static_cast<int>(current_gen.load() != data[idx].gen);
     };
     
     size_t worst_idx = base_idx;
     int worst_score = std::numeric_limits<int>::max();
     
     for(size_t i{base_idx}; i < base_idx + bucket_size; ++i){
-      if((data[i].key() ^ data[i].value()) == hash){
-        return i;
-      }
+      if((data[i].key() ^ data[i].value()) == hash){ return i; }
       const int score = heuristic(i);
       if(score < worst_score){
         worst_idx = i;
@@ -145,7 +147,7 @@ struct table{
     return worst_idx;
   }
 
-  table& insert(const tt_entry& entry){
+  transposition_table& insert(const transposition_table_entry& entry){
     const size_t base_idx = hash_function(entry.key());
     const size_t idx = replacement_idx(entry.key(), base_idx);
     assert(idx < data.size());
@@ -155,15 +157,15 @@ struct table{
     return *this;
   }
 
-  std::optional<tt_entry> find(const zobrist::hash_type& key) const {
+  std::optional<transposition_table_entry> find(const zobrist::hash_type& key) const {
     const size_t base_idx = hash_function(key);
     const size_t idx = find_idx(key, base_idx);
     assert(idx < data.size());
-    const tt_entry result = data[idx];
+    const transposition_table_entry result = data[idx];
     return (key == (result.key() ^ result.value())) ? std::optional(result) : std::nullopt;
   }
 
-  table(size_t size) : data(size * MiB - ((size * MiB) % bucket_size)) {}
+  transposition_table(size_t size) : data(size * MiB - ((size * MiB) % bucket_size)) {}
 };
 
 }
