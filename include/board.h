@@ -576,7 +576,7 @@ struct board{
     std::string move_name;
     while(move_stream >> move_name){
       const move_list list = bd.generate_moves();
-      const auto it = std::find_if(list.cbegin(), list.cend(), [=](const move& mv){
+      const auto it = std::find_if(list.begin(), list.end(), [=](const move& mv){
         return mv.name(bd.turn()) == move_name;
       });
       assert((it != list.cend()));

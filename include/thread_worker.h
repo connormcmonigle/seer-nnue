@@ -12,7 +12,7 @@
 #include <nnue_model.h>
 #include <board.h>
 #include <move.h>
-#include <search_util.h>
+#include <search_constants.h>
 #include <search_stack.h>
 #include <move_orderer.h>
 #include <transposition_table.h>
@@ -79,7 +79,7 @@ struct thread_worker{
     
     alpha = std::max(alpha, static_eval);
     search::score_type best_score = static_eval;
-    move best_move = list.data[0];
+    move best_move = *list.begin();
     
     ss.set_hash(bd.hash()).set_eval(static_eval);
     for(auto [idx, mv] : orderer){
@@ -196,7 +196,7 @@ struct thread_worker{
     
     // move loop
     search::score_type best_score = ss.effective_mate_score();
-    move best_move = list.data[0];
+    move best_move = *list.begin();
 
     for(auto [idx, mv] : orderer){
       assert((mv != move::null()));
@@ -295,9 +295,7 @@ struct thread_worker{
       if(score > best_score){
         best_score = score;
         best_move = mv;
-
         if constexpr(is_pv){ ss.prepend_to_pv(mv); }
-
       }
     }
     
@@ -324,8 +322,8 @@ struct thread_worker{
     std::lock_guard<std::mutex> stack_lk(stack_mutex_);
       
     // iterative deepening
-    auto alpha = -search::big_number;
-    auto beta = search::big_number;
+    search::score_type alpha = -search::big_number;
+    search::score_type beta = search::big_number;
     for(; go_.load(std::memory_order_relaxed) && depth_.load() < (constants_ -> max_depth()); ++depth_){
       // update aspiration window once reasonable evaluation is obtained
       if(depth_.load(std::memory_order_relaxed) >= constants_ -> aspiration_depth()){
@@ -334,7 +332,7 @@ struct thread_worker{
         beta = previous_score + search::aspiration_delta;
       }
 
-      auto delta = search::aspiration_delta;
+      search::score_type delta = search::aspiration_delta;
       search::depth_type failed_high_count{0};
 
       for(;;){

@@ -161,20 +161,15 @@ struct move_list{
   
   iterator begin(){ return data.begin(); }
   iterator end(){ return data.begin() + size_; }
-  const_iterator cbegin() const { return data.cbegin(); }
-  const_iterator cend() const { return data.cbegin() + size_; }
+  const_iterator begin() const { return data.cbegin(); }
+  const_iterator end() const { return data.cbegin() + size_; }
 
-  bool has(const move& mv) const {
-    return cend() != std::find(cbegin(), cend(), mv);    
-  }
+  bool has(const move& mv) const { return end() != std::find(begin(), end(), mv); }
+  size_t size() const { return size_; }
+  bool empty() const { return size() == 0; }
 
-  size_t size() const {
-    return size_;
-  }
-  
-  bool empty() const {
-    return size() == 0;
-  }
+  move& operator[](const size_t& idx){ return data[idx]; }
+  const move& operator[](const size_t& idx) const { return data[idx]; }
 
   move_list& add_(move mv){
     constexpr size_t last_idx = max_branching_factor - 1;
@@ -203,7 +198,7 @@ struct move_list{
 
 std::ostream& operator<<(std::ostream& ostr, const move_list& mv_ls){
   for(size_t i(0); i < mv_ls.size(); ++i){
-    ostr << i << ". " << mv_ls.data[i] << '\n';
+    ostr << i << ". " << mv_ls[i] << '\n';
   }
   return ostr;
 }

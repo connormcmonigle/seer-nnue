@@ -11,7 +11,7 @@
 #include <version.h>
 #include <board.h>
 #include <move.h>
-#include <search_util.h>
+#include <search_constants.h>
 #include <search_stack.h>
 #include <thread_worker.h>
 #include <option_parser.h>
@@ -70,20 +70,23 @@ struct uci{
     position = chess::board::start_pos();
   }
 
-  void set_position(const std::string& line){    
-    const std::regex spos_w_moves("position startpos moves((?: [a-h][1-8][a-h][1-8]+(?:q|r|b|n)?)+)");
-    const std::regex fen_w_moves("position fen (.*) moves((?: [a-h][1-8][a-h][1-8]+(?:q|r|b|n)?)+)");
+  void set_position(const std::string& line){
+    const std::regex startpos_with_moves("position startpos moves((?: [a-h][1-8][a-h][1-8]+(?:q|r|b|n)?)+)");
+    const std::regex fen_with_moves("position fen (.*) moves((?: [a-h][1-8][a-h][1-8]+(?:q|r|b|n)?)+)");
+    const std::regex startpos("position startpos");
     const std::regex fen("position fen (.*)");
     std::smatch matches{};
     
-    if(line == "position startpos"){ uci_new_game(); return; }
-    if(std::regex_search(line, matches, spos_w_moves)){
+    if(std::regex_search(line, matches, startpos_with_moves)){
       auto [h_, p_] = chess::board::start_pos().after_uci_moves(matches.str(1));
       history = h_; position = p_;
-    }else if(std::regex_search(line, matches, fen_w_moves)){
+    }else if(std::regex_search(line, matches, fen_with_moves)){
       position = chess::board::parse_fen(matches.str(1));
       auto [h_, p_] = position.after_uci_moves(matches.str(2));
       history = h_; position = p_;
+    }else if(std::regex_search(line, matches, startpos)){
+      history.clear();
+      position = chess::board::start_pos();
     }else if(std::regex_search(line, matches, fen)){
       history.clear();
       position = chess::board::parse_fen(matches.str(1));
@@ -105,13 +108,13 @@ struct uci{
     
     const int depth = worker.depth();
     const size_t elapsed_ms = timer_.elapsed().count();
-    const size_t node_count = pool_.nodes();
-    const size_t nps = static_cast<size_t>(1000) * node_count / (1 + elapsed_ms);
+    const size_t nodes = pool_.nodes();
+    const size_t nps = static_cast<size_t>(1000) * nodes / (1 + elapsed_ms);
     if(go_.load()){
       os << "info depth " << depth
          << " seldepth " << worker.stack_.sel_depth()
          << " score cp " << score
-         << " nodes " << node_count 
+         << " nodes " << nodes 
          << " nps " << nps
          << " time " << elapsed_ms
          << " pv " << worker.stack_.pv_string()
@@ -166,8 +169,8 @@ struct uci{
 
   void id_info(){
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    os << "id name Seer " << version::major << '.' << version::minor << '.' << version::patch << std::endl;
-    os << "id author Connor McMonigle" << std::endl;;
+    os << "id name " << version::engine_name << " " << version::major << '.' << version::minor << '.' << version::patch << std::endl;
+    os << "id author " << version::author_name << std::endl;;
     os << options();
     os << "uciok" << std::endl;
   }

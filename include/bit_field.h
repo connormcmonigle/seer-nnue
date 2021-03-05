@@ -13,18 +13,18 @@ struct bit_field{
   static constexpr size_t last = B1;
   
   template<typename I>
-  static constexpr T get(const I i){
+  static constexpr T get(const I& i){
     constexpr int num_bits = 8 * sizeof(I);
     static_assert(B1 < num_bits, "integral type accessed by bit_field::get has insufficient bits");
     constexpr I one = static_cast<I>(1);
     constexpr I b0 = static_cast<I>(first);
     constexpr I b1 = static_cast<I>(last);
-    constexpr I mask = ((one << (b1 - b0)) - one) << b0;
-    return static_cast<T>((mask & i) >> b0);
+    constexpr I mask = (one << (b1 - b0)) - one;
+    return static_cast<T>((i >> b0) & mask);
   }
   
   template<typename I>
-  static constexpr void set(I& i, const T info){
+  static constexpr void set(I& i, const T& info){
     constexpr int num_bits = 8 * sizeof(I);
     static_assert(B1 < num_bits, "integral type accessed by bit_field::set has insufficient bits");
     constexpr I one = static_cast<I>(1);
@@ -33,7 +33,7 @@ struct bit_field{
     const I info_ = static_cast<I>(info);
     constexpr I mask = ((one << (b1 - b0)) - one) << b0;
     i &= ~mask;
-    i |= info_ << b0;
+    i |= (info_ << b0) & mask;
   }
 };
 

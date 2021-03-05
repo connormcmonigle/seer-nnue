@@ -4,7 +4,7 @@
 #include <string>
 #include <algorithm>
 
-#include <search_util.h>
+#include <search_constants.h>
 #include <enum_util.h>
 #include <zobrist_util.h>
 #include <position_history.h>

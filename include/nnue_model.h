@@ -8,7 +8,7 @@
 #include <weights_streamer.h>
 #include <nnue_util.h>
 #include <enum_util.h>
-#include <search_util.h>
+#include <search_constants.h>
 
 namespace nnue{
 

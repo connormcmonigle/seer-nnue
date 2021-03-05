@@ -7,7 +7,7 @@
 #include <cstdint>
 
 #include <enum_util.h>
-#include <search_util.h>
+#include <search_constants.h>
 #include <position_history.h>
 #include <move.h>
 
@@ -58,25 +58,26 @@ struct history_heuristic{
     constexpr value_type history_divisor = 512;
     assert((!tried.has(best_move)));
     auto single_update = [&, this](const auto& mv, const value_type& gain){
+      auto formula = [=](const value_type& x){ return (gain * history_multiplier) - (x * std::abs(gain) / history_divisor); };
       // update butterfly history
       {
         const size_t idx = butterfly_idx_(mv);
-        butterfly_[idx] += (gain * history_multiplier) - (butterfly_[idx] * std::abs(gain) / history_divisor);
+        butterfly_[idx] += formula(butterfly_[idx]);
       }
       // update counter move history
       if(!counter.is_null()){
         const size_t idx = counter_idx_(counter, mv);
-        counter_[idx] += (gain * history_multiplier) - (counter_[idx] * std::abs(gain) / history_divisor);
+        counter_[idx] += formula(counter_[idx]);
       }
       // update follow up move history
       if(!follow.is_null()){
         const size_t idx = follow_idx_(follow, mv);
-        follow_[idx] += (gain * history_multiplier) - (follow_[idx] * std::abs(gain) / history_divisor);
+        follow_[idx] += formula(follow_[idx]);
       }
     };
     // limit gain to prevent saturation
     const value_type gain = std::min(history_max, static_cast<value_type>(depth) * static_cast<value_type>(depth));
-    std::for_each(tried.cbegin(), tried.cend(), [single_update, gain](const move& mv){ single_update(mv, -gain); });
+    std::for_each(tried.begin(), tried.end(), [single_update, gain](const move& mv){ single_update(mv, -gain); });
     single_update(best_move, gain);
     return *this;
   }

@@ -10,7 +10,7 @@
 
 #include <bit_field.h>
 #include <zobrist_util.h>
-#include <search_util.h>
+#include <search_constants.h>
 #include <move.h>
 
 namespace chess{

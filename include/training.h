@@ -13,7 +13,7 @@
 #include <move.h>
 #include <nnue_model.h>
 #include <transposition_table.h>
-#include <search_util.h>
+#include <search_constants.h>
 #include <time_manager.h>
 #include <thread_worker.h>
 
