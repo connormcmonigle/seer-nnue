@@ -25,7 +25,7 @@ struct uci{
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 128;
   static constexpr nnue::weights_streamer<weight_type>::signature_type weights_signature = 0x319651dd;
-  static constexpr std::string_view default_weight_path = "../../seer-training/scripts/model/save.bin";
+  static constexpr std::string_view default_weight_path = "./save.bin";
   
 
   chess::position_history history{};
