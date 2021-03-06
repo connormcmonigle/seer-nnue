@@ -170,8 +170,9 @@ struct uci{
   void id_info(){
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     os << "id name " << version::engine_name << " " << version::major << '.' << version::minor << '.' << version::patch << std::endl;
-    os << "id author " << version::author_name << std::endl;;
+    os << "id author " << version::author_name << std::endl;
     os << options();
+    if constexpr(search::constants::tuning){ os << (pool_.constants_ -> options()); }
     os << "uciok" << std::endl;
   }
 
@@ -197,6 +198,7 @@ struct uci{
       std::exit(0);
     }else if(!go_.load()){
       options().update(line);
+      if constexpr(search::constants::tuning){ (pool_.constants_ -> options()).update(line); }
     }
   }
 
