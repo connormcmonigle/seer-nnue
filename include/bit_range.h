@@ -15,7 +15,7 @@ struct range{
   template<typename I>
   static constexpr T get(const I& i){
     constexpr int num_bits = 8 * sizeof(I);
-    static_assert(B1 < num_bits, "integral type accessed by bit_field::get has insufficient bits");
+    static_assert(B1 < num_bits, "integral type accessed by bit::range::get has insufficient bits");
     constexpr I one = static_cast<I>(1);
     constexpr I b0 = static_cast<I>(first);
     constexpr I b1 = static_cast<I>(last);
@@ -26,7 +26,7 @@ struct range{
   template<typename I>
   static constexpr void set(I& i, const T& info){
     constexpr int num_bits = 8 * sizeof(I);
-    static_assert(B1 < num_bits, "integral type accessed by bit_field::set has insufficient bits");
+    static_assert(B1 < num_bits, "integral type accessed by bit::range::set has insufficient bits");
     constexpr I one = static_cast<I>(1);
     constexpr I b0 = static_cast<I>(first);
     constexpr I b1 = static_cast<I>(last);
