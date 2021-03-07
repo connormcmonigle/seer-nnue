@@ -254,7 +254,7 @@ struct tuning_constants{
       futility_margin_mul_ = d;
     });
 
-    auto option_snmp_margin_mul = option_callback(spin_option("snmp_margin_mul_", snmp_margin_mul_, spin_range{128, 1024}), [this](const int d){
+    auto option_snmp_margin_mul = option_callback(spin_option("snmp_margin_mul_", snmp_margin_mul_, spin_range{128, 4096}), [this](const int d){
       snmp_margin_mul_ = d;
     });
 
