@@ -90,7 +90,7 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>>{
     return std::tuple(map(wdl.data[0]), map(wdl.data[1]), map(wdl.data[2]));
   }
 
-  inline T evaluate(const bool pov) const {
+  inline search::score_type evaluate(const bool pov) const {
     constexpr T one = static_cast<T>(1.0);
     constexpr T half = static_cast<T>(0.5);
     constexpr T epsilon = static_cast<T>(0.0001);

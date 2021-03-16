@@ -52,6 +52,7 @@ struct thread_worker{
   std::mutex stack_mutex_{};
   search::stack stack_;
 
+  template<bool is_pv>
   search::score_type q_search(const search::stack_view& ss, const nnue::eval<T>& eval, const board& bd, search::score_type alpha, const search::score_type& beta, const search::depth_type& elevation){
     ++nodes_;
     const auto list = bd.generate_loud_moves();
@@ -74,34 +75,37 @@ struct thread_worker{
     }
 
     const search::score_type static_eval = is_check ? ss.effective_mate_score() : eval.evaluate(bd.turn());
-    if(list.size() == 0 || static_eval > beta){ return static_eval; }
+    if(list.size() == 0 || static_eval >= beta){ return static_eval; }
     if(ss.reached_max_height()){ return static_eval; }
     
     alpha = std::max(alpha, static_eval);
     search::score_type best_score = static_eval;
-    move best_move = *list.begin();
+    move best_move = move::null();
     
     ss.set_hash(bd.hash()).set_eval(static_eval);
-    for(auto [idx, mv] : orderer){
+    for(const auto& [idx, mv] : orderer){
       assert((mv != move::null()));
-      if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
+      if(!go_.load(std::memory_order_relaxed) || best_score >= beta){ break; }
       if(is_check || bd.see<search::see_type>(mv) >= 0){
         ss.set_played(mv);
         const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
         const board bd_ = bd.forward(mv);
         
-        const search::score_type score = -q_search(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
-        alpha = std::max(alpha, score);
-
+        const search::score_type score = -q_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
+        
         if(score > best_score){
           best_score = score;
           best_move = mv;
+          if(score > alpha){
+            if(score < beta){ alpha = score; }
+            if constexpr(is_pv) { ss.prepend_to_pv(mv); }
+          }
         }
       }
     }
 
     if(go_.load(std::memory_order_relaxed)){
-      const auto bound = best_score > beta ? bound_type::lower : bound_type::upper;
+      const auto bound = best_score >= beta ? bound_type::lower : bound_type::upper;
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
       tt_-> insert(entry);
     }
@@ -119,7 +123,7 @@ struct thread_worker{
     assert(depth >= 0);
 
     // step 1. drop into qsearch if depth reaches zero
-    if(depth <= 0) { return make_result(q_search(ss, eval, bd, alpha, beta,  0), move::null()); }
+    if(depth <= 0) { return make_result(q_search<is_pv>(ss, eval, bd, alpha, beta, 0), move::null()); }
     ++nodes_;
 
     // step 2. check if node is terminal
@@ -198,9 +202,9 @@ struct thread_worker{
     search::score_type best_score = ss.effective_mate_score();
     move best_move = *list.begin();
 
-    for(auto [idx, mv] : orderer){
+    for(const auto& [idx, mv] : orderer){
       assert((mv != move::null()));
-      if(!go_.load(std::memory_order_relaxed) || best_score > beta){ break; }
+      if(!go_.load(std::memory_order_relaxed) || best_score >= beta){ break; }
       ss.set_played(mv);
       
       const search::counter_type history_value = hh_.us(bd.turn()).compute_value(follow, counter, mv);
@@ -287,21 +291,21 @@ struct thread_worker{
         return (interior && is_pv) ? full_width() : zw_score;
       }();
 
-      if(score < beta){
-        if(mv.is_quiet()){ quiets_tried.add_(mv); }
-        alpha = std::max(alpha, score);
-      }
+      if(score < beta && mv.is_quiet()){ quiets_tried.add_(mv); }
 
       if(score > best_score){
         best_score = score;
         best_move = mv;
-        if constexpr(is_pv){ ss.prepend_to_pv(mv); }
+        if(score > alpha){
+          if(score < beta){ alpha = score; }
+          if constexpr(is_pv) { ss.prepend_to_pv(mv); }
+        }
       }
     }
     
     // step 12. update histories if appropriate and maybe insert a new transposition_table_entry
     if(go_.load(std::memory_order_relaxed)){
-      if(best_score > beta){
+      if(best_score >= beta){
         const transposition_table_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
         tt_-> insert(entry);
         if(best_move.is_quiet()){
