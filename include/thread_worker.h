@@ -70,7 +70,6 @@ struct thread_worker{
         (entry.score() >= beta && entry.bound() == bound_type::lower) ||
         (entry.score() <= alpha && entry.bound() == bound_type::upper);
       if(is_cutoff){ return entry.score(); }
-      alpha = std::max(alpha, entry.score());
       orderer.set_first(entry.best_move());
     }
 
