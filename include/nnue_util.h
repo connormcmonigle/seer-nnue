@@ -5,7 +5,6 @@
 #include <algorithm>
 
 #include <simd.h>
-#include <weights_streamer.h>
 
 namespace nnue{
 
@@ -155,7 +154,8 @@ struct stack_affine{
     return result;
   }
   
-  stack_affine<T, dim0, dim1>& load_(weights_streamer<T>& ws){
+  template<typename streamer_type>
+  stack_affine<T, dim0, dim1>& load_(streamer_type& ws){
     ws.stream(W, W_numel).stream(b, b_numel);
     return *this;
   }
@@ -183,7 +183,8 @@ struct big_affine{
     x.sub_(mem_region);
   }
 
-  big_affine<T, dim0, dim1>& load_(weights_streamer<T>& ws){
+  template<typename streamer_type>
+  big_affine<T, dim0, dim1>& load_(streamer_type& ws){
     ws.stream(W, W_numel).stream(b, b_numel);
     return *this;
   }

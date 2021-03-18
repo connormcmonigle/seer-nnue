@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <iterator>
 #include <regex>
 #include <chrono>
 #include <cstdint>
@@ -17,6 +18,7 @@
 #include <thread_worker.h>
 #include <option_parser.h>
 #include <time_manager.h>
+#include <embedded_weights.h>
 #include <bench.h>
 
 namespace engine{
@@ -26,9 +28,8 @@ struct uci{
   
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 16;
-  static constexpr nnue::weights_streamer<weight_type>::signature_type weights_signature = 0x319651dd;
-  static constexpr std::string_view default_weight_path = "./save.bin";
-  
+  static constexpr std::string_view default_weight_path = "EMBEDDED";
+
 
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
@@ -44,9 +45,21 @@ struct uci{
 
   bool searching() const { return go_; }
   
+  void weights_info_string(){
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    os << "info string loaded weights with signature 0x" << std::hex << weights_.signature() << std::dec << std::endl;
+  }
+
   auto options(){
     auto weight_path = option_callback(string_option("Weights", std::string(default_weight_path)), [this](const std::string& path){
-      weights_.load(path);
+      if(path == std::string(default_weight_path)){
+        nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
+        weights_.load(embedded);
+      }else{
+        weights_.load(path);
+      }
+      
+      weights_info_string();
     });
 
     auto hash_size = option_callback(spin_option("Hash", default_hash_size, spin_range{1, 65536}), [this](const int size){
@@ -125,13 +138,6 @@ struct uci{
   }
 
   void go(const std::string& line){
-    if(weights_.signature() != weights_signature){
-      std::lock_guard<std::mutex> os_lk(os_mutex_);
-      os << "error: weight signature mismatch" << std::endl;
-      os << "got " << std::hex << weights_.signature() << ", expected " << weights_signature << std::endl;
-      std::terminate();
-    }
-    
     go_.store(true);
     pool_.set_position(history, position);
     pool_.go();
@@ -207,7 +213,8 @@ struct uci{
   }
 
   uci() : pool_(&weights_, default_hash_size, default_thread_count, [this](auto&&... args){ info_string(args...); }) {
-    weights_.load(std::string(default_weight_path));
+    nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
+    weights_.load(embedded);
   }
 };
 
