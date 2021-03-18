@@ -2,7 +2,7 @@
 #include <fstream>
 #include <istream>
 #include <streambuf>
-#include <memory>
+#include <cstring>
 #include <cstdint>
 
 #include <array>

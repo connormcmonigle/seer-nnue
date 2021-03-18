@@ -9,7 +9,7 @@ INCLUDE = ../include
 
 CXXFLAGS += -std=c++$(CXXSTANDARD)
 CXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp
-CXXFLAGS += -Wall -Wextra -Werror
+CXXFLAGS += -Wall -Wextra
 CXXFLAGS += -fconstexpr-ops-limit=$(OPSLIMIT)
 CXXFLAGS += -I$(INCLUDE)
 CXXFLAGS += -DWEIGHTSFILE=\"$(WEIGHTSFILE)\"
