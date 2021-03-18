@@ -10,7 +10,6 @@
 #include <nnue_model.h>
 #include <thread_worker.h>
 #include <time_manager.h>
-#include <uci.h>
 
 namespace engine{
 
