@@ -36,6 +36,7 @@ struct weights_streamer{
 
 template<typename T>
 struct embedded_weight_streamer{
+  static_assert(1 == sizeof(unsigned char), "unsigned char must be one byte");
   using signature_type = std::uint32_t;
   
   signature_type signature_{0};
