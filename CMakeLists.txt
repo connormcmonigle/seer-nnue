@@ -6,7 +6,7 @@ find_package (Threads REQUIRED)
 set (CMAKE_CXX_STANDARD 17)
 
 set (OPS_LIMIT 1000000000)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -g -DNDEBUG -march=native -mtune=native -fopenmp -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp -Wall -Wextra")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-ops-limit=${OPS_LIMIT}")
