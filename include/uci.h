@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <regex>
 #include <chrono>
 #include <cstdint>
@@ -16,6 +17,7 @@
 #include <thread_worker.h>
 #include <option_parser.h>
 #include <time_manager.h>
+#include <bench.h>
 
 namespace engine{
   
@@ -23,7 +25,7 @@ struct uci{
   using weight_type = float;
   
   static constexpr size_t default_thread_count = 1;
-  static constexpr size_t default_hash_size = 128;
+  static constexpr size_t default_hash_size = 16;
   static constexpr nnue::weights_streamer<weight_type>::signature_type weights_signature = 0x319651dd;
   static constexpr std::string_view default_weight_path = "./save.bin";
   
@@ -109,7 +111,7 @@ struct uci{
     const int depth = worker.depth();
     const size_t elapsed_ms = timer_.elapsed().count();
     const size_t nodes = pool_.nodes();
-    const size_t nps = static_cast<size_t>(1000) * nodes / (1 + elapsed_ms);
+    const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
     if(go_.load()){
       os << "info depth " << depth
          << " seldepth " << worker.stack_.sel_depth()
@@ -190,6 +192,8 @@ struct uci{
       stop();
     }else if(line == "_internal_board"){
       os << position << std::endl;
+    }else if(!go_.load() && line == "bench"){
+      os << bench(weights_) << std::endl;
     }else if(!go_.load() && std::regex_match(line, go_rgx)){
       go(line);
     }else if(!go_.load() && std::regex_match(line, position_rgx)){
