@@ -1,6 +1,6 @@
 EXE = seer
 SRC = ../
-CXX = g++
+CC = g++
 
 EVALFILE = weights/0x319651dd.bin
 
@@ -20,4 +20,4 @@ LIBS = -lpthread
 SRC = ../src/seer.cc
 
 default:
-	$(CXX) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
+	$(CC) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
