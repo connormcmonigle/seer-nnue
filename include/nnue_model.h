@@ -36,7 +36,8 @@ struct weights{
            fc3.num_parameters();
   }
   
-  weights<T>& load(weights_streamer<T>& ws){
+  template<typename streamer_type>
+  weights<T>& load(streamer_type& ws){
     w.load_(ws);
     b.load_(ws);
     fc0.load_(ws);

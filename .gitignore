@@ -1,11 +1,5 @@
 build/*
 !build/.gitkeep
-train/visual/*
-!train/visual/.gitkeep
-train/model/*
-!train/model/.gitkeep
-train/__pycache__
+!build/makefile
 *~
-include/cling
 .vscode/*
-train/*.pyc
