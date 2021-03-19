@@ -2,7 +2,10 @@ EXE = seer
 SRC = ../
 CXX = g++
 
-WEIGHTSFILE = ./0x319651dd.bin
+WEIGHTSSIG = 0x319651dd
+WEIGHTSFILE = ./$(WEIGHTSSIG).bin
+ADDRESS = https://github.com/connormcmonigle/seer-training/releases/download/$(WEIGHTSSIG)/$(WEIGHTSSIG).bin
+
 OPSLIMIT = 1000000000
 CXXSTANDARD = 17
 INCLUDE = ../include
@@ -19,4 +22,5 @@ LIBS = -lpthread
 SRC = ../src/seer.cc
 
 default:
+	wget -O $(WEIGHTSFILE) $(ADDRESS)
 	$(CXX) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
