@@ -184,6 +184,11 @@ struct uci{
     os << "uciok" << std::endl;
   }
 
+  void bench(){
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    os << get_bench_info(weights_) << std::endl;
+  }
+
   void uci_loop(const std::string& line){
     const std::regex position_rgx("position(.*)");
     const std::regex go_rgx("go(.*)");
@@ -199,7 +204,7 @@ struct uci{
     }else if(line == "_internal_board"){
       os << position << std::endl;
     }else if(!go_.load() && line == "bench"){
-      os << bench(weights_) << std::endl;
+      bench();
     }else if(!go_.load() && std::regex_match(line, go_rgx)){
       go(line);
     }else if(!go_.load() && std::regex_match(line, position_rgx)){
