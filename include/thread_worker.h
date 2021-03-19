@@ -73,7 +73,15 @@ struct thread_worker{
       orderer.set_first(entry.best_move());
     }
 
-    const search::score_type static_eval = is_check ? ss.effective_mate_score() : eval.evaluate(bd.turn());
+    const search::score_type static_eval = [&]{
+      const search::score_type val = is_check ? ss.effective_mate_score() : eval.evaluate(bd.turn());
+      if(maybe.has_value()){
+        if(maybe -> bound() == bound_type::upper && val > maybe -> score()){ return maybe -> score(); }
+        if(maybe -> bound() == bound_type::lower && val < maybe -> score()){ return maybe -> score(); }
+      }
+      return val;
+    }();
+
     if(list.size() == 0 || static_eval >= beta){ return static_eval; }
     if(ss.reached_max_height()){ return static_eval; }
     
