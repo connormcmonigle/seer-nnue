@@ -64,7 +64,8 @@ struct thread_worker{
 
     auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &hh_.us(bd.turn())});
     
-    if(const std::optional<transposition_table_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
+    const std::optional<transposition_table_entry> maybe = tt_ -> find(bd.hash());
+    if(maybe.has_value()){
       const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = 
         (entry.score() >= beta && entry.bound() == bound_type::lower) ||
