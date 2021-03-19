@@ -12,7 +12,7 @@ int main(int argc, char* argv[]){
   }();
 
   engine::uci u{};
-  if(!argument.empty()){ u.uci_loop(argument); }
+  if(!argument.empty()){ u.uci_loop(argument); return; }
 
   while(true){
     std::string line{}; std::getline(std::cin, line);
