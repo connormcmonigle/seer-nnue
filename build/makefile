@@ -20,4 +20,6 @@ LIBS = -lpthread
 SRC = ../src/seer.cc
 
 default:
+	ls
+	ls ..
 	$(CXX) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
