@@ -6,6 +6,6 @@
 
 namespace embed{
 
-INCBIN(weights_file, WEIGHTSFILE);
+INCBIN(weights_file, EVALFILE);
 
 }

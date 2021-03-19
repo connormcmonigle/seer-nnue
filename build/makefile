@@ -2,7 +2,7 @@ EXE = seer
 SRC = ../
 CXX = g++
 
-WEIGHTSFILE = weights/0x319651dd.bin
+EVALFILE = weights/0x319651dd.bin
 
 OPSLIMIT = 1000000000
 CXXSTANDARD = 17
@@ -13,13 +13,11 @@ CXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp
 CXXFLAGS += -Wall -Wextra
 CXXFLAGS += -fconstexpr-ops-limit=$(OPSLIMIT)
 CXXFLAGS += -I$(INCLUDE)
-CXXFLAGS += -DWEIGHTSFILE=\"$(WEIGHTSFILE)\"
+CXXFLAGS += -DEVALFILE=\"$(EVALFILE)\"
 
 LIBS = -lpthread
 
 SRC = ../src/seer.cc
 
 default:
-	ls
-	ls ..
 	$(CXX) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)

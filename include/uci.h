@@ -58,7 +58,6 @@ struct uci{
       }else{
         weights_.load(path);
       }
-      
       weights_info_string();
     });
 
