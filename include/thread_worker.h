@@ -64,8 +64,7 @@ struct thread_worker{
 
     auto orderer = move_orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &hh_.us(bd.turn())});
     
-    const std::optional<transposition_table_entry> maybe = tt_ -> find(bd.hash());
-    if(maybe.has_value()){
+    if(const std::optional<transposition_table_entry> maybe = tt_ -> find(bd.hash()); maybe.has_value()){
       const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = 
         (entry.score() >= beta && entry.bound() == bound_type::lower) ||
@@ -74,15 +73,7 @@ struct thread_worker{
       orderer.set_first(entry.best_move());
     }
 
-    const search::score_type static_eval = [&]{
-      const search::score_type val = is_check ? ss.effective_mate_score() : eval.evaluate(bd.turn());
-      if(maybe.has_value()){
-        if(maybe -> bound() == bound_type::upper && val > maybe -> score()){ return maybe -> score(); }
-        if(maybe -> bound() == bound_type::lower && val < maybe -> score()){ return maybe -> score(); }
-      }
-      return val;
-    }();
-
+    const search::score_type static_eval = is_check ? ss.effective_mate_score() : eval.evaluate(bd.turn());
     if(list.size() == 0 || static_eval >= beta){ return static_eval; }
     if(ss.reached_max_height()){ return static_eval; }
     
