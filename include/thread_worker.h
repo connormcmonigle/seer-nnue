@@ -30,6 +30,7 @@ template<bool is_root>
 using pv_search_result_t = typename pv_search_result<is_root>::type;
 
 struct internal_state{
+  std::mutex search_mutex{};
   search::stack stack{position_history{}, board::start_pos()};
   sided_history_heuristic hh{};
 
@@ -378,6 +379,8 @@ struct thread_worker{
   }
 
   void iterative_deepening_loop_(){
+    std::lock_guard search_lck(internal.search_mutex);
+
     const auto evaluator = [this]{
       nnue::eval<T> result(external.weights);
       internal.stack.root_pos().show_init(result);
@@ -461,6 +464,7 @@ struct thread_worker{
   void stop(){ loop.go.store(false); }
 
   thread_worker<T, is_active>& set_position(const position_history& hist, const board& bd){
+    std::lock_guard search_lck(internal.search_mutex);
     internal.hh.clear();
     internal.stack = search::stack(hist, bd);
     return *this;

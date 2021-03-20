@@ -71,11 +71,7 @@ struct uci{
       pool_.resize(new_count);
     });
 
-    auto clear_hash = option_callback(button_option("Clear Hash"), [this](bool){
-      pool_.tt_ -> clear();
-    });
-
-    return uci_options(weight_path, hash_size, thread_count, clear_hash);
+    return uci_options(weight_path, hash_size, thread_count);
   }
   
   void uci_new_game(){

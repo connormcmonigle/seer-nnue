@@ -221,14 +221,14 @@ struct simple_timer{
 };
 
 struct time_manager{
+  std::function<search_info()> get_info_;
+  std::function<void()> on_should_stop_;
+
   simple_timer<std::chrono::milliseconds> timer_{};
   time_manager_impl state_{};
 
   std::atomic_bool go_{false};
   std::optional<std::thread> condition_check_loop_{std::nullopt};
-
-  std::function<search_info()> get_info_;
-  std::function<void()> on_should_stop_;
 
   bool searching() const { return go_.load(); }
   std::chrono::milliseconds elapsed(){ return timer_.elapsed(); }
@@ -244,15 +244,17 @@ struct time_manager{
 
   template<typename ... Ts>
   void start(Ts&& ... ts){
+    force_join_();
+
     timer_.lap();
     state_.init(std::forward<Ts>(ts)...);
-    force_join_();
+    
     go_.store(true);
     condition_check_loop_ = std::thread([this]{
       while(go_.load()){
         if(state_.should_stop(get_info_())){
-          go_.store(false);
           on_should_stop_();
+          go_.store(false);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
