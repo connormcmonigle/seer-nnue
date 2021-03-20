@@ -71,7 +71,7 @@ struct uci{
 
     auto thread_count = option_callback(spin_option("Threads", default_thread_count, spin_range{1, 512}), [this](const int count){
       const auto new_count = static_cast<size_t>(count);
-      pool_.grow(new_count);
+      pool_.resize(new_count);
     });
 
     auto clear_hash = option_callback(button_option("Clear Hash"), [this](bool){
@@ -221,9 +221,10 @@ struct uci{
     }
   }
 
-  uci() : pool_(&weights_, default_hash_size, default_thread_count, [this](auto&&... args){ info_string(args...); }) {
+  uci() : pool_(&weights_, default_hash_size, [this](auto&&... args){ info_string(args...); }) {
     nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
     weights_.load(embedded);
+    pool_.resize(default_thread_count);
   }
 };
 

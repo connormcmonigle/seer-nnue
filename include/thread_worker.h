@@ -485,27 +485,26 @@ struct worker_pool{
   std::shared_ptr<transposition_table> tt_{nullptr};
   std::shared_ptr<search::constants> constants_{nullptr};
 
-  std::vector<std::shared_ptr<thread_worker<T>>> pool_{};
+  std::vector<std::unique_ptr<thread_worker<T>>> pool_{};
 
-  void grow(size_t new_size){
-    assert((new_size >= pool_.size()));
+  void resize(const size_t& new_size){
     constants_ -> update_(new_size);
-    const size_t new_workers = new_size - pool_.size();
-    for(size_t i(0); i < new_workers; ++i){
-      pool_.push_back(std::make_shared<thread_worker<T>>(weights_, tt_, constants_));
+    const size_t old_size = pool_.size();
+    pool_.resize(new_size);
+    for(size_t i(old_size); i < new_size; ++i){
+      pool_[i] = std::make_unique<thread_worker<T>>(weights_, tt_, constants_);
     }
   }
 
   void go(){
     // increment table generation at start of search
     tt_ -> update_gen();
-    
     for(size_t i(0); i < pool_.size(); ++i){
       const search::depth_type start_depth = 1 + static_cast<search::depth_type>(i % 2);
       pool_[i] -> go(start_depth);
     }
   }
-    
+
   void stop(){
     for(auto& worker : pool_){ worker -> stop(); }
   }
@@ -526,18 +525,14 @@ struct worker_pool{
 
   worker_pool(
     const nnue::weights<T>* weights, 
-    size_t hash_table_size, size_t num_workers, 
+    size_t hash_table_size,
     std::function<void(const thread_worker<T, true>&)> primary_callback = [](auto&&...){}
   ) : 
       weights_{weights} 
   {
     tt_ = std::make_shared<transposition_table>(hash_table_size);
-    constants_ = std::make_shared<search::constants>(num_workers);
-    
-    pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, constants_, primary_callback));
-    for(size_t i(1); i < num_workers; ++i){
-      pool_.push_back(std::make_shared<thread_worker<T>>(weights, tt_, constants_));
-    }
+    constants_ = std::make_shared<search::constants>();
+    pool_.push_back(std::make_unique<thread_worker<T>>(weights, tt_, constants_, primary_callback));
   }
 };
 

@@ -117,7 +117,7 @@ struct fixed_constants{
   
   auto options(){ return engine::uci_options(); }
 
-  fixed_constants(const size_t& thread_count){ update_(thread_count); }
+  fixed_constants(const size_t& thread_count=1){ update_(thread_count); }
 };
 
 
@@ -300,7 +300,7 @@ struct tuning_constants{
     );
   }
 
-  tuning_constants(const size_t& thread_count){ update_(thread_count); }
+  tuning_constants(const size_t& thread_count=1){ update_(thread_count); }
 };
 
 using constants = fixed_constants;
