@@ -136,7 +136,12 @@ struct thread_worker{
     }
 
     const search::score_type static_eval = [&]{
-      const search::score_type val = is_check ? ss.effective_mate_score() : internal.cache.find(bd.hash()).value_or(eval.evaluate(bd.turn()));
+      const auto maybe_eval = internal.cache.find(bd.hash());
+      const search::score_type val = 
+        is_check ? ss.effective_mate_score() :
+        maybe_eval.has_value() ? maybe_eval.value() :
+        eval.evaluate(bd.turn());
+      
       if(!is_check){ internal.cache.insert(bd.hash(), val); }
 
       if(maybe.has_value()){
@@ -223,7 +228,12 @@ struct thread_worker{
     
     // step 4. compute static eval and adjust appropriately if there's a tt hit
     const search::score_type static_eval = [&]{
-      const search::score_type val = is_check ? ss.effective_mate_score() : internal.cache.find(bd.hash()).value_or(eval.evaluate(bd.turn()));
+      const auto maybe_eval = internal.cache.find(bd.hash());
+      const search::score_type val = 
+        is_check ? ss.effective_mate_score() :
+        maybe_eval.has_value() ? maybe_eval.value() :
+        eval.evaluate(bd.turn());
+      
       if(!is_check){ internal.cache.insert(bd.hash(), val); }
 
       if(maybe.has_value()){
