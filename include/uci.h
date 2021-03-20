@@ -6,7 +6,7 @@
 #include <iterator>
 #include <regex>
 #include <chrono>
-#include <cstdint>
+#include <cstdlib>
 #include <atomic>
 #include <thread>
 
@@ -37,14 +37,17 @@ struct uci{
   nnue::weights<weight_type> weights_{};
   chess::worker_pool<weight_type> pool_;
 
-  std::atomic<bool> go_{false};
+  std::atomic_bool should_quit_{false};
+  std::atomic_bool go_{false};
+  
   simple_timer<std::chrono::milliseconds> timer_{};
   
   std::mutex os_mutex_{}; 
   std::ostream& os = std::cout;
 
-  bool searching() const { return go_; }
-  
+  bool searching() const { return go_.load(); }
+  bool should_quit() const { return should_quit_.load(); }
+
   void weights_info_string(){
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     os << "info string loaded weights with signature 0x" << std::hex << weights_.signature() << std::dec << std::endl;
@@ -126,12 +129,12 @@ struct uci{
     const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
     if(go_.load()){
       os << "info depth " << depth
-         << " seldepth " << worker.stack_.sel_depth()
+         << " seldepth " << worker.internal.stack.sel_depth()
          << " score cp " << score
          << " nodes " << nodes 
          << " nps " << nps
          << " time " << elapsed_ms
-         << " pv " << worker.stack_.pv_string()
+         << " pv " << worker.internal.stack.pv_string()
          << std::endl;
     }
   }
@@ -143,7 +146,7 @@ struct uci{
     timer_.lap();
     
     // manage time using a separate, low utilization thread
-    std::thread([line, this]{
+    /*std::thread([line, this]{
       auto manager = time_manager{}.init(position.turn(), line);
       
       while(go_.load()){
@@ -159,7 +162,7 @@ struct uci{
         
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
-    }).detach();
+    }).detach();*/
   }
 
   void stop(){
@@ -188,11 +191,13 @@ struct uci{
     os << get_bench_info(weights_) << std::endl;
   }
 
+  void quit(){ should_quit_.store(true); }
+
   void uci_loop(const std::string& line){
     const std::regex position_rgx("position(.*)");
     const std::regex go_rgx("go(.*)");
     
-    if(!go_ && line == "uci"){
+    if(!go_.load() && line == "uci"){
       id_info();
     }else if(line == "isready"){
       ready();
@@ -209,7 +214,7 @@ struct uci{
     }else if(!go_.load() && std::regex_match(line, position_rgx)){
       set_position(line);
     }else if(line == "quit"){
-      std::exit(0);
+      quit();
     }else if(!go_.load()){
       options().update(line);
       if constexpr(search::constants::tuning){ (pool_.constants_ -> options()).update(line); }
