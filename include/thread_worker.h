@@ -123,7 +123,7 @@ struct thread_worker{
 
     move_orderer orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &internal.hh.us(bd.turn())});
     
-    const std::optional<transposition_table_entry> maybe = tt_ -> find(bd.hash());
+    const std::optional<transposition_table_entry> maybe = external.tt -> find(bd.hash());
     if(maybe.has_value()){
       const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = 
