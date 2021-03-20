@@ -6,7 +6,7 @@
 #include <iterator>
 #include <regex>
 #include <chrono>
-#include <cstdint>
+#include <cstdlib>
 #include <atomic>
 #include <thread>
 
@@ -37,14 +37,14 @@ struct uci{
   nnue::weights<weight_type> weights_{};
   chess::worker_pool<weight_type> pool_;
 
-  std::atomic<bool> go_{false};
-  simple_timer<std::chrono::milliseconds> timer_{};
-  
+  std::atomic_bool should_quit_{false};
+  time_manager manager_;
+
   std::mutex os_mutex_{}; 
   std::ostream& os = std::cout;
 
-  bool searching() const { return go_; }
-  
+  bool should_quit() const { return should_quit_.load(); }
+
   void weights_info_string(){
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     os << "info string loaded weights with signature 0x" << std::hex << weights_.signature() << std::dec << std::endl;
@@ -68,14 +68,10 @@ struct uci{
 
     auto thread_count = option_callback(spin_option("Threads", default_thread_count, spin_range{1, 512}), [this](const int count){
       const auto new_count = static_cast<size_t>(count);
-      pool_.grow(new_count);
+      pool_.resize(new_count);
     });
 
-    auto clear_hash = option_callback(button_option("Clear Hash"), [this](bool){
-      pool_.tt_ -> clear();
-    });
-
-    return uci_options(weight_path, hash_size, thread_count, clear_hash);
+    return uci_options(weight_path, hash_size, thread_count);
   }
   
   void uci_new_game(){
@@ -121,50 +117,30 @@ struct uci{
     
     
     const int depth = worker.depth();
-    const size_t elapsed_ms = timer_.elapsed().count();
+    const size_t elapsed_ms = manager_.elapsed().count();
     const size_t nodes = pool_.nodes();
     const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
-    if(go_.load()){
+    if(manager_.searching()){
       os << "info depth " << depth
-         << " seldepth " << worker.stack_.sel_depth()
+         << " seldepth " << worker.internal.stack.sel_depth()
          << " score cp " << score
          << " nodes " << nodes 
          << " nps " << nps
          << " time " << elapsed_ms
-         << " pv " << worker.stack_.pv_string()
+         << " pv " << worker.internal.stack.pv_string()
          << std::endl;
     }
   }
 
   void go(const std::string& line){
-    go_.store(true);
+    manager_.start(position.turn(), line);
     pool_.set_position(history, position);
     pool_.go();
-    timer_.lap();
-    
-    // manage time using a separate, low utilization thread
-    std::thread([line, this]{
-      auto manager = time_manager{}.init(position.turn(), line);
-      
-      while(go_.load()){
-        search_info info{
-          pool_.primary_worker().depth(),
-          pool_.primary_worker().is_stable()
-        };
-      
-        if(manager.should_stop(info)){
-          stop();
-          break;
-        }
-        
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-      }
-    }).detach();
   }
 
   void stop(){
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    go_.store(false);
+    manager_.manually_stop();
     pool_.stop();
     os << "bestmove " << pool_.primary_worker().best_move().name(position.turn()) << std::endl;
   }
@@ -188,37 +164,43 @@ struct uci{
     os << get_bench_info(weights_) << std::endl;
   }
 
-  void uci_loop(const std::string& line){
+  void quit(){ should_quit_.store(true); }
+
+  void read(const std::string& line){
     const std::regex position_rgx("position(.*)");
     const std::regex go_rgx("go(.*)");
     
-    if(!go_ && line == "uci"){
+    if(!manager_.searching() && line == "uci"){
       id_info();
     }else if(line == "isready"){
       ready();
-    }else if(!go_.load() && line == "ucinewgame"){
+    }else if(!manager_.searching() && line == "ucinewgame"){
       uci_new_game();
-    }else if(go_.load() && line == "stop"){
+    }else if(manager_.searching() && line == "stop"){
       stop();
     }else if(line == "_internal_board"){
       os << position << std::endl;
-    }else if(!go_.load() && line == "bench"){
+    }else if(!manager_.searching() && line == "bench"){
       bench();
-    }else if(!go_.load() && std::regex_match(line, go_rgx)){
+    }else if(!manager_.searching() && std::regex_match(line, go_rgx)){
       go(line);
-    }else if(!go_.load() && std::regex_match(line, position_rgx)){
+    }else if(!manager_.searching() && std::regex_match(line, position_rgx)){
       set_position(line);
     }else if(line == "quit"){
-      std::exit(0);
-    }else if(!go_.load()){
+      quit();
+    }else if(!manager_.searching()){
       options().update(line);
       if constexpr(search::constants::tuning){ (pool_.constants_ -> options()).update(line); }
     }
   }
 
-  uci() : pool_(&weights_, default_hash_size, default_thread_count, [this](auto&&... args){ info_string(args...); }) {
+  uci() : 
+    pool_(&weights_, default_hash_size, [this](auto&&... args){ info_string(args...); }),
+    manager_([this]{ return search_info{pool_.primary_worker().depth(), pool_.primary_worker().is_stable()}; }, [this]{ stop(); }) 
+  {
     nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
     weights_.load(embedded);
+    pool_.resize(default_thread_count);
   }
 };
 

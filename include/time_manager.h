@@ -1,11 +1,14 @@
 #pragma once
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <functional>
 #include <optional>
 #include <string>
 #include <sstream>
 #include <string_view>
 #include <tuple>
 #include <regex>
-#include <mutex>
 
 #include <search_constants.h>
 
@@ -95,7 +98,7 @@ struct search_info{
   bool is_stable;
 };
 
-struct time_manager{
+struct time_manager_impl{
   std::tuple<
     named_numeric_param<go::wtime>,
     named_numeric_param<go::btime>,
@@ -146,12 +149,12 @@ struct time_manager{
     apply_impl_(std::forward<F>(f), std::make_index_sequence<cardinality>{});
   }
 
-  time_manager& read(const std::string& line){
+  time_manager_impl& read(const std::string& line){
     apply([&line](auto& param){ param.read(line); });
     return *this;
   }
 
-  time_manager& init(const bool& pov, const std::string& line){
+  time_manager_impl& init(const bool& pov, const std::string& line){
     search_start = std::chrono::steady_clock::now();
     read(line);
     // early return if depth limited or infinite search
@@ -215,6 +218,62 @@ struct simple_timer{
   }
   
   simple_timer() : start_{std::chrono::steady_clock::now()} {}
+};
+
+struct time_manager{
+  std::function<search_info()> get_info_;
+  std::function<void()> on_should_stop_;
+
+  simple_timer<std::chrono::milliseconds> timer_{};
+  time_manager_impl state_{};
+
+  std::atomic_bool go_{false};
+  std::optional<std::thread> condition_check_loop_{std::nullopt};
+
+  bool searching() const { return go_.load(); }
+  std::chrono::milliseconds elapsed(){ return timer_.elapsed(); }
+
+  void force_join_(){
+    if(condition_check_loop_.has_value()){ 
+      go_.store(false);
+      condition_check_loop_ -> join();
+    }
+  }
+
+  void manually_stop(){ go_.store(false); }
+
+  template<typename ... Ts>
+  void start(Ts&& ... ts){
+    force_join_();
+
+    timer_.lap();
+    state_.init(std::forward<Ts>(ts)...);
+    
+    go_.store(true);
+    condition_check_loop_ = std::thread([this]{
+      while(go_.load()){
+        if(state_.should_stop(get_info_())){
+          on_should_stop_();
+          go_.store(false);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+    });
+  }
+
+  time_manager& operator=(const time_manager& other) = delete;
+  time_manager& operator=(time_manager&& other) = delete;
+  time_manager(const time_manager& other) = delete;
+  time_manager(time_manager&& other) = delete;
+
+  time_manager(
+    std::function<search_info()> get_info,
+    std::function<void()> on_should_stop
+  ) :
+    get_info_{get_info},
+    on_should_stop_{on_should_stop} {}
+
+  ~time_manager(){ force_join_(); }
 };
 
 }

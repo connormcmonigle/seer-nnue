@@ -1,18 +1,17 @@
 #include <iostream>
 #include <string>
-#include <cstdint>
 
 #include <uci.h>
 
 
 int main(int argc, char* argv[]){
-  engine::uci u{};
+  engine::uci uci{};
 
-  const bool bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if(bench){ u.bench(); std::exit(0); }
+  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
+  if(perform_bench){ uci.bench(); return 0; }
   
-  while(true){
+  while(!uci.should_quit()){
     std::string line{}; std::getline(std::cin, line);
-    u.uci_loop(line);
+    uci.read(line);
   }
 }

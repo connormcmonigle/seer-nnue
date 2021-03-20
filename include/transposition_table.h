@@ -117,6 +117,7 @@ struct transposition_table{
     return idx_mask & (hash % data.size());
   }
 
+  __attribute__((no_sanitize("thread")))
   size_t find_idx(const zobrist::hash_type& hash, const size_t& base_idx) const {
     for(size_t i{base_idx}; i < (base_idx + bucket_size); ++i){
       if((data[i].key() ^ data[i].value()) == hash){
@@ -125,7 +126,8 @@ struct transposition_table{
     }
     return base_idx;
   }
-  
+
+  __attribute__((no_sanitize("thread")))  
   size_t replacement_idx(const zobrist::hash_type& hash, const size_t& base_idx){
     auto heuristic = [this](const size_t& idx){
       constexpr int m0 = 1;
@@ -146,7 +148,8 @@ struct transposition_table{
     }
     return worst_idx;
   }
-
+  
+  __attribute__((no_sanitize("thread")))
   transposition_table& insert(const transposition_table_entry& entry){
     const size_t base_idx = hash_function(entry.key());
     const size_t idx = replacement_idx(entry.key(), base_idx);
@@ -157,6 +160,7 @@ struct transposition_table{
     return *this;
   }
 
+  __attribute__((no_sanitize("thread")))
   std::optional<transposition_table_entry> find(const zobrist::hash_type& key) const {
     const size_t base_idx = hash_function(key);
     const size_t idx = find_idx(key, base_idx);

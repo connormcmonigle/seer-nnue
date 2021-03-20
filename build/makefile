@@ -1,5 +1,5 @@
 EXE = seer
-SRC = ../
+SRC = ../src/seer.cc
 CC = g++
 
 EVALFILE = weights/0x319651dd.bin
@@ -15,9 +15,16 @@ CXXFLAGS += -fconstexpr-ops-limit=$(OPSLIMIT)
 CXXFLAGS += -I$(INCLUDE)
 CXXFLAGS += -DEVALFILE=\"$(EVALFILE)\"
 
-LIBS = -lpthread
+THREADSANFLAGS += $(CXXFLAGS) -fsanitize=thread
+ADDRESSSANFLAGS += $(CXXFLAGS) -fsanitize=address
 
-SRC = ../src/seer.cc
+LIBS = -lpthread
 
 default:
 	$(CC) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
+
+threadsan:
+	$(CC) $(SRC) $(THREADSANFLAGS) $(LIBS) -o $(EXE)
+
+addresssan:
+	$(CC) $(SRC) $(ADDRESSSANFLAGS) $(LIBS) -o $(EXE)
