@@ -397,7 +397,7 @@ struct thread_worker{
         }
       }else{
         const transposition_table_entry entry(bd.hash(), bound_type::upper, best_score, best_move, depth);
-        external.tt-> insert(entry);
+        external.tt -> insert(entry);
       }
     }
 
