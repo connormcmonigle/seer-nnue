@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <memory>
 #include <array>
 #include <string>
 #include <string_view>
@@ -70,22 +71,23 @@ std::ostream& operator<<(std::ostream& os, const bench_info& info){
 
 template<typename T>
 bench_info get_bench_info(const nnue::weights<T>& weights){
-  std::shared_ptr<search::constants> constants = std::make_shared<search::constants>(1);
+  using worker_type = chess::thread_worker<T, false>;
+	std::shared_ptr<search::constants> constants = std::make_shared<search::constants>(1);
   std::shared_ptr<chess::transposition_table> tt = std::make_shared<chess::transposition_table>(bench_config::tt_mb_size);
 
-  chess::thread_worker<T, false> worker(
+  std::unique_ptr<worker_type> worker = std::make_unique<worker_type>(
     &weights, tt, constants,
-    [&worker](const auto& w){ if(w.depth() >= bench_config::bench_depth){ worker.stop(); } }
+    [&](const auto& w){ if(w.depth() >= bench_config::bench_depth){ worker -> stop(); } }
   );
 
   simple_timer<std::chrono::milliseconds> timer{};
   size_t total_nodes{};
 
   for(const auto& fen : bench_config::fens){
-    worker.set_position(chess::position_history{}, chess::board::parse_fen(std::string(fen)));
-    worker.go(bench_config::init_depth);
-    worker.iterative_deepening_loop_();
-    total_nodes += worker.nodes();
+    worker -> set_position(chess::position_history{}, chess::board::parse_fen(std::string(fen)));
+    worker -> go(bench_config::init_depth);
+    worker -> iterative_deepening_loop_();
+    total_nodes += worker -> nodes();
   }
 
   const size_t nodes_per_second = total_nodes * std::chrono::milliseconds(std::chrono::seconds(1)).count() / timer.elapsed().count();

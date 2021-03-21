@@ -14,7 +14,7 @@ struct eval_cache_entry{
 };
 
 struct eval_cache{
-  static constexpr size_t size_mb = 4;
+  static constexpr size_t size_mb = 6;
   static constexpr size_t N = (size_mb << 20) / sizeof(eval_cache_entry);
   
   std::array<eval_cache_entry, N> data{};
