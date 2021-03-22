@@ -90,7 +90,7 @@ struct transposition_table{
   static constexpr size_t bucket_size = 4;
   static constexpr size_t idx_mask = ~0x3;
 
-  static constexpr size_t MiB = (static_cast<size_t>(1) << static_cast<size_t>(20)) / sizeof(transposition_table_entry);
+  static constexpr size_t one_mb = (static_cast<size_t>(1) << static_cast<size_t>(20)) / sizeof(transposition_table_entry);
   std::vector<transposition_table_entry> data;
   std::atomic<transposition_table_entry::generation_type> current_gen{0};
 
@@ -98,7 +98,7 @@ struct transposition_table{
   std::vector<transposition_table_entry>::const_iterator end() const { return data.cend(); }
 
   void resize(size_t size){
-    const size_t new_size = size * MiB - ((size * MiB) % bucket_size);
+    const size_t new_size = size * one_mb - ((size * one_mb) % bucket_size);
     data.resize(new_size, transposition_table_entry{});
   }
 
@@ -169,7 +169,7 @@ struct transposition_table{
     return (key == (result.key() ^ result.value())) ? std::optional(result) : std::nullopt;
   }
 
-  transposition_table(size_t size) : data(size * MiB - ((size * MiB) % bucket_size)) {}
+  transposition_table(size_t size) : data(size * one_mb - ((size * one_mb) % bucket_size)) {}
 };
 
 }

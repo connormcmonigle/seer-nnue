@@ -15,6 +15,7 @@
 #include <search_constants.h>
 #include <search_stack.h>
 #include <move_orderer.h>
+#include <eval_cache.h>
 #include <transposition_table.h>
 #include <history_heuristic.h>
 
@@ -33,6 +34,7 @@ struct internal_state{
   std::mutex search_mutex{};
   search::stack stack{position_history{}, board::start_pos()};
   sided_history_heuristic hh{};
+  eval_cache cache{};
 
   std::atomic_bool is_stable{false};
   std::atomic_size_t nodes{};
@@ -134,7 +136,14 @@ struct thread_worker{
     }
 
     const search::score_type static_eval = [&]{
-      const search::score_type val = is_check ? ss.effective_mate_score() : eval.evaluate(bd.turn());
+      const auto maybe_eval = internal.cache.find(bd.hash());
+      const search::score_type val = 
+        is_check ? ss.effective_mate_score() :
+        !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+        eval.evaluate(bd.turn());
+      
+      if(!is_check){ internal.cache.insert(bd.hash(), val); }
+
       if(maybe.has_value()){
         if(maybe -> bound() == bound_type::upper && val > maybe -> score()){ return maybe -> score(); }
         if(maybe -> bound() == bound_type::lower && val < maybe -> score()){ return maybe -> score(); }
@@ -219,13 +228,21 @@ struct thread_worker{
     
     // step 4. compute static eval and adjust appropriately if there's a tt hit
     const search::score_type static_eval = [&]{
-      const search::score_type val = eval.evaluate(bd.turn());
+      const auto maybe_eval = internal.cache.find(bd.hash());
+      const search::score_type val = 
+        is_check ? ss.effective_mate_score() :
+        !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+        eval.evaluate(bd.turn());
+      
+      if(!is_check){ internal.cache.insert(bd.hash(), val); }
+
       if(maybe.has_value()){
         if(maybe -> bound() == bound_type::upper && val > maybe -> score()){ return maybe -> score(); }
         if(maybe -> bound() == bound_type::lower && val < maybe -> score()){ return maybe -> score(); }
       }
       return val;
     }();
+
 
     // step 5. return static eval if max depth was reached
     if(ss.reached_max_height()){ return make_result(static_eval, move::null()); }
@@ -380,7 +397,7 @@ struct thread_worker{
         }
       }else{
         const transposition_table_entry entry(bd.hash(), bound_type::upper, best_score, best_move, depth);
-        external.tt-> insert(entry);
+        external.tt -> insert(entry);
       }
     }
 
@@ -474,8 +491,10 @@ struct thread_worker{
 
   thread_worker<T, is_active>& set_position(const position_history& hist, const board& bd){
     std::lock_guard search_lck(internal.search_mutex);
-    internal.hh.clear();
     internal.stack = search::stack(hist, bd);
+    internal.hh.clear();
+    internal.cache.clear();
+
     return *this;
   }
 
