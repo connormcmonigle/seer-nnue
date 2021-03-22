@@ -23,6 +23,13 @@ LIBS = -lpthread
 default:
 	$(CC) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
 
+pgo:
+	rm -f *.gcda
+	$(CC) -fprofile-generate $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
+	./$(EXE) bench
+	$(CC) -fprofile-use $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
+	rm -f *.gcda
+
 threadsan:
 	$(CC) $(SRC) $(THREADSANFLAGS) $(LIBS) -o $(EXE)
 
