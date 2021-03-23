@@ -99,6 +99,11 @@ struct fixed_constants{
     return m * static_cast<score_type>(depth - improving) + b;
   }
 
+  constexpr size_t lmp_count(const bool& improving, const depth_type& depth) const {
+    const size_t divisor = 2 - static_cast<size_t>(improving);
+    return static_cast<size_t>(3 + 3 * depth * depth) / divisor;
+  }
+
   constexpr depth_type history_reduction(const counter_type& history_value) const {
     constexpr depth_type limit = 2;
     const depth_type raw = -static_cast<depth_type>(history_value / 5000);
