@@ -65,26 +65,30 @@ struct external_state{
 
 template<bool is_active>
 struct controlled_loop{
-  std::atomic_bool go{false};
-  std::atomic_bool kill{false};
+  std::atomic_bool go_{false};
+  std::atomic_bool kill_{false};
 
   std::mutex control_mutex_{};
   std::condition_variable cv_{};
   std::thread active_;
 
+  bool keep_going() const {
+    return go_.load(std::memory_order_relaxed) && !kill_.load(std::memory_order_relaxed); 
+  }
+
   void loop_(std::function<void()> f){
     for(;;){
-      if(kill.load(std::memory_order_relaxed)){ break; }
+      if(kill_.load(std::memory_order_relaxed)){ break; }
       std::unique_lock<std::mutex> control_lk(control_mutex_);
-      cv_.wait(control_lk, [this]{ return go.load(std::memory_order_relaxed) || kill.load(std::memory_order_relaxed); });
-      if(go && !kill){ f(); }
+      cv_.wait(control_lk, [this]{ return go_.load(std::memory_order_relaxed) || kill_.load(std::memory_order_relaxed); });
+      f();
     }
   }
 
+  void complete_iter(){ go_.store(false, std::memory_order_relaxed); }
+
   void next(){
-    std::unique_lock<std::mutex> control_lk(control_mutex_);
-    go.store(true);
-    control_lk.unlock();
+    { std::lock_guard<std::mutex> lk(control_mutex_); go_.store(true, std::memory_order_relaxed); }
     cv_.notify_one();
   }
 
@@ -96,10 +100,8 @@ struct controlled_loop{
   controlled_loop(std::function<void()> f) : active_([f, this]{ if constexpr(is_active){ loop_(f); } }) {}
 
   ~controlled_loop(){
-    go.store(false);
-    std::unique_lock<std::mutex> control_lk(control_mutex_);
-    kill.store(true);
-    control_lk.unlock();
+    kill_.store(true, std::memory_order_relaxed);
+    { std::lock_guard<std::mutex> lk(control_mutex_); kill_.store(true, std::memory_order_relaxed); }
     cv_.notify_one();
     active_.join();
   }
@@ -161,7 +163,7 @@ struct thread_worker{
     ss.set_hash(bd.hash()).set_eval(static_eval);
     for(const auto& [idx, mv] : orderer){
       assert((mv != move::null()));
-      if(!loop.go.load(std::memory_order_relaxed) || best_score >= beta){ break; }
+      if(!loop.keep_going() || best_score >= beta){ break; }
       if(!is_check && bd.see<search::see_type>(mv) < 0){ continue; }
       
       ss.set_played(mv);
@@ -179,7 +181,7 @@ struct thread_worker{
       }
     }
 
-    if(loop.go.load(std::memory_order_relaxed)){
+    if(loop.keep_going()){
       const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
       external.tt-> insert(entry);
@@ -287,7 +289,7 @@ struct thread_worker{
 
     for(const auto& [idx, mv] : orderer){
       assert((mv != move::null()));
-      if(!loop.go.load(std::memory_order_relaxed) || best_score >= beta){ break; }
+      if(!loop.keep_going() || best_score >= beta){ break; }
       ss.set_played(mv);
       
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(follow, counter, mv);
@@ -387,7 +389,7 @@ struct thread_worker{
     }
     
     // step 12. update histories if appropriate and maybe insert a new transposition_table_entry
-    if(loop.go.load(std::memory_order_relaxed)){
+    if(loop.keep_going()){
       if(best_score >= beta){
         const transposition_table_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
         external.tt -> insert(entry);
@@ -415,7 +417,7 @@ struct thread_worker{
 
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
-    for(; loop.go && internal.depth < (external.constants -> max_depth()); ++internal.depth){
+    for(; loop.keep_going() && internal.depth < (external.constants -> max_depth()); ++internal.depth){
       // update aspiration window once reasonable evaluation is obtained
       if(internal.depth >= external.constants -> aspiration_depth()){
         const search::score_type previous_score = internal.score;
@@ -439,7 +441,7 @@ struct thread_worker{
           adjusted_depth
         );
 
-        if(!loop.go.load()){ break; }
+        if(!loop.keep_going()){ break; }
           
         // update aspiration window if failing low or high
         if(search_score <= alpha){
@@ -467,11 +469,11 @@ struct thread_worker{
         }
         
         //callback on iteration completion
-        if(loop.go){ external.on_iter(*this); }
+        if(loop.keep_going()){ external.on_iter(*this); }
       }
 
-      // stop search if we reached max_depth (otherwise, go_ is already false)
-      loop.go.store(false);
+      // stop search if we reached max_depth (otherwise, loop is already stopped)
+      loop.complete_iter();
   }
   
   bool is_stable() const { return internal.is_stable.load(); }
@@ -487,14 +489,13 @@ struct thread_worker{
     loop.next();
   }
 
-  void stop(){ loop.go.store(false); }
+  void stop(){ loop.complete_iter(); }
 
   thread_worker<T, is_active>& set_position(const position_history& hist, const board& bd){
     std::lock_guard search_lck(internal.search_mutex);
     internal.stack = search::stack(hist, bd);
     internal.hh.clear();
     internal.cache.clear();
-
     return *this;
   }
 
