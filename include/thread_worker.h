@@ -304,6 +304,12 @@ struct thread_worker{
       
       // step 9. pruning
       if(try_pruning){
+        const bool lm_prune =
+          depth <= external.constants -> lmp_depth() &&
+          quiets_tried.size() > external.constants -> lmp_count(improving, depth);
+        
+        if(lm_prune){ continue; }
+
         const bool history_prune = 
           depth <= external.constants -> history_prune_depth() &&
           history_value <= external.constants -> history_prune_threshold(improving, depth);
