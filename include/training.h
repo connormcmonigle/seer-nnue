@@ -113,8 +113,8 @@ struct train_interface{
 
     if(!worker -> best_move().is_quiet()){ return std::nullopt; }
 
-    chess::move last_move = worker.best_move();
-    state = state.forward(worker.best_move());
+    chess::move last_move = worker -> best_move();
+    state = state.forward(worker -> best_move());
 
     for(search::depth_type length{0}; length < config::continuation_max_length; ++length){
       if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return continuation_type{hist, state}; }
