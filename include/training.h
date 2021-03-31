@@ -100,8 +100,8 @@ struct train_interface{
     std::unique_ptr<worker_type> worker = std::make_unique<worker_type>(
       &weights_, tt_, constants_,
       [&timer, &worker](auto&&...){
-        if(timer.elapsed() >= config::timeout){ worker.stop(); }
-        if(worker.depth() >= config::continuation_depth){ worker.stop(); } 
+        if(timer.elapsed() >= config::timeout){ worker -> stop(); }
+        if(worker -> depth() >= config::continuation_depth){ worker -> stop(); } 
       }
     );
 
