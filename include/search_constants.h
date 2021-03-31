@@ -168,7 +168,9 @@ struct tuning_constants{
   depth_type snmp_depth() const { return snmp_depth_; }
   depth_type futility_prune_depth() const { return futility_prune_depth_; }
   depth_type history_extension_depth() const { return history_extension_depth_; }
-  
+  constexpr depth_type lmp_depth() const { return 7; }
+
+
   depth_type reduction(const depth_type& depth, const int& move_idx) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
@@ -184,7 +186,6 @@ struct tuning_constants{
 
   depth_type history_extension_threshold() const { return history_extension_threshold_; }
 
-  
   score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
     return futility_margin_mul_ * static_cast<score_type>(depth);
@@ -199,6 +200,12 @@ struct tuning_constants{
     constexpr depth_type limit = 2;
     const depth_type raw = -static_cast<depth_type>(history_value / history_reduction_div_);
     return std::max(-limit, std::min(limit, raw));
+  }
+
+  constexpr size_t lmp_count(const bool& improving, const depth_type& depth) const {
+    constexpr std::array<size_t, 8> improving_counts = {0, 5, 8, 12, 20, 30, 42, 65};
+    constexpr std::array<size_t, 8> worsening_counts = {0, 3, 4,  8,  10, 13, 21, 31};
+    return improving ? improving_counts[depth] : worsening_counts[depth];
   }
 
   tuning_constants& update_(const size_t& thread_count){

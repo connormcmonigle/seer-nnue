@@ -38,12 +38,16 @@ struct uci{
   chess::worker_pool<weight_type> pool_;
 
   std::atomic_bool should_quit_{false};
+  std::atomic_bool is_searching_{false};
+
   time_manager manager_;
+  simple_timer<std::chrono::milliseconds> timer_;
 
   std::mutex os_mutex_{}; 
   std::ostream& os = std::cout;
 
   bool should_quit() const { return should_quit_.load(); }
+  bool is_searching() const { return is_searching_.load(); }
 
   void weights_info_string(){
     std::lock_guard<std::mutex> os_lk(os_mutex_);
@@ -117,10 +121,10 @@ struct uci{
     
     
     const int depth = worker.depth();
-    const size_t elapsed_ms = manager_.elapsed().count();
+    const size_t elapsed_ms = timer_.elapsed().count();
     const size_t nodes = pool_.nodes();
     const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
-    if(manager_.searching()){
+    if(is_searching()){
       os << "info depth " << depth
          << " seldepth " << worker.internal.stack.sel_depth()
          << " score cp " << score
@@ -133,14 +137,17 @@ struct uci{
   }
 
   void go(const std::string& line){
-    manager_.start(position.turn(), line);
+    is_searching_.store(true);
+    manager_.init(position.turn(), line);
+    timer_.lap();
+
     pool_.set_position(history, position);
     pool_.go();
   }
 
   void stop(){
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    manager_.manually_stop();
+    is_searching_.store(false);
     pool_.stop();
     os << "bestmove " << pool_.primary_worker().best_move().name(position.turn()) << std::endl;
   }
@@ -170,38 +177,73 @@ struct uci{
     const std::regex position_rgx("position(.*)");
     const std::regex go_rgx("go(.*)");
     
-    if(!manager_.searching() && line == "uci"){
+    if(!is_searching() && line == "uci"){
       id_info();
     }else if(line == "isready"){
       ready();
-    }else if(!manager_.searching() && line == "ucinewgame"){
+    }else if(!is_searching() && line == "ucinewgame"){
       uci_new_game();
-    }else if(manager_.searching() && line == "stop"){
+    }else if(is_searching() && line == "stop"){
       stop();
     }else if(line == "_internal_board"){
       os << position << std::endl;
-    }else if(!manager_.searching() && line == "bench"){
+    }else if(!is_searching() && line == "bench"){
       bench();
-    }else if(!manager_.searching() && std::regex_match(line, go_rgx)){
+    }else if(!is_searching() && std::regex_match(line, go_rgx)){
       go(line);
-    }else if(!manager_.searching() && std::regex_match(line, position_rgx)){
+    }else if(!is_searching() && std::regex_match(line, position_rgx)){
       set_position(line);
     }else if(line == "quit"){
       quit();
-    }else if(!manager_.searching()){
+    }else if(!is_searching()){
       options().update(line);
       if constexpr(search::constants::tuning){ (pool_.constants_ -> options()).update(line); }
     }
   }
 
+  void update(){
+    const search_info info{pool_.primary_worker().depth(), pool_.primary_worker().is_stable()};
+    if(is_searching() && manager_.should_stop(info)){ stop(); }
+  }
+
   uci() : 
-    pool_(&weights_, default_hash_size, [this](auto&&... args){ info_string(args...); }),
-    manager_([this]{ return search_info{pool_.primary_worker().depth(), pool_.primary_worker().is_stable()}; }, [this]{ stop(); }) 
+    pool_(&weights_, default_hash_size, [this](auto&&... args){ info_string(args...); })
   {
     nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
     weights_.load(embedded);
     pool_.resize(default_thread_count);
   }
+};
+
+template<typename U>
+struct command_loop{
+  std::mutex command_mutex_;
+  std::atomic_bool running_;
+  std::thread thread_;
+  
+  template<typename T>
+  command_loop(U& u, const T& interval) : 
+    running_{true},  
+    thread_([&u, interval, this]{
+      while(running_.load() && !u.should_quit()){
+        std::this_thread::sleep_for(interval);
+        std::lock_guard<std::mutex> lk(command_mutex_); 
+        u.update();
+      }
+    })
+  {
+    std::string line{};
+    while(running_.load() && !u.should_quit() && std::getline(std::cin, line)){
+      std::lock_guard<std::mutex> lk(command_mutex_); 
+      u.read(line);
+    }
+  }
+
+  ~command_loop(){
+    running_.store(false);
+    thread_.join();
+  }
+
 };
 
 }

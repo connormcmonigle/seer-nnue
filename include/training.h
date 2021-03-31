@@ -89,13 +89,15 @@ struct train_interface{
   }
 
   std::optional<continuation_type> get_continuation(state_type state){
+    using worker_type = chess::thread_worker<T, false>;
+
     engine::simple_timer<std::chrono::milliseconds> timer{};
 
     const size_t man_0 = state.num_pieces();
     auto hist = chess::position_history{};
     if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return continuation_type{hist, state}; }
 
-    chess::thread_worker<T, false> worker(
+    std::unique_ptr<worker_type> worker = std::make_unique<worker_type>(
       &weights_, tt_, constants_,
       [&timer, &worker](auto&&...){
         if(timer.elapsed() >= config::timeout){ worker.stop(); }
@@ -103,13 +105,13 @@ struct train_interface{
       }
     );
 
-    worker.set_position(hist, state);
-    worker.go(config::init_depth);
-    worker.iterative_deepening_loop_();
+    worker -> set_position(hist, state);
+    worker -> go(config::init_depth);
+    worker -> iterative_deepening_loop_();
     if(timer.elapsed() >= config::timeout){ return std::nullopt; }
     hist.push_(state.hash());
 
-    if(!worker.best_move().is_quiet()){ return std::nullopt; }
+    if(!worker -> best_move().is_quiet()){ return std::nullopt; }
 
     chess::move last_move = worker.best_move();
     state = state.forward(worker.best_move());
@@ -118,14 +120,14 @@ struct train_interface{
       if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return continuation_type{hist, state}; }
       if(last_move.is_quiet() && state.num_pieces() != man_0){ return continuation_type{hist, state}; }
 
-      worker.set_position(hist, state);
-      worker.go(config::init_depth);
-      worker.iterative_deepening_loop_();
+      worker -> set_position(hist, state);
+      worker -> go(config::init_depth);
+      worker -> iterative_deepening_loop_();
       if(timer.elapsed() >= config::timeout){ return std::nullopt; }
       hist.push_(state.hash());
 
-      last_move = worker.best_move();
-      state = state.forward(worker.best_move());
+      last_move = worker -> best_move();
+      state = state.forward(worker -> best_move());
     }
 
     return std::nullopt;
