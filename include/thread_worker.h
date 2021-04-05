@@ -82,13 +82,18 @@ struct controlled_loop{
       std::unique_lock<std::mutex> control_lk(control_mutex_);
       cv_.wait(control_lk, [this]{ return go_.load(std::memory_order_relaxed) || kill_.load(std::memory_order_relaxed); });
       f();
+      go_.store(false, std::memory_order_relaxed);
     }
   }
 
   void complete_iter(){ go_.store(false, std::memory_order_relaxed); }
 
-  void next(){
-    { std::lock_guard<std::mutex> lk(control_mutex_); go_.store(true, std::memory_order_relaxed); }
+  void next(std::function<void()> on_next = []{}){
+    { 
+      std::lock_guard<std::mutex> lk(control_mutex_); 
+      on_next();
+      go_.store(true, std::memory_order_relaxed); 
+    }
     cv_.notify_one();
   }
 
@@ -101,7 +106,10 @@ struct controlled_loop{
 
   ~controlled_loop(){
     kill_.store(true, std::memory_order_relaxed);
-    { std::lock_guard<std::mutex> lk(control_mutex_); kill_.store(true, std::memory_order_relaxed); }
+    { 
+      std::lock_guard<std::mutex> lk(control_mutex_); 
+      kill_.store(true, std::memory_order_relaxed); 
+    }
     cv_.notify_one();
     active_.join();
   }
@@ -184,7 +192,7 @@ struct thread_worker{
     if(loop.keep_going()){
       const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
-      external.tt-> insert(entry);
+      external.tt -> insert(entry);
     }
     
     return best_score;
@@ -477,9 +485,6 @@ struct thread_worker{
         //callback on iteration completion
         if(loop.keep_going()){ external.on_iter(*this); }
       }
-
-      // stop search if we reached max_depth (otherwise, loop is already stopped)
-      loop.complete_iter();
   }
   
   bool is_stable() const { return internal.is_stable.load(); }
@@ -489,10 +494,11 @@ struct thread_worker{
   search::score_type score() const { return internal.score.load(); }
 
   void go(const search::depth_type& start_depth){    
-    internal.nodes.store(0);
-    internal.depth.store(start_depth);
-    internal.is_stable.store(false);
-    loop.next();
+    loop.next([start_depth, this]{
+      internal.nodes.store(0);
+      internal.depth.store(start_depth);
+      internal.is_stable.store(false);
+    });
   }
 
   void stop(){ loop.complete_iter(); }
