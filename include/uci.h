@@ -109,31 +109,50 @@ struct uci{
 
   template<typename T>
   void info_string(const T& worker){
+    if(!is_searching()){ return; }
+
+    constexpr search::score_type uci_wdl_scale = 1000;
     constexpr search::score_type raw_multiplier = 400;
     constexpr search::score_type raw_divisor = 1024;
     constexpr search::score_type eval_limit = 256 * 100;
     
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     
+    // get cp score information
     const search::score_type raw_score = worker.score();
     const search::score_type scaled_score = raw_score * raw_multiplier / raw_divisor;
-    const int score = std::min(std::max(scaled_score, -eval_limit), eval_limit);
+    const search::score_type score = std::clamp(scaled_score, -eval_limit, eval_limit);
     
-    
-    const int depth = worker.depth();
+    // get miscellaneous search information
+    const search::depth_type depth = worker.depth();
     const size_t elapsed_ms = timer_.elapsed().count();
     const size_t nodes = pool_.nodes();
     const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
-    if(is_searching()){
-      os << "info depth " << depth
-         << " seldepth " << worker.internal.stack.sel_depth()
-         << " score cp " << score
-         << " nodes " << nodes 
-         << " nps " << nps
-         << " time " << elapsed_ms
-         << " pv " << worker.internal.stack.pv_string()
-         << std::endl;
+    
+    // get wdl score information
+    const chess::board leaf = worker.internal.stack.leaf();
+    nnue::eval<weight_type> evaluator(&weights_);
+    leaf.show_init(evaluator);
+    const auto [w, d, l] = evaluator.wdl(leaf.turn());
+    const search::score_type uci_w = (leaf.turn() == position.turn() ? w : l) * uci_wdl_scale / search::wdl_scale<search::score_type>;
+    const search::score_type uci_d = std::min(uci_wdl_scale - uci_w, d * uci_wdl_scale / search::wdl_scale<search::score_type>);
+    const search::score_type uci_l = uci_wdl_scale - (uci_w + uci_d);
+
+    os << "info depth " << depth
+       << " seldepth " << worker.internal.stack.sel_depth();
+    
+    if(search::max_mate_score < raw_score && raw_score < -search::max_mate_score){
+      os << " score cp " << score
+         << " wdl " << uci_w << " " << uci_d << " " << uci_l;
+    } else {
+      os << " score mate " << (raw_score / std::abs(raw_score)) * ((1 + -std::abs(raw_score) - search::mate_score) / 2);
     }
+    
+    os << " nodes " << nodes 
+       << " nps " << nps
+       << " time " << elapsed_ms
+       << " pv " << worker.internal.stack.pv_string()
+      << std::endl;
   }
 
   void go(const std::string& line){

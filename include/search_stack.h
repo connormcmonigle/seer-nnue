@@ -42,20 +42,31 @@ struct stack{
   
   size_t occurrences(const size_t& height, const zobrist::hash_type& hash) const {
     size_t occurrences_{0};
-    for(auto it = future_.cbegin(); it != (future_.cbegin() + height); ++it){
+    for(auto it = future_.begin(); it != (future_.begin() + height); ++it){
       occurrences_ += static_cast<size_t>(it -> hash_ == hash);
     }
     return occurrences_ + past_.occurrences(hash);
   }
   
-  std::string pv_string() const {
-    auto bd = present_;
-    std::string result{};
-    for(const auto& pv_mv : future_[0].pv_){
+  template<typename F>
+  void over_pv(F&& f) const {
+    chess::board bd = present_;
+    for(const auto& pv_mv : future_.begin() -> pv_){
       if(!bd.generate_moves().has(pv_mv)){ break; }
-      result += pv_mv.name(bd.turn()) + " ";
       bd = bd.forward(pv_mv);
+      f(bd, pv_mv);
     }
+  }
+
+  std::string pv_string() const {
+    std::string result{};
+    over_pv([&result](const chess::board& bd, const chess::move& mv){ result += mv.name(bd.turn()) + " "; });
+    return result;
+  }
+
+  chess::board leaf() const {
+    chess::board result = present_;
+    over_pv([&result](const chess::board& bd, const auto& ...){ result = bd; });
     return result;
   }
 
