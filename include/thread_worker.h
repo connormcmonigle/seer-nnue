@@ -35,13 +35,14 @@ struct internal_state{
   search::stack stack{position_history{}, board::start_pos()};
   sided_history_heuristic hh{};
   eval_cache cache{};
+  bool armageddon_enabled{false};
 
   std::atomic_bool is_stable{false};
   std::atomic_size_t nodes{};
   std::atomic<search::depth_type> depth{};
   
   std::atomic<search::score_type> score{};
-  std::atomic<std::uint32_t> best_move{};
+  std::atomic_uint32_t best_move{};
 };
 
 template<typename T>
@@ -129,9 +130,15 @@ struct thread_worker{
     const move_list list = bd.generate_loud_moves();
     const bool is_check = bd.is_check();
 
+    const search::score_type effective_draw_score = [&, this]{
+      if(bd.turn() && internal.armageddon_enabled){ return ss.effective_mate_score(); }
+      if(!bd.turn() && internal.armageddon_enabled){ return -ss.effective_mate_score(); }
+      return search::draw_score;
+    }();
+
     if(list.size() == 0 && is_check){ return ss.effective_mate_score(); }
-    if(ss.is_two_fold(bd.hash())){ return search::draw_score; }
-    if(bd.is_trivially_drawn()){ return search::draw_score; }
+    if(ss.is_two_fold(bd.hash())){ return effective_draw_score; }
+    if(bd.is_trivially_drawn()){ return effective_draw_score; }
 
     move_orderer orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &internal.hh.us(bd.turn())});
     
@@ -211,13 +218,20 @@ struct thread_worker{
     if(depth <= 0) { return make_result(q_search<is_pv>(ss, eval, bd, alpha, beta, 0), move::null()); }
     ++internal.nodes;
 
+
+    const search::score_type effective_draw_score = [&, this]{
+      if(bd.turn() && internal.armageddon_enabled){ return ss.effective_mate_score(); }
+      if(!bd.turn() && internal.armageddon_enabled){ return -ss.effective_mate_score(); }
+      return search::draw_score;
+    }();
+
     // step 2. check if node is terminal
     const move_list list = bd.generate_moves();
     const bool is_check = bd.is_check();
     if(list.size() == 0 && is_check){ return make_result(ss.effective_mate_score(), move::null()); }
-    if(list.size() == 0) { return make_result(search::draw_score, move::null()); }
-    if(!is_root && ss.is_two_fold(bd.hash())){ return make_result(search::draw_score, move::null()); }
-    if(!is_root && bd.is_trivially_drawn()){ return make_result(search::draw_score, move::null()); }
+    if(list.size() == 0) { return make_result(effective_draw_score, move::null()); }
+    if(!is_root && ss.is_two_fold(bd.hash())){ return make_result(effective_draw_score, move::null()); }
+    if(!is_root && bd.is_trivially_drawn()){ return make_result(effective_draw_score, move::null()); }
   
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
@@ -424,7 +438,7 @@ struct thread_worker{
     std::lock_guard search_lck(internal.search_mutex);
 
     const auto evaluator = [this]{
-      nnue::eval<T> result(external.weights);
+      nnue::eval<T> result(external.weights, internal.armageddon_enabled);
       internal.stack.root_pos().show_init(result);
       return result;
     }();
@@ -511,6 +525,18 @@ struct thread_worker{
     return *this;
   }
 
+  thread_worker<T, is_active>& enable_armageddon(){
+    std::lock_guard search_lck(internal.search_mutex);
+    internal.armageddon_enabled = true;
+    return *this;
+  }
+
+  thread_worker<T, is_active>& disable_armageddon(){
+    std::lock_guard search_lck(internal.search_mutex);
+    internal.armageddon_enabled = false;
+    return *this;
+  }
+
   thread_worker(
     const nnue::weights<T>* weights,
     std::shared_ptr<transposition_table> tt,
@@ -562,6 +588,14 @@ struct worker_pool{
 
   void set_position(const position_history& hist, const board& bd){
     for(auto& worker : pool_){ worker -> set_position(hist, bd); }
+  }
+
+  void enable_armageddon(){
+    for(auto& worker : pool_){ worker -> enable_armageddon(); }
+  }
+
+  void disable_armageddon(){
+    for(auto& worker : pool_){ worker -> disable_armageddon(); }
   }
 
   thread_worker<T>& primary_worker(){

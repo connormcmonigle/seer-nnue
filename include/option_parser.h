@@ -15,7 +15,7 @@ namespace engine{
 struct string_option{
   using type = std::string;
   std::string name_;
-  std::optional<std::string> default_ = {};
+  std::optional<std::string> default_{std::nullopt};
 
   std::optional<std::string> maybe_read(const std::string& cmd) const {
     std::regex regex("setoption name " + name_ + " value (.*)");
@@ -47,8 +47,8 @@ struct spin_range{
 struct spin_option{
   using type = int;
   std::string name_;
-  std::optional<int> default_ = {};
-  std::optional<spin_range> range_ = {};
+  std::optional<int> default_{std::nullopt};
+  std::optional<spin_range> range_{std::nullopt};
 
   std::optional<int> maybe_read(const std::string& cmd) const {
     std::regex regex("setoption name " + name_ + " value (-?[0-9]+)");
@@ -65,8 +65,8 @@ struct spin_option{
 
   spin_option(const std::string_view& name) : name_{name} {}
   spin_option(const std::string& name, const spin_range& range) : name_{name}, range_{range} {}
-  spin_option(const std::string& name, const int def) : name_{name}, default_{def} {}
-  spin_option(const std::string& name, const int def, const spin_range& range) : name_{name}, default_{def}, range_{range} {}
+  spin_option(const std::string& name, const int& def) : name_{name}, default_{def} {}
+  spin_option(const std::string& name, const int& def, const spin_range& range) : name_{name}, default_{def}, range_{range} {}
 };
 
 struct button_option{
@@ -84,6 +84,23 @@ struct button_option{
   button_option(const std::string_view& name) : name_{name} {}
 };
 
+struct check_option{
+  using type = bool;
+  std::string name_;
+  std::optional<bool> default_{std::nullopt};
+
+  std::optional<bool> maybe_read(const std::string& cmd) const {
+    std::regex regex("setoption name " + name_ + " value (true|false)");
+    if(auto matches = std::smatch{}; std::regex_search(cmd, matches, regex)){
+      return "true" == matches.str(1);
+    }
+    return std::nullopt;
+  }
+
+  check_option(const std::string_view& name) : name_{name} {}
+
+  check_option(const std::string_view& name, const bool& def) : name_{name}, default_{def} {}
+};
 
 std::ostream& operator<<(std::ostream& ostr, const string_option& opt){
   ostr << "option name " << opt.name_ << " type string";
@@ -99,7 +116,7 @@ std::ostream& operator<<(std::ostream& ostr, const spin_option& opt){
     ostr << " default " << opt.default_.value(); 
   }
   if(opt.range_.has_value()){
-    ostr << " min " << opt.range_.value().min << " max " << opt.range_.value().max;
+    ostr << " min " << opt.range_ -> min << " max " << opt.range_ -> max;
   }
   return ostr;
 }
@@ -109,8 +126,20 @@ std::ostream& operator<<(std::ostream& ostr, const button_option& opt){
   return ostr;
 }
 
+std::ostream& operator<<(std::ostream& ostr, const check_option& opt){
+  ostr << "option name " << opt.name_ << " type check";
+  if(opt.default_.has_value()){
+    ostr << std::boolalpha << " default " << opt.default_.value();
+  }
+  return ostr;
+}
+
 template<typename T>
-inline constexpr bool is_option_v = std::is_same_v<T, spin_option> || std::is_same_v<T, string_option> || std::is_same_v<T, button_option>;
+inline constexpr bool is_option_v = 
+  std::is_same_v<T, spin_option> || 
+  std::is_same_v<T, string_option> || 
+  std::is_same_v<T, button_option> ||
+  std::is_same_v<T, check_option>;
 
 template<typename T>
 struct option_callback{

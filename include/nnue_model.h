@@ -72,17 +72,28 @@ struct feature_transformer{
 template<typename T>
 struct eval : chess::sided<eval<T>, feature_transformer<T>>{
   const weights<T>* weights_;
+  bool is_armageddon_;
+
   feature_transformer<T> white;
   feature_transformer<T> black;
 
-  inline stack_vector<T, 3> propagate(const bool pov) const {
+  inline stack_vector<T, 3> propagate(const bool& pov) const {
     const auto w_x = white.active();
     const auto b_x = black.active();
     const auto x0 = pov ? splice(w_x, b_x).apply_(relu<T>) : splice(b_x, w_x).apply_(relu<T>);
     const auto x1 = (weights_ -> fc0).forward(x0).apply_(relu<T>);
     const auto x2 = splice(x1, (weights_ -> fc1).forward(x1).apply_(relu<T>));
     const auto x3 = splice(x2, (weights_ -> fc2).forward(x2).apply_(relu<T>));
-    return (weights_ -> fc3).forward(x3).softmax_();
+    
+    auto wdl = (weights_ -> fc3).forward(x3).softmax_();
+    
+    if(is_armageddon_){
+      // if in armageddon mode, what would have been a draw is now a black win
+      if(pov){ wdl.data[2] += wdl.data[1]; }else{ wdl.data[0] += wdl.data[1]; }
+      wdl.data[1] = static_cast<T>(0);
+    }
+
+    return wdl;
   }
 
   inline search::wdl_type wdl(const bool pov) const {
@@ -106,7 +117,7 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>>{
     return static_cast<search::score_type>(value);
   }
   
-  eval(const weights<T>* src) : weights_{src}, white{&(src -> w)}, black{&(src -> b)} {}
+  eval(const weights<T>* src, const bool& is_armageddon=false) : weights_{src}, is_armageddon_{is_armageddon}, white{&(src -> w)}, black{&(src -> b)} {}
 };
 
 }

@@ -25,7 +25,8 @@ namespace engine{
   
 struct uci{
   using weight_type = float;
-  
+
+  static constexpr bool default_armageddon = false;
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 16;
   static constexpr std::string_view default_weight_path = "EMBEDDED";
@@ -75,7 +76,15 @@ struct uci{
       pool_.resize(new_count);
     });
 
-    return uci_options(weight_path, hash_size, thread_count);
+    auto armageddon = option_callback(check_option("Armageddon", default_armageddon), [this](const bool& val){
+      if(val){
+        pool_.enable_armageddon(); 
+      } else { 
+        pool_.disable_armageddon();
+      }
+    });
+
+    return uci_options(weight_path, hash_size, thread_count, armageddon);
   }
   
   void uci_new_game(){
