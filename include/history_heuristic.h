@@ -11,12 +11,20 @@
 #include <position_history.h>
 #include <move.h>
 
+#include <move_prediction.h>
+
 namespace chess{
 
 struct history_heuristic{
   using value_type = search::counter_type;
   static constexpr size_t num_squares = 64;
   static constexpr size_t num_pieces = 6;
+
+
+  size_t N{0};
+  double mean_loss{0.0};
+  prediction::test_model test_{};
+
 
   std::array<value_type, num_squares * num_squares> butterfly_{};
   std::array<value_type, num_pieces * num_squares * num_pieces * num_squares> counter_{};
@@ -79,6 +87,20 @@ struct history_heuristic{
     const value_type gain = std::min(history_max, static_cast<value_type>(depth) * static_cast<value_type>(depth));
     std::for_each(tried.begin(), tried.end(), [single_update, gain](const move& mv){ single_update(mv, -gain); });
     single_update(best_move, gain);
+
+
+    for(const auto& mv : tried){ 
+      mean_loss = mean_loss * (static_cast<double>(N) / static_cast<double>(N+1)) +
+        test_.add_negative(prediction::sample{mv, counter, follow}) *  (static_cast<double>(1) / static_cast<double>(N+1)); 
+      ++N;
+    }
+    
+    mean_loss = mean_loss * (static_cast<double>(N) / static_cast<double>(N+1)) +
+      test_.add_positive(prediction::sample{best_move, counter, follow}) *  (static_cast<double>(1) / static_cast<double>(N+1));
+    ++N;
+
+    std::cout << "mean_loss :: " << mean_loss << std::endl;
+
     return *this;
   }
 
