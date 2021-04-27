@@ -33,6 +33,8 @@ namespace simd{
 constexpr size_t alignment = 32;
 #elif __SSE__
 constexpr size_t alignment = 16;
+#else
+constexpr size_t alignment = 16;
 #endif
 
 template<typename T, size_t N>

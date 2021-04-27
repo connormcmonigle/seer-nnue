@@ -190,8 +190,8 @@ struct time_manager{
     if(get<go::movestogo>().has_value()){
       // handle cyclical time controls (x / y + z)
       const go::movestogo::type moves_to_go = get<go::movestogo>().value();
-      min_budget =  2 * (remaining - over_head) / (3 * (5 + moves_to_go)) + inc;
-      max_budget = 10 * (remaining - over_head) / (10 + moves_to_go) + inc;
+      min_budget =  2 * (remaining - over_head) / (3 * moves_to_go) + inc;
+      max_budget = 10 * (remaining - over_head) / (3 * moves_to_go) + inc;
     }else{
       // handle incremental time controls (x + z)
       min_budget = (remaining - over_head + 25 * inc) / 30;
@@ -199,8 +199,8 @@ struct time_manager{
     }
 
     // avoid time losses by capping budget to 4/5 remaining time
-    min_budget = std::min(4 * remaining / 5, min_budget);
-    max_budget = std::min(4 * remaining / 5, max_budget);
+    min_budget = std::min(4 * (remaining - over_head) / 5, min_budget);
+    max_budget = std::min(4 * (remaining - over_head) / 5, max_budget);
 
     return *this;
   }
