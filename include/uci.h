@@ -140,9 +140,7 @@ struct uci{
     is_searching_.store(true);
     manager_.init(position.turn(), line);
     timer_.lap();
-
-    pool_.set_position(history, position);
-    pool_.go();
+    pool_.go(history, position);
   }
 
   void stop(){

@@ -105,8 +105,7 @@ struct train_interface{
       }
     );
 
-    worker -> set_position(hist, state);
-    worker -> go(config::init_depth);
+    worker -> go(hist, state, config::init_depth);
     worker -> iterative_deepening_loop_();
     if(timer.elapsed() >= config::timeout){ return std::nullopt; }
     hist.push_(state.hash());
@@ -120,8 +119,7 @@ struct train_interface{
       if(const auto terminal = terminality(hist, state); std::get<bool>(terminal)){ return continuation_type{hist, state}; }
       if(last_move.is_quiet() && state.num_pieces() != man_0){ return continuation_type{hist, state}; }
 
-      worker -> set_position(hist, state);
-      worker -> go(config::init_depth);
+      worker -> go(hist, state, config::init_depth);
       worker -> iterative_deepening_loop_();
       if(timer.elapsed() >= config::timeout){ return std::nullopt; }
       hist.push_(state.hash());

@@ -84,8 +84,7 @@ bench_info get_bench_info(const nnue::weights<T>& weights){
   size_t total_nodes{};
 
   for(const auto& fen : bench_config::fens){
-    worker -> set_position(chess::position_history{}, chess::board::parse_fen(std::string(fen)));
-    worker -> go(bench_config::init_depth);
+    worker -> go(chess::position_history{}, chess::board::parse_fen(std::string(fen)), bench_config::init_depth);
     worker -> iterative_deepening_loop_();
     total_nodes += worker -> nodes();
   }

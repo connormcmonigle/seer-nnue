@@ -31,7 +31,6 @@ template<bool is_root>
 using pv_search_result_t = typename pv_search_result<is_root>::type;
 
 struct internal_state{
-  std::mutex search_mutex{};
   search::stack stack{position_history{}, board::start_pos()};
   sided_history_heuristic hh{};
   eval_cache cache{};
@@ -41,7 +40,7 @@ struct internal_state{
   std::atomic<search::depth_type> depth{};
   
   std::atomic<search::score_type> score{};
-  std::atomic<std::uint32_t> best_move{};
+  std::atomic_uint32_t best_move{};
 };
 
 template<typename T>
@@ -421,8 +420,6 @@ struct thread_worker{
   }
 
   void iterative_deepening_loop_(){
-    std::lock_guard search_lck(internal.search_mutex);
-
     const auto evaluator = [this]{
       nnue::eval<T> result(external.weights);
       internal.stack.root_pos().show_init(result);
@@ -493,23 +490,18 @@ struct thread_worker{
   move best_move() const { return move{internal.best_move.load()}; }
   search::score_type score() const { return internal.score.load(); }
 
-  void go(const search::depth_type& start_depth){    
-    loop.next([start_depth, this]{
+  void go(const position_history& hist, const board& bd, const search::depth_type& start_depth){    
+    loop.next([hist, bd, start_depth, this]{
       internal.nodes.store(0);
       internal.depth.store(start_depth);
       internal.is_stable.store(false);
+      internal.stack = search::stack(hist, bd);
+      internal.hh.clear();
+      internal.cache.clear();
     });
   }
 
   void stop(){ loop.complete_iter(); }
-
-  thread_worker<T, is_active>& set_position(const position_history& hist, const board& bd){
-    std::lock_guard search_lck(internal.search_mutex);
-    internal.stack = search::stack(hist, bd);
-    internal.hh.clear();
-    internal.cache.clear();
-    return *this;
-  }
 
   thread_worker(
     const nnue::weights<T>* weights,
@@ -541,12 +533,12 @@ struct worker_pool{
     }
   }
 
-  void go(){
+  void go(const position_history& hist, const board& bd){
     // increment table generation at start of search
     tt_ -> update_gen();
     for(size_t i(0); i < pool_.size(); ++i){
       const search::depth_type start_depth = 1 + static_cast<search::depth_type>(i % 2);
-      pool_[i] -> go(start_depth);
+      pool_[i] -> go(hist, bd, start_depth);
     }
   }
 
@@ -555,13 +547,9 @@ struct worker_pool{
   }
 
   size_t nodes() const {
-    return std::accumulate(pool_.cbegin(), pool_.cend(), static_cast<size_t>(0), [](const size_t& count, const auto& worker){
+    return std::accumulate(pool_.begin(), pool_.end(), static_cast<size_t>(0), [](const size_t& count, const auto& worker){
       return count + worker -> nodes();
     });
-  }
-
-  void set_position(const position_history& hist, const board& bd){
-    for(auto& worker : pool_){ worker -> set_position(hist, bd); }
   }
 
   thread_worker<T>& primary_worker(){
