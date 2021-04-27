@@ -13,7 +13,7 @@ Seer is an original, strong UCI chess engine. Seer relies on a unique neural net
   (training scripts use PyTorch for GPU acceleration and can be found [here](https://github.com/connormcmonigle/seer-training).
 - Plain magic bitboard move generation with constexpr compile time generated attack tables.
 - Principal variation search inside an iterative deepening framework
-- Lockless shared transposition table (board state Zobrist hash is incrementally updated)
+- Lockless shared transposition table (using Zobrist hashing)
 - Move Ordering (SEE for captures + Killer Move, Combined Butterfly History, Counter Move History and Follow Up History for quiets)
 - History pruning as well as SEE pruning in QSearch
 - History extensions
@@ -24,9 +24,9 @@ Seer is an original, strong UCI chess engine. Seer relies on a unique neural net
 - Aspiration windows
 
 ### Compiling
-
+The latest network can be found [here](https://github.com/connormcmonigle/seer-training/releases)
 ```
 cd build
-cmake ..
-make seer
+wget -O eval.bin https://github.com/connormcmonigle/seer-training/releases/download/0xbd25a7d4/0xbd25a7d4.bin
+make pgo EVALFILE=eval.bin
 ```
