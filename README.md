@@ -10,7 +10,7 @@ Seer is an original, strong UCI chess engine. Seer relies on a unique neural net
 
 ### Features
 - Completely from scratch neural network training and execution (using OpenMP SIMD directives and SIMD intrinsics) implementation 
-  (training scripts use PyTorch for GPU acceleration and can be found [here](https://github.com/connormcmonigle/seer-training).
+  (training scripts use PyTorch for GPU acceleration and can be found [here](https://github.com/connormcmonigle/seer-training)).
 - Plain magic bitboard move generation with constexpr compile time generated attack tables.
 - Principal variation search inside an iterative deepening framework
 - Lockless shared transposition table (using Zobrist hashing)
