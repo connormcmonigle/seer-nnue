@@ -25,14 +25,12 @@ inline T dot_product(const T* a, const T* b){
 #ifdef __AVX2__
   if constexpr(std::is_same_v<T, float>){
     static_assert(alignment % sizeof(T) == 0, "alignment must be divisible by sizeof(T)");
-    constexpr size_t num_units = 4;
+    constexpr size_t num_units = 2;
     constexpr size_t per_unit = alignment / sizeof(T);
     constexpr size_t per_iteration = per_unit * num_units;
     static_assert(N % per_iteration == 0, "N must be divisible by per_iteration");
     __m256 sum_0 = _mm256_setzero_ps();
     __m256 sum_1 = _mm256_setzero_ps();
-    __m256 sum_2 = _mm256_setzero_ps();
-    __m256 sum_3 = _mm256_setzero_ps();
 
     for(size_t i(0); i < N; i += per_iteration, a += per_iteration, b += per_iteration){
       {
@@ -44,19 +42,9 @@ inline T dot_product(const T* a, const T* b){
         const __m256 a_1 = _mm256_load_ps(a + 1*8); const __m256 b_1 = _mm256_load_ps(b + 1*8);
         sum_1 = _mm256_fmadd_ps(a_1, b_1, sum_1);
       }
-
-      {
-        const __m256 a_2 = _mm256_load_ps(a + 2*8); const __m256 b_2 = _mm256_load_ps(b + 2*8);
-        sum_2 = _mm256_fmadd_ps(a_2, b_2, sum_2);
-      }
-
-      {
-        const __m256 a_3 = _mm256_load_ps(a + 3*8); const __m256 b_3 = _mm256_load_ps(b + 3*8);
-        sum_3 = _mm256_fmadd_ps(a_3, b_3, sum_3);
-      }
     }
 
-    const __m256 reduced_8  = _mm256_add_ps(_mm256_add_ps(sum_0, sum_1), _mm256_add_ps(sum_2, sum_3));
+    const __m256 reduced_8  = _mm256_add_ps(sum_0, sum_1);
     // avoids extra move instruction by casting sum, adds lower 4 float elements to upper 4 float elements 
     const __m128 reduced_4 = _mm_add_ps(_mm256_castps256_ps128(reduced_8), _mm256_extractf128_ps(reduced_8, 1));
     // adds lower 2 float elements to the upper 2

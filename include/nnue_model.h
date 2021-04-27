@@ -13,17 +13,17 @@
 namespace nnue{
 
 constexpr size_t half_ka_numel = 768*64;
-constexpr size_t base_dim = 128;
+constexpr size_t base_dim = 160;
 
 template<typename T>
 struct weights{
   typename weights_streamer<T>::signature_type signature_{0};
   big_affine<T, half_ka_numel, base_dim> w{};
   big_affine<T, half_ka_numel, base_dim> b{};
-  stack_affine<T, 2*base_dim, 32> fc0{};
-  stack_affine<T, 32, 32> fc1{};
-  stack_affine<T, 64, 32> fc2{};
-  stack_affine<T, 96, 3> fc3{};
+  stack_affine<T, 2*base_dim, 16> fc0{};
+  stack_affine<T, 16, 16> fc1{};
+  stack_affine<T, 32, 16> fc2{};
+  stack_affine<T, 48, 3> fc3{};
 
   size_t signature() const { return signature_; }
   
