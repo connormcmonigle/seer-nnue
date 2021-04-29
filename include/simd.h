@@ -62,12 +62,12 @@ inline T dot_product(const T* a, const T* b){
     for(size_t i(0); i < N; i += per_iteration, a += per_iteration, b += per_iteration){
       {
         const __m256 a_0 = _mm256_load_ps(a + 0*per_unit); const __m256 b_0 = _mm256_load_ps(b + 0*per_unit);
-        sum_0 = _mm256_fmadd_ps(a_0, b_0, sum_0);
+        sum_0 = _mm256_add_ps(_mm256_mul_ps(a_0, b_0), sum_0);
       }
 
       {
         const __m256 a_1 = _mm256_load_ps(a + 1*per_unit); const __m256 b_1 = _mm256_load_ps(b + 1*per_unit);
-        sum_1 = _mm256_fmadd_ps(a_1, b_1, sum_1);
+        sum_1 = _mm256_add_ps(_mm256_mul_ps(a_1, b_1), sum_1);
       }
     }
 
