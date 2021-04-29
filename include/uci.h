@@ -217,49 +217,18 @@ struct uci{
     }
   }
 
-  void update(){
-    const search_info info{pool_.primary_worker().depth(), pool_.primary_worker().is_stable()};
-    if(is_searching() && manager_.should_stop(info)){ stop(); }
-  }
-
   uci() : 
-    pool_(&weights_, default_hash_size, [this](auto&&... args){ info_string(args...); })
+    pool_(
+      &weights_,
+      default_hash_size, 
+      [this](const auto& worker){ info_string(worker); },
+      [this](const auto& worker){ if(manager_.should_stop(search_info{worker.depth(), worker.is_stable()})){ stop(); } }
+    )
   {
     nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
     weights_.load(embedded);
     pool_.resize(default_thread_count);
   }
-};
-
-template<typename U>
-struct command_loop{
-  std::mutex command_mutex_;
-  std::atomic_bool running_;
-  std::thread thread_;
-  
-  template<typename T>
-  command_loop(U& u, const T& interval) : 
-    running_{true},  
-    thread_([&u, interval, this]{
-      while(running_.load() && !u.should_quit()){
-        std::this_thread::sleep_for(interval);
-        std::lock_guard<std::mutex> lk(command_mutex_); 
-        u.update();
-      }
-    })
-  {
-    std::string line{};
-    while(running_.load() && !u.should_quit() && std::getline(std::cin, line)){
-      std::lock_guard<std::mutex> lk(command_mutex_); 
-      u.read(line);
-    }
-  }
-
-  ~command_loop(){
-    running_.store(false);
-    thread_.join();
-  }
-
 };
 
 }
