@@ -117,6 +117,8 @@ struct search_info{
 };
 
 struct time_manager{
+  std::mutex access_mutex_;
+
   std::tuple<
     named_numeric_param<go::wtime>,
     named_numeric_param<go::btime>,
@@ -173,6 +175,7 @@ struct time_manager{
   }
 
   time_manager& init(const bool& pov, const std::string& line){
+    std::lock_guard<std::mutex> access_lk(access_mutex_);
     search_start = std::chrono::steady_clock::now();
     read(line);
     // early return if depth limited or infinite search
@@ -205,7 +208,9 @@ struct time_manager{
     return *this;
   }
 
-  bool should_stop(const search_info& info) const {
+  bool should_stop(const search_info& info){
+    std::lock_guard<std::mutex> access_lk(access_mutex_);
+    if(search::max_depth_ <= info.depth){ return true; }
     // never stop an infinite search
     if(get<go::infinite>()){ return false; }
     // stopping conditions

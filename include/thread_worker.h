@@ -66,17 +66,20 @@ struct external_state{
   std::shared_ptr<transposition_table> tt;
   std::shared_ptr<search::constants> constants;
   std::function<void(const T&)> on_iter;
+  std::function<void(const T&)> on_update;
 
   external_state(
     const nnue::weights<typename T::weight_type>* weights_,
     std::shared_ptr<transposition_table> tt_,
     std::shared_ptr<search::constants> constants_,
-    std::function<void(const T&)>& on_iter_
+    std::function<void(const T&)>& on_iter_,
+    std::function<void(const T&)> on_update_
   ) : 
     weights{weights_},
     tt{tt_},
     constants{constants_},
-    on_iter{on_iter_} {}
+    on_iter{on_iter_},
+    on_update{on_update_} {}
 };
 
 template<bool is_active>
@@ -222,6 +225,9 @@ struct thread_worker{
     };
     
     assert(depth >= 0);
+    
+    // callback on entering main search function
+    if(loop.keep_going()){ external.on_update(*this); }
 
     // step 1. drop into qsearch if depth reaches zero
     if(depth <= 0) { return make_result(q_search<is_pv>(ss, eval, bd, alpha, beta, 0), move::null()); }
@@ -445,7 +451,7 @@ struct thread_worker{
 
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
-    for(; loop.keep_going() && internal.depth < (external.constants -> max_depth()); ++internal.depth){
+    for(; loop.keep_going() && internal.depth <= (external.constants -> max_depth()); ++internal.depth){
       // update aspiration window once reasonable evaluation is obtained
       if(internal.depth >= external.constants -> aspiration_depth()){
         const search::score_type previous_score = internal.score;
@@ -525,9 +531,10 @@ struct thread_worker{
     const nnue::weights<T>* weights,
     std::shared_ptr<transposition_table> tt,
     std::shared_ptr<search::constants> constants,
-    std::function<void(const thread_worker<T, is_active>&)> on_iter = [](auto&&...){}
+    std::function<void(const thread_worker<T, is_active>&)> on_iter = [](auto&&...){},
+    std::function<void(const thread_worker<T, is_active>&)> on_update = [](auto&&...){}
   ) : 
-    external(weights, tt, constants, on_iter),
+    external(weights, tt, constants, on_iter, on_update),
     loop([this](){ iterative_deepening_loop_(); }) {}
 };
 
@@ -577,13 +584,14 @@ struct worker_pool{
   worker_pool(
     const nnue::weights<T>* weights, 
     size_t hash_table_size,
-    std::function<void(const thread_worker<T, true>&)> primary_callback = [](auto&&...){}
+    std::function<void(const thread_worker<T, true>&)> on_iter = [](auto&&...){},
+    std::function<void(const thread_worker<T, true>&)> on_update = [](auto&&...){}
   ) : 
       weights_{weights} 
   {
     tt_ = std::make_shared<transposition_table>(hash_table_size);
     constants_ = std::make_shared<search::constants>();
-    pool_.push_back(std::make_unique<thread_worker<T>>(weights, tt_, constants_, primary_callback));
+    pool_.push_back(std::make_unique<thread_worker<T>>(weights, tt_, constants_, on_iter, on_update));
   }
 };
 
