@@ -238,8 +238,14 @@ struct thread_worker{
     const bool is_check = bd.is_check();
     if(list.size() == 0 && is_check){ return make_result(ss.effective_mate_score(), move::null()); }
     if(list.size() == 0) { return make_result(search::draw_score, move::null()); }
-    if(!is_root && ss.is_two_fold(bd.hash())){ return make_result(search::draw_score, move::null()); }
     if(!is_root && bd.is_trivially_drawn()){ return make_result(search::draw_score, move::null()); }
+    
+    // randomize repetition draw scores to promote playing towards narrower draws when pressing and wider draws otherwise
+    if(!is_root && ss.is_two_fold(bd.hash())){
+      constexpr search::score_type radius = 2;
+      const search::score_type effective_draw_score = radius - internal.nodes % (2 * radius + 1);
+      return make_result(effective_draw_score, move::null()); 
+    }
   
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
