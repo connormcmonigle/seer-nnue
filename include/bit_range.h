@@ -20,30 +20,34 @@
 #include <utility>
 #include <cstdint>
 
-namespace bit{
+namespace bit {
 
-template<typename T, size_t B0, size_t B1>
-struct range{
+template <typename T, size_t B0, size_t B1>
+struct range {
   static_assert(B0 < B1, "wrong bit order");
   using type = T;
   static constexpr size_t first = B0;
   static constexpr size_t last = B1;
-  
-  template<typename I>
-  static constexpr T get(const I& i){
+
+  template <typename I>
+  static constexpr T get(const I& i) {
     constexpr int num_bits = 8 * sizeof(I);
-    static_assert(B1 < num_bits, "integral type accessed by bit::range::get has insufficient bits");
+    static_assert(
+        B1 < num_bits,
+        "integral type accessed by bit::range::get has insufficient bits");
     constexpr I one = static_cast<I>(1);
     constexpr I b0 = static_cast<I>(first);
     constexpr I b1 = static_cast<I>(last);
     constexpr I mask = (one << (b1 - b0)) - one;
     return static_cast<T>((i >> b0) & mask);
   }
-  
-  template<typename I>
-  static constexpr void set(I& i, const T& info){
+
+  template <typename I>
+  static constexpr void set(I& i, const T& info) {
     constexpr int num_bits = 8 * sizeof(I);
-    static_assert(B1 < num_bits, "integral type accessed by bit::range::set has insufficient bits");
+    static_assert(
+        B1 < num_bits,
+        "integral type accessed by bit::range::set has insufficient bits");
     constexpr I one = static_cast<I>(1);
     constexpr I b0 = static_cast<I>(first);
     constexpr I b1 = static_cast<I>(last);
@@ -54,7 +58,6 @@ struct range{
   }
 };
 
-template<size_t B> 
-using flag = range<bool, B, B+1>;
-
+template <size_t B>
+using flag = range<bool, B, B + 1>;
 }
