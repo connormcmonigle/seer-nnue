@@ -59,7 +59,6 @@ struct stack_vector{
   }
 
   inline stack_vector<T, dim>& add_(const T* other){
-#pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] += other[i];
     }
@@ -67,7 +66,6 @@ struct stack_vector{
   }
   
   inline stack_vector<T, dim>& sub_(const T* other){
-#pragma omp simd
     for(size_t i = 0; i < dim; ++i){
       data[i] -= other[i];
     }

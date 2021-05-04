@@ -221,7 +221,7 @@ struct castle_info_<color::black>{
   square_set oo_mask;
  
   square_set ooo_danger_mask;
-  square_set ooo_occ_mask;;
+  square_set ooo_occ_mask;
  
   constexpr castle_info_() :
     oo_rook{oo_rook_tbl.to_square()},

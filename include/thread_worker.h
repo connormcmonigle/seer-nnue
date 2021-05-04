@@ -121,7 +121,7 @@ struct controlled_loop{
   controlled_loop(const controlled_loop<is_active>& other) = delete;
   controlled_loop(controlled_loop<is_active>&& other) = delete;
 
-  controlled_loop(std::function<void()> f) : active_([f, this]{ if constexpr(is_active){ loop_(f); } }) {}
+  controlled_loop(std::function<void()> f) : active_([f, this]{ (void)this; if constexpr(is_active){ loop_(f); } }) {}
 
   ~controlled_loop(){
     kill_.store(true, std::memory_order_relaxed);
