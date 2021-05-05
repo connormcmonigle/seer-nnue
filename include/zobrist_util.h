@@ -18,17 +18,16 @@
 #pragma once
 
 #include <array>
-#include <limits>
 #include <cstdint>
+#include <limits>
 #include <random>
 
-namespace zobrist{
-
+namespace zobrist {
 
 using hash_type = std::uint64_t;
 constexpr std::mt19937::result_type seed = 0x019ec6dc;
-  
-inline hash_type random_bit_string(){
+
+inline hash_type random_bit_string() {
   static std::mt19937 gen(seed);
   constexpr hash_type a = std::numeric_limits<hash_type>::min();
   constexpr hash_type b = std::numeric_limits<hash_type>::max();
@@ -36,4 +35,4 @@ inline hash_type random_bit_string(){
   return dist(gen);
 }
 
-}
+}  // namespace zobrist

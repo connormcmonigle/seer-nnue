@@ -21,7 +21,7 @@
 #define INCBIN_STYLE INCBIN_STYLE_SNAKE
 #include <incbin/incbin.h>
 
-namespace embed{
+namespace embed {
 
 INCBIN(weights_file, EVALFILE);
 
