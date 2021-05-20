@@ -103,6 +103,8 @@ struct transposition_table {
   std::vector<transposition_table_entry>::const_iterator begin() const { return data.cbegin(); }
   std::vector<transposition_table_entry>::const_iterator end() const { return data.cend(); }
 
+  void prefetch(const zobrist::hash_type& key) const { __builtin_prefetch(data.data() + hash_function(key)); }
+
   void resize(size_t size) {
     const size_t new_size = size * one_mb - ((size * one_mb) % bucket_size);
     data.resize(new_size, transposition_table_entry{});

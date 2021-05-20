@@ -198,10 +198,13 @@ struct thread_worker {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
       if (!is_check && bd.see<search::see_type>(mv) < 0) { continue; }
-
       ss.set_played(mv);
-      const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
+
       const board bd_ = bd.forward(mv);
+      external.tt->prefetch(bd_.hash());
+
+      const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
+
       const search::score_type score = -q_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
 
       if (score > best_score) {
@@ -346,6 +349,7 @@ struct thread_worker {
         if (futility_prune) { continue; }
       }
 
+      external.tt->prefetch(bd_.hash());
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
       // step 10. extensions
