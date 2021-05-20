@@ -48,8 +48,8 @@ struct transposition_table_entry {
   using generation_type = std::uint32_t;
 
   using type_ = bit::range<bound_type, 0, 2>;
-  using score_ = bit::range<search::score_type, 2, 34>;
-  using best_move_ = bit::range<std::uint32_t, 34, 34 + move::width>;
+  using score_ = bit::next_range<type_, search::score_type>;
+  using best_move_ = bit::next_range<score_, move::data_type, move::width>;
 
   zobrist::hash_type key_;
   zobrist::hash_type value_;

@@ -32,17 +32,19 @@ namespace chess {
 inline constexpr std::array<piece_type, 4> promotion_types = {piece_type::knight, piece_type::bishop, piece_type::rook, piece_type::queen};
 
 struct move {
-  std::uint32_t data{0};
-
-  static constexpr size_t width = 29;
   using from_ = bit::range<std::uint8_t, 0, 6>;
-  using to_ = bit::range<std::uint8_t, 6, 12>;
-  using piece_ = bit::range<piece_type, 12, 15>;
-  using is_capture_ = bit::flag<15>;
-  using is_enpassant_ = bit::flag<16>;
-  using captured_ = bit::range<piece_type, 17, 20>;
-  using enpassant_sq_ = bit::range<std::uint8_t, 20, 26>;
-  using promotion_ = bit::range<piece_type, 26, 29>;
+  using to_ = bit::next_range<from_, std::uint8_t, 6>;
+  using piece_ = bit::next_range<to_, piece_type, 3>;
+  using is_capture_ = bit::next_flag<piece_>;
+  using is_enpassant_ = bit::next_flag<is_capture_>;
+  using captured_ = bit::next_range<is_enpassant_, piece_type, 3>;
+  using enpassant_sq_ = bit::next_range<captured_, std::uint8_t, 6>;
+  using promotion_ = bit::next_range<enpassant_sq_, piece_type, 3>;
+
+  static constexpr size_t width = promotion_::last;
+  using data_type = std::uint32_t;
+
+  data_type data{0};
 
   template <typename B>
   constexpr typename B::type get_field_() const {

@@ -57,4 +57,10 @@ struct range {
 template <size_t B>
 using flag = range<bool, B, B + 1>;
 
+template<typename R>
+using next_flag = flag<R::last>;
+
+template<typename R, typename T, size_t width = 8*sizeof(T)>
+using next_range = range<T, R::last, R::last + width>;
+
 }  // namespace bit

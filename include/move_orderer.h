@@ -52,10 +52,10 @@ struct move_orderer_data {
 };
 
 struct move_orderer_entry {
-  using first_ = bit::flag<34>;
-  using nonnegative_noisy_ = bit::flag<33>;
-  using killer_ = bit::flag<32>;
   using value_ = bit::range<std::uint32_t, 0, 32>;
+  using killer_ = bit::next_flag<value_>;
+  using nonnegative_noisy_ = bit::next_flag<killer_>;
+  using first_ = bit::next_flag<nonnegative_noisy_>;
 
   move mv;
   std::uint64_t data{0};
