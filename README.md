@@ -1,6 +1,9 @@
-# Seer
+<p align="center">
+  <img src="logo/logo_1.png" height="100" width="200">
+</p>
+<h1 align="center">Seer</h1>
 
-Seer is an original, strong UCI chess engine. Seer relies on a unique neural network estimating WDL probabilities for position evaluation. Seer's network is trained through a novel retrograde learning approach starting only from 6-man syzygy EGTB WDL values. These initial WDL scores are then iteratively backed up to 32-man chess positions using Seer's search to find continuations from N-man chess positions to N-1-man chess positions ([implementation](https://github.com/connormcmonigle/seer-training)). Seer uses a conventional alpha-beta search combined with "Lazy SMP" (shared transposition table) for multithreading support.
+Seer is an original, strong UCI chess engine. Seer relies on a neural network estimating WDL probabilities for position evaluation. Seer's network is trained through a novel retrograde learning approach starting only from 6-man syzygy EGTB WDL values. These initial WDL scores are then iteratively backed up to 32-man chess positions using Seer's search to find continuations from N-man chess positions to N-1-man chess positions ([implementation](https://github.com/connormcmonigle/seer-training)). Seer uses a conventional alpha-beta search combined with "Lazy SMP" (shared transposition table) for multithreading support.
 
 ### UCI Options
 - Clear Hash
@@ -9,7 +12,7 @@ Seer is an original, strong UCI chess engine. Seer relies on a unique neural net
 - Weights (The absolute path to a binary weights file. This option must be set.)
 
 ### Features
-- Completely from scratch neural network training and execution (using OpenMP SIMD directives and SIMD intrinsics) implementation 
+- From scratch neural network training and execution (using OpenMP SIMD directives and SIMD intrinsics) implementation 
   (training scripts use PyTorch for GPU acceleration and can be found [here](https://github.com/connormcmonigle/seer-training)).
 - Plain magic bitboard move generation with constexpr compile time generated attack tables.
 - Principal variation search inside an iterative deepening framework
@@ -28,5 +31,5 @@ The latest network can be found [here](https://github.com/connormcmonigle/seer-t
 ```
 cd build
 wget -O eval.bin https://github.com/connormcmonigle/seer-training/releases/download/0xbd25a7d4/0xbd25a7d4.bin
-make pgo EVALFILE=eval.bin
+make EVALFILE=eval.bin
 ```
