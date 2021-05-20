@@ -63,6 +63,11 @@ struct internal_state {
 
   std::atomic<search::score_type> score{};
   std::atomic_uint32_t best_move{};
+
+  inline bool one_of_512() const {
+    constexpr size_t bit_pattern = 511;
+    return (nodes & bit_pattern) == bit_pattern;
+  }
 };
 
 template <typename T>
@@ -152,6 +157,10 @@ struct thread_worker {
       search::score_type alpha,
       const search::score_type& beta,
       const search::depth_type& elevation) {
+    // callback on entering search function
+    const bool should_update = loop.keep_going() && internal.one_of_512();
+    if (should_update) { external.on_update(*this); }
+
     ++internal.nodes;
     const move_list list = bd.generate_loud_moves();
     const bool is_check = bd.is_check();
@@ -241,8 +250,10 @@ struct thread_worker {
 
     assert(depth >= 0);
 
-    // callback on entering main search function
-    if (loop.keep_going()) { external.on_update(*this); }
+    // callback on entering search function
+    // callback on entering search function
+    const bool should_update = loop.keep_going() && (is_root || internal.one_of_512());
+    if (should_update) { external.on_update(*this); }
 
     // step 1. drop into qsearch if depth reaches zero
     if (depth <= 0) { return make_result(q_search<is_pv>(ss, eval, bd, alpha, beta, 0), move::null()); }
