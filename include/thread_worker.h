@@ -62,7 +62,7 @@ struct internal_state {
   std::atomic<search::depth_type> depth{};
 
   std::atomic<search::score_type> score{};
-  std::atomic_uint32_t best_move{};
+  std::atomic<move::data_type> best_move{};
 
   inline bool one_of_512() const {
     constexpr size_t bit_pattern = 511;
