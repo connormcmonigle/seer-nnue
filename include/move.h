@@ -111,7 +111,7 @@ struct move {
 
   constexpr move() : data{0} {}
 
-  constexpr move(std::uint32_t data) : data{data} {}
+  constexpr move(const data_type& data) : data{data} {}
 
   constexpr move(
       square from,

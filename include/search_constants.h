@@ -69,6 +69,8 @@ using counter_type = std::int32_t;
 
 using see_type = std::int32_t;
 
+inline constexpr size_t nodes_per_update = 512;
+
 struct fixed_constants {
   static constexpr bool tuning = false;
   static constexpr depth_type lmr_tbl_dim = 64;
