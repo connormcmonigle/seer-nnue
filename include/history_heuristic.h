@@ -105,9 +105,36 @@ struct history_heuristic {
   }
 };
 
-struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristic> {
-  history_heuristic white;
-  history_heuristic black;
+struct split_history_heuristic {
+  static constexpr search::depth_type split_height = 8;
+  history_heuristic low_height{};
+  history_heuristic high_height{};
+
+  split_history_heuristic& clear() {
+    low_height.clear();
+    high_height.clear();
+    return *this;
+  }
+
+  template<typename ... Ts>
+  split_history_heuristic& update(const search::depth_type& height, Ts&&... ts) {
+    if (height <= split_height) {
+      low_height.update(std::forward<Ts>(ts)...);
+    } else {
+      high_height.update(std::forward<Ts>(ts)...);
+    }
+    return *this;
+  }
+  
+  template<typename ... Ts>
+  history_heuristic::value_type compute_value(const search::depth_type& height, Ts&&... ts) const {
+    return height <= split_height ? low_height.compute_value(std::forward<Ts>(ts)...) : high_height.compute_value(std::forward<Ts>(ts)...);
+  }
+};
+
+struct sided_history_heuristic : sided<sided_history_heuristic, split_history_heuristic> {
+  split_history_heuristic white;
+  split_history_heuristic black;
 
   sided_history_heuristic& clear() {
     white.clear();

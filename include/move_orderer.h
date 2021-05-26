@@ -20,6 +20,7 @@
 #include <bit_range.h>
 #include <history_heuristic.h>
 #include <move.h>
+#include <search_stack.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -36,17 +37,17 @@ constexpr std::uint32_t make_positive(const std::int32_t& x) {
 }
 
 struct move_orderer_data {
+  search::depth_type height{};
   move killer{};
   move follow{};
   move counter{};
   const board* bd{nullptr};
   move_list list{};
-  const history_heuristic* hh{nullptr};
+  const split_history_heuristic* hh{nullptr};
   move first{move::null()};
 
-  move_orderer_data(
-      const move& killer_, const move& follow_, const move& counter_, const board* bd_, const move_list& list_, const history_heuristic* hh_)
-      : killer{killer_}, follow{follow_}, counter{counter_}, bd{bd_}, list{list_}, hh{hh_} {}
+  move_orderer_data(const search::stack_view& ss, const board* bd_, const move_list& list_, const split_history_heuristic* hh_)
+      : height{ss.height()}, killer{ss.killer()}, follow{ss.follow()}, counter{ss.counter()}, bd{bd_}, list{list_}, hh{hh_} {}
 
   move_orderer_data() {}
 };
@@ -111,7 +112,7 @@ struct move_orderer_iterator {
   move_orderer_iterator(const move_orderer_data& data, const int& idx) : move_count_{data.list.size()}, idx_{idx} {
     std::transform(data.list.begin(), data.list.end(), entries_.begin(), [&data](const move& mv) {
       const bool quiet = mv.is_quiet();
-      const std::int32_t value = quiet ? data.hh->compute_value(data.follow, data.counter, mv) : data.bd->see<std::int32_t>(mv);
+      const std::int32_t value = quiet ? data.hh->compute_value(data.height, data.follow, data.counter, mv) : data.bd->see<std::int32_t>(mv);
       return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value);
     });
     update_list_();

@@ -171,7 +171,7 @@ struct thread_worker {
     if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
     if (bd.is_trivially_drawn()) { return search::draw_score; }
 
-    move_orderer orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &internal.hh.us(bd.turn())});
+    move_orderer orderer(move_orderer_data{ss, &bd, list, &internal.hh.us(bd.turn())});
 
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
@@ -270,11 +270,8 @@ struct thread_worker {
 
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
-    const move killer = ss.killer();
-    const move follow = ss.follow();
-    const move counter = ss.counter();
 
-    move_orderer orderer(move_orderer_data{killer, follow, counter, &bd, list, &internal.hh.us(bd.turn())});
+    move_orderer orderer(move_orderer_data{ss, &bd, list, &internal.hh.us(bd.turn())});
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
@@ -337,7 +334,7 @@ struct thread_worker {
       if (!loop.keep_going() || best_score >= beta) { break; }
       ss.set_played(mv);
 
-      const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(follow, counter, mv);
+      const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(ss.height(), ss.follow(), ss.counter(), mv);
 
       const board bd_ = bd.forward(mv);
 
@@ -432,7 +429,7 @@ struct thread_worker {
         const transposition_table_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
         external.tt->insert(entry);
         if (best_move.is_quiet()) {
-          internal.hh.us(bd.turn()).update(follow, counter, best_move, quiets_tried, depth);
+          internal.hh.us(bd.turn()).update(ss.height(), ss.follow(), ss.counter(), best_move, quiets_tried, depth);
           ss.set_killer(best_move);
         }
       } else {
