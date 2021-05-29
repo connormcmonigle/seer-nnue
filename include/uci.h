@@ -181,6 +181,15 @@ struct uci {
     os << get_bench_info(weights_) << std::endl;
   }
 
+  void eval() {
+    std::lock_guard<std::mutex> os_lok(os_mutex_);
+    auto evaluator = nnue::eval<weight_type>(&weights_);
+    position.show_init(evaluator);
+    os << "score: " << evaluator.evaluate(position.turn()) << std::endl;
+    const auto [w, d, l] = evaluator.propagate(position.turn()).data;
+    os << "(w, d, l): (" << w << ", " << d << ", " << l << ")" << std::endl;
+  }
+
   void quit() { should_quit_.store(true); }
 
   void read(const std::string& line) {
@@ -199,6 +208,8 @@ struct uci {
       os << position << std::endl;
     } else if (!is_searching() && line == "bench") {
       bench();
+    } else if (!is_searching() && line == "eval") {
+      eval();
     } else if (!is_searching() && std::regex_match(line, go_rgx)) {
       go(line);
     } else if (!is_searching() && std::regex_match(line, position_rgx)) {

@@ -1,5 +1,6 @@
 build/*
 !build/.gitkeep
 !build/makefile
+!build/makefile-clang
 *~
 .vscode/*

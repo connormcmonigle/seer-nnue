@@ -1,6 +1,6 @@
 EXE = seer
 SRC = ../src/seer.cc
-CC = g++
+CC = clang++
 
 EVALFILE = weights/0xbd25a7d4.bin
 
@@ -10,8 +10,8 @@ INCLUDE = ../include
 
 CXXFLAGS += -std=c++$(CXXSTANDARD)
 CXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp
-CXXFLAGS += -Wall -Wextra
-CXXFLAGS += -fconstexpr-ops-limit=$(OPSLIMIT)
+CXXFLAGS += -Wall -Wextra -Wpedantic
+CXXFLAGS += -fconstexpr-steps=$(OPSLIMIT)
 CXXFLAGS += -I$(INCLUDE)
 CXXFLAGS += -DEVALFILE=\"$(EVALFILE)\"
 
@@ -21,15 +21,19 @@ UBSANFLAGS += $(CXXFLAGS) -fsanitize=undefined
 
 LIBS = -lpthread
 
+PROFRAW = data.profraw
+PROFDATA = data.profdata
+
 default:
 	$(CC) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
 
 pgo:
-	rm -f *.gcda
-	$(CC) -fprofile-generate $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
+	rm -f $(PROFRAW) $(PROFDATA)
+	$(CC) -fprofile-instr-generate=$(PROFRAW) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
 	./$(EXE) bench
-	$(CC) -fprofile-use $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
-	rm -f *.gcda
+	llvm-profdata merge -output=$(PROFDATA) $(PROFRAW) 
+	$(CC) -fprofile-instr-use=$(PROFDATA) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
+	rm -f $(PROFRAW) $(PROFDATA)
 
 threadsan:
 	$(CC) $(SRC) $(THREADSANFLAGS) $(LIBS) -o $(EXE)
@@ -39,3 +43,4 @@ addresssan:
 
 ubsan:
 	$(CC) $(SRC) $(UBSANFLAGS) $(LIBS) -o $(EXE)
+
