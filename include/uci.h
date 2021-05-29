@@ -182,7 +182,7 @@ struct uci {
   }
 
   void eval() {
-    std::lock_guard<std::mutex> os_lok(os_mutex_);
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
     auto evaluator = nnue::eval<weight_type>(&weights_);
     position.show_init(evaluator);
     os << "score: " << evaluator.evaluate(position.turn()) << std::endl;
