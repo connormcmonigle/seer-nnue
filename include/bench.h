@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <board.h>
 #include <nnue_model.h>
 #include <search_constants.h>
 #include <thread_worker.h>
@@ -105,6 +106,20 @@ bench_info get_bench_info(const nnue::weights<T>& weights) {
   const size_t nodes_per_second = total_nodes * std::chrono::milliseconds(std::chrono::seconds(1)).count() / timer.elapsed().count();
 
   return bench_info{total_nodes, nodes_per_second};
+}
+
+size_t perft(const chess::board& bd, const search::depth_type& depth) {
+  if (depth == 0) { return bd.generate_moves().size(); }
+  size_t result{0};
+  for (const auto& mv : bd.generate_moves()) { result += perft(bd.forward(mv), depth - 1); }
+  return result;
+}
+
+bench_info get_perft_info(const chess::board& bd, const search::depth_type& depth) {
+  simple_timer<std::chrono::nanoseconds> timer{};
+  const size_t nodes = perft(bd, depth - 1);
+  const size_t nodes_per_second = nodes * std::chrono::nanoseconds(std::chrono::seconds(1)).count() / timer.elapsed().count();
+  return bench_info{nodes, nodes_per_second};
 }
 
 }  // namespace engine

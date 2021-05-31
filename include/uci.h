@@ -190,11 +190,21 @@ struct uci {
     os << "(w, d, l): (" << w << ", " << d << ", " << l << ")" << std::endl;
   }
 
+  void perft(const std::string& line) {
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    const std::regex perft_with_depth("perft ([0-9]+)");
+    if (std::smatch matches{}; std::regex_search(line, matches, perft_with_depth)) {
+      const search::depth_type depth = std::stoi(matches.str(1));
+      std::cout << get_perft_info(position, depth) << std::endl;
+    }
+  }
+
   void quit() { should_quit_.store(true); }
 
   void read(const std::string& line) {
     const std::regex position_rgx("position(.*)");
     const std::regex go_rgx("go(.*)");
+    const std::regex perft_rgx("perft(.*)");
 
     if (!is_searching() && line == "uci") {
       id_info();
@@ -210,6 +220,8 @@ struct uci {
       bench();
     } else if (!is_searching() && line == "eval") {
       eval();
+    } else if (!is_searching() && std::regex_match(line, perft_rgx)) {
+      perft(line);
     } else if (!is_searching() && std::regex_match(line, go_rgx)) {
       go(line);
     } else if (!is_searching() && std::regex_match(line, position_rgx)) {
