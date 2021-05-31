@@ -45,9 +45,9 @@ inline constexpr T wdl_scale = static_cast<T>(1024);
 
 using depth_type = std::int32_t;
 
-inline constexpr depth_type max_depth_ = 128;
+inline constexpr depth_type max_depth = 128;
 
-inline constexpr depth_type max_depth_margin_ = 8;
+inline constexpr depth_type max_depth_margin = 8;
 
 using score_type = std::int32_t;
 
@@ -57,7 +57,7 @@ inline constexpr score_type big_number = 256 * logit_scale<score_type>;
 
 inline constexpr score_type max_mate_score = -2 * big_number;
 
-inline constexpr score_type mate_score = max_mate_score - (max_depth_ + max_depth_margin_);
+inline constexpr score_type mate_score = max_mate_score - (max_depth + max_depth_margin);
 
 inline constexpr score_type draw_score = 0;
 
@@ -80,7 +80,6 @@ struct fixed_constants {
   const size_t& thread_count() const { return thread_count_; }
 
   constexpr depth_type reduce_depth() const { return 3; }
-  constexpr depth_type max_depth() const { return max_depth_; }
   constexpr depth_type aspiration_depth() const { return 4; }
   constexpr depth_type nmp_depth() const { return 2; }
   constexpr depth_type history_prune_depth() const { return 8; }
@@ -172,7 +171,6 @@ struct tuning_constants {
   std::array<depth_type, lmr_tbl_dim * lmr_tbl_dim> lmr_tbl{};
 
   const size_t& thread_count() const { return thread_count_; }
-  constexpr depth_type max_depth() const { return max_depth_; }
 
   depth_type reduce_depth() const { return reduce_depth_; }
   depth_type aspiration_depth() const { return aspiration_depth_; }

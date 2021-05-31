@@ -30,7 +30,7 @@
 
 namespace search {
 
-constexpr depth_type safe_depth_ = max_depth_ + max_depth_margin_;
+constexpr depth_type safe_depth_ = max_depth + max_depth_margin;
 
 struct stack_entry {
   zobrist::hash_type hash_{};

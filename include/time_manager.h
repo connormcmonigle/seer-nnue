@@ -216,9 +216,10 @@ struct time_manager {
 
   bool should_stop(const search_info& info) {
     std::lock_guard<std::mutex> access_lk(access_mutex_);
-    if (info.depth >= search::max_depth_) { return true; }
     // never stop an infinite search
     if (get<go::infinite>()) { return false; }
+    // otherwise, stop if max depth was exceeded
+    if (info.depth >= search::max_depth) { return true; }
     // stopping conditions
     if (get<go::depth>().has_value()) { return get<go::depth>().value() < info.depth; }
     if (elapsed() >= max_budget) { return true; }
