@@ -23,7 +23,7 @@
 
 namespace chess {
 
-enum class color { white, black };
+enum class color : std::uint8_t { white, black };
 
 template <color>
 struct them_ {};
@@ -96,7 +96,7 @@ struct sided {
 
 color color_from(char ch) { return std::isupper(ch) ? color::white : color::black; }
 
-enum class piece_type { pawn, knight, bishop, rook, queen, king };
+enum class piece_type : std::uint8_t { pawn, knight, bishop, rook, queen, king };
 
 piece_type type_from(const char& ch) {
   switch (std::tolower(ch)) {
