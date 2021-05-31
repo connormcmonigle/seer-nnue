@@ -54,9 +54,9 @@ struct string_option {
 struct spin_range {
   int min, max;
 
-  int clamp(int x) const { return std::min(std::max(min, x), max); }
+  int clamp(const int& x) const { return std::clamp(x, min, max); }
 
-  spin_range(const int a, const int b) : min{a}, max{b} {}
+  spin_range(const int& a, const int& b) : min{a}, max{b} {}
 };
 
 struct spin_option {
@@ -80,8 +80,8 @@ struct spin_option {
 
   spin_option(const std::string_view& name) : name_{name} {}
   spin_option(const std::string& name, const spin_range& range) : name_{name}, range_{range} {}
-  spin_option(const std::string& name, const int def) : name_{name}, default_{def} {}
-  spin_option(const std::string& name, const int def, const spin_range& range) : name_{name}, default_{def}, range_{range} {}
+  spin_option(const std::string& name, const int& def) : name_{name}, default_{def} {}
+  spin_option(const std::string& name, const int& def, const spin_range& range) : name_{name}, default_{def}, range_{range} {}
 };
 
 struct button_option {
