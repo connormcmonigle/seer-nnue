@@ -526,7 +526,7 @@ struct thread_worker {
       std::shared_ptr<search::constants> constants,
       std::function<void(const thread_worker<T, is_active>&)> on_iter = [](auto&&...) {},
       std::function<void(const thread_worker<T, is_active>&)> on_update = [](auto&&...) {})
-      : external(weights, tt, constants, on_iter, on_update), loop([this]() { iterative_deepening_loop_(); }) {}
+      : external(weights, tt, constants, on_iter, on_update), loop([this] { iterative_deepening_loop_(); }) {}
 };
 
 template <typename T>
