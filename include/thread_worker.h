@@ -370,7 +370,7 @@ struct thread_worker {
 
         if (check_ext) { return 1; }
 
-        const bool history_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && mv.is_quiet() &&
+        const bool history_ext = !is_root && (is_pv || improving) && maybe.has_value() && mv == maybe->best_move() && mv.is_quiet() &&
                                  depth >= external.constants->history_extension_depth() &&
                                  history_value >= external.constants->history_extension_threshold();
 
