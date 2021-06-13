@@ -176,8 +176,8 @@ struct thread_worker {
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
-      const bool is_cutoff = (entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
-                             (entry.bound() == bound_type::upper && entry.score() <= alpha);
+      const bool is_cutoff =
+          (entry.bound() == bound_type::lower && entry.score() >= beta) || (entry.bound() == bound_type::upper && entry.score() <= alpha);
       if (is_cutoff) { return entry.score(); }
       orderer.set_first(entry.best_move());
     }
@@ -290,8 +290,6 @@ struct thread_worker {
 
     // step 4. compute static eval and adjust appropriately if there's a tt hit
     const search::score_type static_eval = [&] {
-      if (maybe.has_value() && maybe->bound() == bound_type::exact) { return maybe->score(); }
-
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type val = is_check                         ? ss.effective_mate_score() :
                                      !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
