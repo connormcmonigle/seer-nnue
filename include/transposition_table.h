@@ -53,22 +53,19 @@ struct transposition_table_entry {
   zobrist::hash_type key() const { return key_; }
 
   bound_type bound() const { return bound_::get(value_); }
-
   search::score_type score() const { return static_cast<search::score_type>(score_::get(value_)); }
-
   gen_type gen() const { return gen_::get(value_); }
+  search::depth_type depth() const { return static_cast<search::depth_type>(depth_::get(value_)); }
+  move best_move() const { return move{best_move_::get(value_)}; }
+
+  bool is_empty() const { return key_ == empty_key; }
+
+  bool is_current(const gen_type& gen) const { return gen == gen_::get(value_); }
 
   transposition_table_entry& set_gen(const gen_type& gen) {
     gen_::set(value_, gen);
     return *this;
   }
-
-  bool is_current(const gen_type& gen) const { return gen == gen_::get(value_); }
-
-  search::depth_type depth() const { return static_cast<search::depth_type>(depth_::get(value_)); }
-  move best_move() const { return move{best_move_::get(value_)}; }
-
-  bool is_empty() const { return key_ == empty_key; }
 
   transposition_table_entry(
       const zobrist::hash_type& key, const bound_type& bound, const search::score_type& score, const chess::move& mv, const search::depth_type& depth)
@@ -98,7 +95,7 @@ struct alignas(cache_line_size) bucket {
     for (auto iter = std::begin(data); iter != std::end(data); ++iter) {
       if (iter->key() == key) { return *iter; }
 
-      const bool is_worse = (!iter->is_current(gen) && worst->is_current(gen)) ||
+      const bool is_worse = (!iter->is_current(gen) && worst->is_current(gen)) || 
                             ((iter->is_current(gen) == worst->is_current(gen)) && (iter->depth() < worst->depth()));
 
       if (is_worse) { worst = iter; }

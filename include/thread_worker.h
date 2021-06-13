@@ -176,8 +176,8 @@ struct thread_worker {
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
-      const bool is_cutoff =
-          (entry.score() >= beta && entry.bound() == bound_type::lower) || (entry.score() <= alpha && entry.bound() == bound_type::upper);
+      const bool is_cutoff = (entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
+                             (entry.bound() == bound_type::upper && entry.score() <= alpha);
       if (is_cutoff) { return entry.score(); }
       orderer.set_first(entry.best_move());
     }
@@ -263,10 +263,13 @@ struct thread_worker {
     // step 2. check if node is terminal
     const move_list list = bd.generate_moves();
     const bool is_check = bd.is_check();
+
     if (list.size() == 0 && is_check) { return make_result(ss.effective_mate_score(), move::null()); }
     if (list.size() == 0) { return make_result(search::draw_score, move::null()); }
     if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(search::draw_score, move::null()); }
     if (!is_root && bd.is_trivially_drawn()) { return make_result(search::draw_score, move::null()); }
+
+    const search::score_type original_alpha = alpha;
 
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
@@ -278,14 +281,17 @@ struct thread_worker {
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
-      const bool is_cutoff =
-          !is_pv && entry.depth() >= depth && (entry.score() >= beta ? (entry.bound() == bound_type::lower) : (entry.bound() == bound_type::upper));
+      const bool is_cutoff = !is_pv && entry.depth() >= depth &&
+                             ((entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
+                              (entry.bound() == bound_type::upper && entry.score() <= alpha));
       if (is_cutoff) { return make_result(entry.score(), entry.best_move()); }
       orderer.set_first(entry.best_move());
     }
 
     // step 4. compute static eval and adjust appropriately if there's a tt hit
     const search::score_type static_eval = [&] {
+      if (maybe.has_value() && maybe->bound() == bound_type::exact) { return maybe->score(); }
+
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type val = is_check                         ? ss.effective_mate_score() :
                                      !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
@@ -428,17 +434,19 @@ struct thread_worker {
 
     // step 12. update histories if appropriate and maybe insert a new transposition_table_entry
     if (loop.keep_going()) {
-      if (best_score >= beta) {
-        const transposition_table_entry entry(bd.hash(), bound_type::lower, best_score, best_move, depth);
-        external.tt->insert(entry);
-        if (best_move.is_quiet()) {
-          internal.hh.us(bd.turn()).update(follow, counter, best_move, quiets_tried, depth);
-          ss.set_killer(best_move);
-        }
-      } else {
-        const transposition_table_entry entry(bd.hash(), bound_type::upper, best_score, best_move, depth);
-        external.tt->insert(entry);
+      const bound_type bound = [&] {
+        if (best_score >= beta) { return bound_type::lower; }
+        if (is_pv && best_score > original_alpha) { return bound_type::exact; }
+        return bound_type::upper;
+      }();
+
+      if (bound == bound_type::lower && best_move.is_quiet()) {
+        internal.hh.us(bd.turn()).update(follow, counter, best_move, quiets_tried, depth);
+        ss.set_killer(best_move);
       }
+
+      const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);
+      external.tt->insert(entry);
     }
 
     return make_result(best_score, best_move);
