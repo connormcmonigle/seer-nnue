@@ -32,10 +32,10 @@
 namespace search {
 
 template <typename T>
-inline constexpr T max_logit = static_cast<T>(256);
+inline constexpr T max_logit = static_cast<T>(8);
 
 template <typename T>
-inline constexpr T min_logit = static_cast<T>(-256);
+inline constexpr T min_logit = static_cast<T>(-8);
 
 template <typename T>
 inline constexpr T logit_scale = static_cast<T>(1024);
@@ -53,7 +53,7 @@ using score_type = std::int32_t;
 
 using wdl_type = std::tuple<search::score_type, search::score_type, search::score_type>;
 
-inline constexpr score_type big_number = 256 * logit_scale<score_type>;
+inline constexpr score_type big_number = 8 * logit_scale<score_type>;
 
 inline constexpr score_type max_mate_score = -2 * big_number;
 
