@@ -148,7 +148,10 @@ struct transposition_table {
     const bool should_replace =
         (entry.bound() == bound_type::exact) || (entry.key() != to_replace->key()) || ((entry.depth() + offset) >= to_replace->depth());
 
-    if (should_replace) { *to_replace = entry; }
+    if (should_replace) {
+      *to_replace = entry;
+      to_replace->set_gen(gen);
+    }
     return *this;
   }
 
