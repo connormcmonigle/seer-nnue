@@ -453,7 +453,7 @@ struct thread_worker {
 
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
-    for (; loop.keep_going(); ++internal.depth) {
+    for (; loop.keep_going() && internal.depth <= search::max_depth; ++internal.depth) {
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;
