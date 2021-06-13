@@ -176,8 +176,8 @@ struct thread_worker {
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
-      const bool is_cutoff =
-          (entry.bound() == bound_type::lower && entry.score() >= beta) || (entry.bound() == bound_type::upper && entry.score() <= alpha);
+      const bool is_cutoff = (entry.bound() == bound_type::lower && entry.score() >= beta) || (entry.bound() == bound_type::exact) ||
+                             (entry.bound() == bound_type::upper && entry.score() <= alpha);
       if (is_cutoff) { return entry.score(); }
       orderer.set_first(entry.best_move());
     }
