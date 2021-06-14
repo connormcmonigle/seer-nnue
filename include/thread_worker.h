@@ -344,11 +344,9 @@ struct thread_worker {
       ss.set_played(mv);
 
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(follow, counter, mv);
+      const search::see_type see_value = bd.see<search::see_type>(mv);
 
-      const board bd_ = bd.forward(mv);
-
-      const bool try_pruning =
-          !is_root && !bd_.is_check() && !is_check && idx != 0 && mv.is_quiet() && best_score > search::max_mate_score;
+      const bool try_pruning = !is_root && !is_check && idx != 0 && mv.is_quiet() && best_score > search::max_mate_score;
 
       // step 9. pruning
       if (try_pruning) {
@@ -365,14 +363,19 @@ struct thread_worker {
             depth <= external.constants->futility_prune_depth() && static_eval + external.constants->futility_margin(depth) < alpha;
 
         if (futility_prune) { continue; }
+
+        const bool see_prune = depth <= external.constants->see_prune_depth() && see_value < 0;
+
+        if (see_prune) { continue; }
       }
 
+      const board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
       // step 10. extensions
       const search::depth_type extension = [&, mv = mv] {
-        const bool check_ext = bd.see<search::see_type>(mv) > 0 && bd_.is_check();
+        const bool check_ext = see_value > 0 && bd_.is_check();
 
         if (check_ext) { return 1; }
 
@@ -390,7 +393,7 @@ struct thread_worker {
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
 
         const bool try_lmr =
-            !is_check && (mv.is_quiet() || bd.see<search::see_type>(mv) < 0) && idx != 0 && (depth >= external.constants->reduce_depth());
+            !is_check && (mv.is_quiet() || see_value < 0) && idx != 0 && (depth >= external.constants->reduce_depth());
         search::score_type zw_score{};
 
         // step 11. late move reductions
@@ -402,7 +405,7 @@ struct thread_worker {
           if (bd.is_passed_push(mv)) { --reduction; }
           if (!improving) { ++reduction; }
           if (!is_pv) { ++reduction; }
-          if (bd.see<search::see_type>(mv) < 0 && mv.is_quiet()) { ++reduction; }
+          if (see_value < 0 && mv.is_quiet()) { ++reduction; }
 
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 

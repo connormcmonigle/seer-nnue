@@ -125,8 +125,7 @@ struct transposition_table {
 
   void resize(size_t size) {
     clear();
-    const size_t new_size = size * one_mb;
-    data.resize(new_size, bucket_type{});
+    data.resize(size * one_mb, bucket_type{});
   }
 
   void update_gen() {
@@ -138,7 +137,7 @@ struct transposition_table {
 
   __attribute__((no_sanitize("thread")))
   transposition_table& insert(const transposition_table_entry& entry) {
-    constexpr search::depth_type offset = static_cast<search::depth_type>(2);
+    constexpr search::depth_type offset = 2;
     const transposition_table_entry::gen_type gen = current_gen.load(std::memory_order_relaxed);
 
     transposition_table_entry* to_replace = data[hash_function(entry.key())].to_replace(gen, entry.key());
