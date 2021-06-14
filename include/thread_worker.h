@@ -348,7 +348,7 @@ struct thread_worker {
       const board bd_ = bd.forward(mv);
 
       const bool try_pruning =
-          !is_root && !is_pv && !bd_.is_check() && !is_check && idx != 0 && mv.is_quiet() && best_score > ss.effective_mate_score();
+          !is_root && !bd_.is_check() && !is_check && idx != 0 && mv.is_quiet() && best_score > search::max_mate_score;
 
       // step 9. pruning
       if (try_pruning) {
