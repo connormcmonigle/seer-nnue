@@ -85,10 +85,7 @@ struct alignas(cache_line_size) bucket {
 
   std::optional<transposition_table_entry> match(const transposition_table_entry::gen_type& gen, const zobrist::hash_type& key) {
     for (auto& elem : data) {
-      if (elem.key() == key) {
-        elem.set_gen(gen);
-        return std::optional(elem);
-      }
+      if (elem.key() == key) { return std::optional(elem.set_gen(gen)); }
     }
     return std::nullopt;
   }
@@ -139,7 +136,8 @@ struct transposition_table {
 
   size_t hash_function(const zobrist::hash_type& hash) const { return hash % data.size(); }
 
-  __attribute__((no_sanitize("thread"))) transposition_table& insert(const transposition_table_entry& entry) {
+  __attribute__((no_sanitize("thread")))
+  transposition_table& insert(const transposition_table_entry& entry) {
     constexpr search::depth_type offset = static_cast<search::depth_type>(2);
     const transposition_table_entry::gen_type gen = current_gen.load(std::memory_order_relaxed);
 
@@ -152,10 +150,12 @@ struct transposition_table {
       *to_replace = entry;
       to_replace->set_gen(gen);
     }
+
     return *this;
   }
 
-  __attribute__((no_sanitize("thread"))) std::optional<transposition_table_entry> find(const zobrist::hash_type& key) {
+  __attribute__((no_sanitize("thread")))
+  std::optional<transposition_table_entry> find(const zobrist::hash_type& key) {
     const transposition_table_entry::gen_type gen = current_gen.load(std::memory_order_relaxed);
     return data[hash_function(key)].match(gen, key);
   }

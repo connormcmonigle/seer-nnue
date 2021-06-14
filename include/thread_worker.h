@@ -40,10 +40,12 @@ namespace chess {
 
 template <bool is_root>
 struct pv_search_result {};
+
 template <>
 struct pv_search_result<false> {
   using type = search::score_type;
 };
+
 template <>
 struct pv_search_result<true> {
   using type = std::tuple<search::score_type, move>;
