@@ -346,7 +346,9 @@ struct thread_worker {
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(follow, counter, mv);
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
-      const bool try_pruning = !is_root && !is_check && idx != 0 && mv.is_quiet() && best_score > search::max_mate_score;
+      const board bd_ = bd.forward(mv);
+
+      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx != 0 && mv.is_quiet() && best_score > search::max_mate_score;
 
       // step 9. pruning
       if (try_pruning) {
@@ -369,7 +371,6 @@ struct thread_worker {
         if (see_prune) { continue; }
       }
 
-      const board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
@@ -392,8 +393,7 @@ struct thread_worker {
         const search::depth_type next_depth = depth + extension - 1;
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
 
-        const bool try_lmr =
-            !is_check && (mv.is_quiet() || see_value < 0) && idx != 0 && (depth >= external.constants->reduce_depth());
+        const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx != 0 && (depth >= external.constants->reduce_depth());
         search::score_type zw_score{};
 
         // step 11. late move reductions
