@@ -232,7 +232,8 @@ struct thread_worker {
 
     if (loop.keep_going()) {
       const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
-      const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
+      const search::depth_type qs_depth = (!is_check && (bound == bound_type::lower)) ? 1 : 0;
+      const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, qs_depth);
       external.tt->insert(entry);
     }
 
