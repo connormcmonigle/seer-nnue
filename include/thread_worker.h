@@ -348,25 +348,26 @@ struct thread_worker {
 
       const board bd_ = bd.forward(mv);
 
-      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx != 0 && mv.is_quiet() && best_score > search::max_mate_score;
+      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx != 0 && best_score > search::max_mate_score;
 
       // step 9. pruning
       if (try_pruning) {
-        const bool lm_prune = depth <= external.constants->lmp_depth() && quiets_tried.size() > external.constants->lmp_count(improving, depth);
+        const bool lm_prune =
+            mv.is_quiet() && depth <= external.constants->lmp_depth() && quiets_tried.size() > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { continue; }
 
-        const bool history_prune =
-            depth <= external.constants->history_prune_depth() && history_value <= external.constants->history_prune_threshold(improving, depth);
+        const bool history_prune = mv.is_quiet() && depth <= external.constants->history_prune_depth() &&
+                                   history_value <= external.constants->history_prune_threshold(improving, depth);
 
         if (history_prune) { continue; }
 
         const bool futility_prune =
-            depth <= external.constants->futility_prune_depth() && static_eval + external.constants->futility_margin(depth) < alpha;
+            mv.is_quiet() && depth <= external.constants->futility_prune_depth() && static_eval + external.constants->futility_margin(depth) < alpha;
 
         if (futility_prune) { continue; }
 
-        const bool see_prune = depth <= external.constants->see_prune_depth() && see_value < 0;
+        const bool see_prune = mv.is_capture() && depth <= external.constants->see_prune_depth() && see_value < 0;
 
         if (see_prune) { continue; }
       }
