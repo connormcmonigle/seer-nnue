@@ -290,7 +290,11 @@ struct thread_worker {
       orderer.set_first(entry.best_move());
     }
 
-    // step 4. compute static eval and adjust appropriately if there's a tt hit
+    // step 4. internal iterative reductions
+    const bool should_iir = !maybe.has_value() && depth >= external.constants->iir_depth();
+    if (should_iir){ --depth; }
+
+    // step 5. compute static eval and adjust appropriately if there's a tt hit
     const search::score_type static_eval = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type val = is_check                         ? ss.effective_mate_score() :
@@ -306,20 +310,20 @@ struct thread_worker {
       return val;
     }();
 
-    // step 5. return static eval if max depth was reached
+    // step 6. return static eval if max depth was reached
     if (ss.reached_max_height()) { return make_result(static_eval, move::null()); }
 
-    // step 6. add position and static eval to stack
+    // step 7. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_eval);
     const bool improving = ss.improving();
 
-    // step 7. static null move pruning
+    // step 8. static null move pruning
     const bool snm_prune = !is_root && !is_pv && !is_check && depth <= external.constants->snmp_depth() &&
                            static_eval > beta + external.constants->snmp_margin(improving, depth) && static_eval > ss.effective_mate_score();
 
     if (snm_prune) { return make_result(static_eval, move::null()); }
 
-    // step 8. null move pruning
+    // step 9. null move pruning
     const bool try_nmp = !is_root && !is_pv && !is_check && depth >= external.constants->nmp_depth() && static_eval > beta && ss.nmp_valid() &&
                          bd.has_non_pawn_material();
 
@@ -350,7 +354,7 @@ struct thread_worker {
 
       const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx != 0 && best_score > search::max_mate_score;
 
-      // step 9. pruning
+      // step 10. pruning
       if (try_pruning) {
         const bool lm_prune =
             mv.is_quiet() && depth <= external.constants->lmp_depth() && quiets_tried.size() > external.constants->lmp_count(improving, depth);
@@ -375,7 +379,7 @@ struct thread_worker {
       external.tt->prefetch(bd_.hash());
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
-      // step 10. extensions
+      // step 11. extensions
       const search::depth_type extension = [&, mv = mv] {
         const bool check_ext = see_value > 0 && bd_.is_check();
 
@@ -397,7 +401,7 @@ struct thread_worker {
         const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx != 0 && (depth >= external.constants->reduce_depth());
         search::score_type zw_score{};
 
-        // step 11. late move reductions
+        // step 12. late move reductions
         if (try_lmr) {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
@@ -436,7 +440,7 @@ struct thread_worker {
       }
     }
 
-    // step 12. update histories if appropriate and maybe insert a new transposition_table_entry
+    // step 13. update histories if appropriate and maybe insert a new transposition_table_entry
     if (loop.keep_going()) {
       const bound_type bound = [&] {
         if (best_score >= beta) { return bound_type::lower; }
