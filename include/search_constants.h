@@ -128,11 +128,9 @@ struct fixed_constants {
     return std::clamp(raw, -limit, limit);
   }
 
-  constexpr score_type bad_first_prune_margin(const search::see_type& see_value) const {
-    constexpr search::score_type mul = 512;
-    constexpr search::score_type div = 100;
-    constexpr search::score_type bias = 128;
-    return (static_cast<search::score_type>(see_value) * mul / div) + bias;
+  constexpr score_type bad_first_prune_margin() const { 
+    constexpr search::score_type margin = 512;
+    return margin; 
   }
 
   fixed_constants& update_(const size_t& thread_count) {

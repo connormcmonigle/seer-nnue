@@ -210,13 +210,7 @@ struct thread_worker {
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
-
-      const search::see_type see_value = bd.see<search::see_type>(mv);
-
-      const bool bad_first_prune = !is_check && !is_pv && idx == 0 && (static_eval + external.constants->bad_first_prune_margin(see_value) < alpha);
-      if (bad_first_prune) { return static_eval; }
-
-      if (!is_check && see_value < 0) { continue; }
+      if (!is_check && bd.see<search::see_type>(mv) < 0) { continue; }
       ss.set_played(mv);
 
       const board bd_ = bd.forward(mv);
@@ -225,6 +219,9 @@ struct thread_worker {
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
       const search::score_type score = -q_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
+
+      const bool bad_first_prune = !is_check && !is_pv && idx == 0 && ((score + external.constants->bad_first_prune_margin()) < alpha);
+      if (bad_first_prune) { return static_eval; }
 
       if (score > best_score) {
         best_score = score;
