@@ -128,6 +128,11 @@ struct fixed_constants {
     return std::clamp(raw, -limit, limit);
   }
 
+  constexpr depth_type delta_margin(const search::see_type& see_value) const {
+    constexpr score_type mul = 3;
+    return mul * static_cast<score_type>(see_value);
+  }
+
   fixed_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {

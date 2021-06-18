@@ -210,7 +210,10 @@ struct thread_worker {
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
-      if (!is_check && bd.see<search::see_type>(mv) < 0) { continue; }
+      const search::see_type see_value = bd.see<search::see_type>(mv);
+      if (!is_check && see_value < 0) { continue; }
+      if (!is_check && !is_pv && (static_eval + external.constants->delta_margin(see_value)) < alpha) { continue; }
+
       ss.set_played(mv);
 
       const board bd_ = bd.forward(mv);
@@ -292,7 +295,7 @@ struct thread_worker {
 
     // step 4. internal iterative reductions
     const bool should_iir = !maybe.has_value() && depth >= external.constants->iir_depth();
-    if (should_iir){ --depth; }
+    if (should_iir) { --depth; }
 
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const search::score_type static_eval = [&] {
