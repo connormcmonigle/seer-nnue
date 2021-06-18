@@ -129,8 +129,8 @@ struct fixed_constants {
   }
 
   constexpr depth_type delta_margin(const search::see_type& see_value) const {
-    constexpr score_type mul = 3;
-    return mul * static_cast<score_type>(see_value);
+    constexpr score_type m = 10;
+    return m * static_cast<score_type>(see_value);
   }
 
   fixed_constants& update_(const size_t& thread_count) {
