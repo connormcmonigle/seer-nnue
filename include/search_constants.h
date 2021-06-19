@@ -129,7 +129,7 @@ struct fixed_constants {
   }
 
   constexpr score_type delta_margin() const {
-    constexpr score_type margin = 2048;
+    constexpr score_type margin = 512;
     return margin;
   }
 
