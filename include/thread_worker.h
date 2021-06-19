@@ -210,9 +210,13 @@ struct thread_worker {
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
+
       const search::see_type see_value = bd.see<search::see_type>(mv);
+
       if (!is_check && see_value < 0) { continue; }
-      if (!is_check && !is_pv && (static_eval + external.constants->delta_margin(see_value)) < alpha) { continue; }
+
+      const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((static_eval + external.constants->delta_margin()) < alpha);
+      if (delta_prune) { continue; }
 
       ss.set_played(mv);
 

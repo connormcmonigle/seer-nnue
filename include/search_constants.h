@@ -128,9 +128,9 @@ struct fixed_constants {
     return std::clamp(raw, -limit, limit);
   }
 
-  constexpr depth_type delta_margin(const search::see_type& see_value) const {
-    constexpr score_type m = 10;
-    return m * static_cast<score_type>(see_value);
+  constexpr score_type delta_margin() const {
+    constexpr score_type margin = 2048;
+    return margin;
   }
 
   fixed_constants& update_(const size_t& thread_count) {
