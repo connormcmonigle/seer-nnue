@@ -120,7 +120,7 @@ struct transposition_table {
   void prefetch(const zobrist::hash_type& key) const { __builtin_prefetch(data.data() + hash_function(key)); }
 
   void clear() {
-    std::transform(data.begin(), data.end(), data.begin(), [](auto) { return bucket_type{}; });
+    for (auto& elem : data) { elem = bucket_type{}; }
   }
 
   void resize(size_t size) {
@@ -135,8 +135,7 @@ struct transposition_table {
 
   size_t hash_function(const zobrist::hash_type& hash) const { return hash % data.size(); }
 
-  __attribute__((no_sanitize("thread")))
-  transposition_table& insert(const transposition_table_entry& entry) {
+  __attribute__((no_sanitize("thread"))) transposition_table& insert(const transposition_table_entry& entry) {
     constexpr search::depth_type offset = 2;
     const transposition_table_entry::gen_type gen = current_gen.load(std::memory_order_relaxed);
 
@@ -153,8 +152,7 @@ struct transposition_table {
     return *this;
   }
 
-  __attribute__((no_sanitize("thread")))
-  std::optional<transposition_table_entry> find(const zobrist::hash_type& key) {
+  __attribute__((no_sanitize("thread"))) std::optional<transposition_table_entry> find(const zobrist::hash_type& key) {
     const transposition_table_entry::gen_type gen = current_gen.load(std::memory_order_relaxed);
     return data[hash_function(key)].match(gen, key);
   }

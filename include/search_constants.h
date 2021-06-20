@@ -128,6 +128,11 @@ struct fixed_constants {
     return std::clamp(raw, -limit, limit);
   }
 
+  constexpr score_type delta_margin() const {
+    constexpr score_type margin = 512;
+    return margin;
+  }
+
   fixed_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {
