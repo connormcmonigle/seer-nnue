@@ -121,7 +121,7 @@ struct move_orderer_iterator {
     std::transform(data.list.begin(), data.list.end(), entries_.begin(), [&data](const move& mv) {
       const bool quiet = mv.is_quiet();
       const std::int32_t value = quiet ? data.hh->compute_value(data.follow, data.counter, mv) : data.bd->see<std::int32_t>(mv);
-      return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value, quiet && mv == data.counter_move);
+      return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, quiet && mv == data.counter_move, value);
     });
     update_list_();
   }
