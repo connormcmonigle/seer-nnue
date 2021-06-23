@@ -37,6 +37,7 @@ constexpr std::uint32_t make_positive(const std::int32_t& x) {
 
 struct move_orderer_data {
   move killer{};
+  move counter_move{};
   move follow{};
   move counter{};
   const board* bd{nullptr};
@@ -45,25 +46,33 @@ struct move_orderer_data {
   move first{move::null()};
 
   move_orderer_data(
-      const move& killer_, const move& follow_, const move& counter_, const board* bd_, const move_list& list_, const history_heuristic* hh_)
-      : killer{killer_}, follow{follow_}, counter{counter_}, bd{bd_}, list{list_}, hh{hh_} {}
+      const move& killer_,
+      const move& counter_move_,
+      const move& follow_,
+      const move& counter_,
+      const board* bd_,
+      const move_list& list_,
+      const history_heuristic* hh_)
+      : killer{killer_}, counter_move{counter_move_}, follow{follow_}, counter{counter_}, bd{bd_}, list{list_}, hh{hh_} {}
 
   move_orderer_data() {}
 };
 
 struct move_orderer_entry {
   using value_ = bit::range<std::uint32_t, 0, 32>;
-  using killer_ = bit::next_flag<value_>;
+  using counter_move_ = bit::next_flag<value_>;
+  using killer_ = bit::next_flag<counter_move_>;
   using nonnegative_noisy_ = bit::next_flag<killer_>;
   using first_ = bit::next_flag<nonnegative_noisy_>;
 
   move mv;
   std::uint64_t data{0};
 
-  move_orderer_entry(const move& mv_, bool is_first, bool is_noisy, bool is_killer, std::int32_t value) : mv{mv_} {
+  move_orderer_entry(const move& mv_, bool is_first, bool is_noisy, bool is_killer, bool is_counter_move, std::int32_t value) : mv{mv_} {
     first_::set(data, is_first);
     nonnegative_noisy_::set(data, is_noisy);
     killer_::set(data, is_killer);
+    counter_move_::set(data, is_counter_move);
     value_::set(data, make_positive(value));
   }
 
@@ -112,7 +121,7 @@ struct move_orderer_iterator {
     std::transform(data.list.begin(), data.list.end(), entries_.begin(), [&data](const move& mv) {
       const bool quiet = mv.is_quiet();
       const std::int32_t value = quiet ? data.hh->compute_value(data.follow, data.counter, mv) : data.bd->see<std::int32_t>(mv);
-      return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value);
+      return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value, quiet && mv == data.counter_move);
     });
     update_list_();
   }

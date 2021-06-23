@@ -18,6 +18,7 @@
 #pragma once
 
 #include <board.h>
+#include <counter_move_heuristic.h>
 #include <eval_cache.h>
 #include <history_heuristic.h>
 #include <move.h>
@@ -57,6 +58,7 @@ using pv_search_result_t = typename pv_search_result<is_root>::type;
 struct internal_state {
   search::stack stack{position_history{}, board::start_pos()};
   sided_history_heuristic hh{};
+  sided_counter_move_heuristic cm{};
   eval_cache cache{};
 
   std::atomic_bool is_stable{false};
@@ -173,7 +175,7 @@ struct thread_worker {
     if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
     if (bd.is_trivially_drawn()) { return search::draw_score; }
 
-    move_orderer orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &internal.hh.us(bd.turn())});
+    move_orderer orderer(move_orderer_data{move::null(), move::null(), move::null(), move::null(), &bd, list, &internal.hh.us(bd.turn())});
 
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
@@ -286,7 +288,9 @@ struct thread_worker {
     const move follow = ss.follow();
     const move counter = ss.counter();
 
-    move_orderer orderer(move_orderer_data{killer, follow, counter, &bd, list, &internal.hh.us(bd.turn())});
+    move_orderer orderer(
+        move_orderer_data{killer, internal.cm.us(bd.turn()).counter(counter), follow, counter, &bd, list, &internal.hh.us(bd.turn())});
+
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
@@ -457,6 +461,7 @@ struct thread_worker {
 
       if (bound == bound_type::lower && best_move.is_quiet()) {
         internal.hh.us(bd.turn()).update(follow, counter, best_move, quiets_tried, depth);
+        internal.cm.us(bd.turn()).update(counter, best_move);
         ss.set_killer(best_move);
       }
 
@@ -537,6 +542,7 @@ struct thread_worker {
       internal.best_move.store(bd.generate_moves().begin()->data);
       internal.stack = search::stack(hist, bd);
       internal.hh.clear();
+      internal.cm.clear();
       internal.cache.clear();
     });
   }
