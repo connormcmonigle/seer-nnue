@@ -173,8 +173,11 @@ struct thread_worker {
     if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
     if (bd.is_trivially_drawn()) { return search::draw_score; }
 
-    move_orderer orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &internal.hh.us(bd.turn())});
+    const move killer = ss.killer();
+    const move follow = ss.follow();
+    const move counter = ss.counter();
 
+    move_orderer orderer(move_orderer_data{killer, follow, counter, &bd, list, &internal.hh.us(bd.turn())});
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
@@ -210,6 +213,7 @@ struct thread_worker {
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
+      ss.set_played(mv);
 
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
@@ -217,8 +221,6 @@ struct thread_worker {
 
       const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((static_eval + external.constants->delta_margin()) < alpha);
       if (delta_prune) { continue; }
-
-      ss.set_played(mv);
 
       const board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
