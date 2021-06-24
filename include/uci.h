@@ -101,11 +101,9 @@ struct uci {
       pool_.resize(new_count);
     });
 
-    auto own_book = option_callback(check_option("OwnBook", default_own_book), [this](const bool& value){
-      own_book_.store(value);
-    });
+    auto own_book = option_callback(check_option("OwnBook", default_own_book), [this](const bool& value) { own_book_.store(value); });
 
-    auto book_path = option_callback(string_option("BookPath"), [this](const std::string& path){
+    auto book_path = option_callback(string_option("BookPath"), [this](const std::string& path) {
       book_.load(path);
       book_info_string();
     });
@@ -167,7 +165,10 @@ struct uci {
   }
 
   void go(const std::string& line) {
-    if (const auto book_move = book_.find(position.hash()); own_book_.load() && book_move.has_value()) { best_move(book_move.value()); }
+    if (const auto book_move = book_.find(position.hash());
+        own_book_.load() && book_move.has_value() && position.generate_moves().has(book_move.value())) {
+      best_move(book_move.value());
+    }
     is_searching_.store(true);
     manager_.init(position.turn(), line);
     timer_.lap();
