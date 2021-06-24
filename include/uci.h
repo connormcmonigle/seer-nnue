@@ -19,6 +19,7 @@
 
 #include <bench.h>
 #include <board.h>
+#include <book.h>
 #include <embedded_weights.h>
 #include <move.h>
 #include <option_parser.h>
@@ -47,13 +48,16 @@ struct uci {
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 16;
   static constexpr std::string_view default_weight_path = "EMBEDDED";
+  static constexpr bool default_own_book = false;
 
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
 
   nnue::weights<weight_type> weights_{};
   chess::worker_pool<weight_type> pool_;
+  chess::book book_{};
 
+  std::atomic_bool own_book_{false};
   std::atomic_bool should_quit_{false};
   std::atomic_bool is_searching_{false};
 
@@ -69,6 +73,11 @@ struct uci {
   void weights_info_string() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     os << "info string loaded weights with signature 0x" << std::hex << weights_.signature() << std::dec << std::endl;
+  }
+
+  void book_info_string() {
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    os << "info string loaded " << book_.size() << " book positions" << std::endl;
   }
 
   auto options() {
@@ -92,7 +101,16 @@ struct uci {
       pool_.resize(new_count);
     });
 
-    return uci_options(weight_path, hash_size, thread_count);
+    auto own_book = option_callback(check_option("OwnBook", default_own_book), [this](const bool& value){
+      own_book_.store(value);
+    });
+
+    auto book_path = option_callback(string_option("BookPath"), [this](const std::string& path){
+      book_.load(path);
+      book_info_string();
+    });
+
+    return uci_options(weight_path, hash_size, thread_count, own_book, book_path);
   }
 
   void uci_new_game() {
@@ -149,6 +167,7 @@ struct uci {
   }
 
   void go(const std::string& line) {
+    if (const auto book_move = book_.find(position.hash()); own_book_.load() && book_move.has_value()) { best_move(book_move.value()); }
     is_searching_.store(true);
     manager_.init(position.turn(), line);
     timer_.lap();
@@ -156,10 +175,14 @@ struct uci {
   }
 
   void stop() {
-    std::lock_guard<std::mutex> os_lk(os_mutex_);
     is_searching_.store(false);
     pool_.stop();
-    os << "bestmove " << pool_.primary_worker().best_move().name(position.turn()) << std::endl;
+    best_move(pool_.primary_worker().best_move());
+  }
+
+  void best_move(const chess::move& mv) {
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    os << "bestmove " << mv.name(position.turn()) << std::endl;
   }
 
   void ready() {

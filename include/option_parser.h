@@ -99,6 +99,22 @@ struct button_option {
   button_option(const std::string_view& name) : name_{name} {}
 };
 
+struct check_option {
+  using type = bool;
+  std::string name_;
+  std::optional<bool> default_{std::nullopt};
+
+  std::optional<bool> maybe_read(const std::string& cmd) const {
+    std::regex regex("setoption name " + name_ + " value (true|false)");
+    if (auto matches = std::smatch{}; std::regex_search(cmd, matches, regex)) { return "true" == matches.str(1); }
+    return std::nullopt;
+  }
+
+  check_option(const std::string_view& name) : name_{name} {}
+
+  check_option(const std::string_view& name, const bool& def) : name_{name}, default_{def} {}
+};
+
 std::ostream& operator<<(std::ostream& ostr, const string_option& opt) {
   ostr << "option name " << opt.name_ << " type string";
   if (opt.default_.has_value()) { ostr << " default " << opt.default_.value(); }
@@ -117,8 +133,15 @@ std::ostream& operator<<(std::ostream& ostr, const button_option& opt) {
   return ostr;
 }
 
+std::ostream& operator<<(std::ostream& ostr, const check_option& opt) {
+  ostr << "option name " << opt.name_ << " type check";
+  if (opt.default_.has_value()) { ostr << std::boolalpha << " default " << opt.default_.value(); }
+  return ostr;
+}
+
 template <typename T>
-inline constexpr bool is_option_v = std::is_same_v<T, spin_option> || std::is_same_v<T, string_option> || std::is_same_v<T, button_option>;
+inline constexpr bool is_option_v =
+    std::is_same_v<T, spin_option> || std::is_same_v<T, string_option> || std::is_same_v<T, button_option> || std::is_same_v<T, check_option>;
 
 template <typename T>
 struct option_callback {
