@@ -10,7 +10,7 @@ Seer is an original, strong UCI chess engine. Seer relies on a neural network es
 - BookPath (path to either a binary or text file containing book positions in a supported format)
 - Threads (for every thread doubling, a gain of about 70-80 elo can be expected)
 - Hash (the amount of the memory allocated for the transposition table (actual memory usage will be greater))
-- Weights (The absolute path to a binary weights file. If the default "EMBEDDED" path is chosen, the embedded weights will be used.)
+- Weights (the absolute path to a binary weights file. If the default "EMBEDDED" path is chosen, the embedded weights will be used.)
 
 ### Features
 - From scratch neural network training and execution (using OpenMP SIMD directives and SIMD intrinsics) implementation 
