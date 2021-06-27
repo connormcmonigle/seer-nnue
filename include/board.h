@@ -460,7 +460,8 @@ struct board {
       } else if (mv.is_enpassant()) {
         cpy.man_.them<c>().remove_piece(piece_type::pawn, mv.enpassant_sq());
       } else if (mv.is_pawn_double<c>()) {
-        cpy.lat_.us<c>().set_ep_mask(pawn_push_tbl<them_<c>::value>.look_up(mv.to(), square_set{}).item());
+        const square ep = pawn_push_tbl<them_<c>::value>.look_up(mv.to(), square_set{}).item();
+        if ((man_.them<c>().pawn() & pawn_attack_tbl<c>.look_up(ep)).any()) { cpy.lat_.us<c>().set_ep_mask(ep); }
       }
       if (mv.from() == castle_info<c>.start_king) {
         cpy.lat_.us<c>().set_ooo(false).set_oo(false);
