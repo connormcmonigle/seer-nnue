@@ -403,12 +403,14 @@ struct thread_worker {
 
       const search::score_type score = [&, this, idx = idx, mv = mv] {
         const search::depth_type next_depth = depth + extension - 1;
-        auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
 
-        const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx != 0 && (depth >= external.constants->reduce_depth());
+        auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
+        auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
+
         search::score_type zw_score{};
 
         // step 12. late move reductions
+        const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx != 0 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
@@ -424,15 +426,14 @@ struct thread_worker {
           reduction = std::max(reduction, 0);
 
           const search::depth_type lmr_depth = std::max(1, next_depth - reduction);
-          zw_score = -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, lmr_depth);
+          zw_score = zero_width(lmr_depth);
         }
 
         // search again at full depth if necessary
-        if (!try_lmr || (try_lmr && (zw_score > alpha))) { zw_score = -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, next_depth); }
+        if (!try_lmr || (zw_score > alpha)) { zw_score = zero_width(next_depth); }
 
         // search again with full window on pv nodes
-        const bool interior = zw_score > alpha && zw_score < beta;
-        return (interior && is_pv) ? full_width() : zw_score;
+        return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
       }();
 
       if (score < beta && mv.is_quiet()) { quiets_tried.add_(mv); }
