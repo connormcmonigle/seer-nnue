@@ -245,9 +245,7 @@ struct uci {
       bench();
     } else if (!is_searching() && line == "eval") {
       eval();
-    }else if(!is_searching() && line == "dumpbook"){
-      book_.dump();
-    } else if (!is_searching() && std::regex_match(line, perft_rgx)) {
+    }else if (!is_searching() && std::regex_match(line, perft_rgx)) {
       perft(line);
     } else if (!is_searching() && std::regex_match(line, go_rgx)) {
       go(line);
