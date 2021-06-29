@@ -18,6 +18,8 @@ CXXFLAGS += -DEVALFILE=\"$(EVALFILE)\"
 THREADSANFLAGS += $(CXXFLAGS) -fsanitize=thread
 ADDRESSSANFLAGS += $(CXXFLAGS) -fsanitize=address
 UBSANFLAGS += $(CXXFLAGS) -fsanitize=undefined
+TUNEFLAGS += $(CXXFLAGS) -DTUNE
+
 
 LIBS = -lpthread
 
@@ -39,3 +41,6 @@ addresssan:
 
 ubsan:
 	$(CC) $(SRC) $(UBSANFLAGS) $(LIBS) -o $(EXE)
+
+tune:
+	$(CC) $(SRC) $(TUNEFLAGS) $(LIBS) -o $(EXE)

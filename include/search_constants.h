@@ -172,6 +172,7 @@ struct tuning_constants {
   score_type futility_margin_mul_{2048};
   score_type snmp_margin_mul_{328};
   score_type snmp_margin_bias_{164};
+  score_type delta_margin_{512};
 
   counter_type history_reduction_div_{5000};
   double lmr_tbl_bias_{0.75};
@@ -214,6 +215,8 @@ struct tuning_constants {
     assert(depth > 0);
     return snmp_margin_mul_ * static_cast<score_type>(depth - improving) + snmp_margin_bias_;
   }
+
+  score_type delta_margin() const { return delta_margin_; }
 
   constexpr depth_type history_reduction(const counter_type& history_value) const {
     constexpr depth_type limit = 2;
@@ -276,6 +279,9 @@ struct tuning_constants {
     auto option_snmp_margin_mul =
         option_callback(spin_option("snmp_margin_mul_", snmp_margin_mul_, spin_range{128, 4096}), [this](const int d) { snmp_margin_mul_ = d; });
 
+    auto option_delta_margin_ =
+        option_callback(spin_option("delta_margin_", delta_margin_, spin_range{128, 1024}), [this](const int d) { delta_margin_ = d; });
+
     auto option_snmp_margin_bias =
         option_callback(spin_option("snmp_margin_bias_", snmp_margin_bias_, spin_range{0, 384}), [this](const int d) { snmp_margin_bias_ = d; });
 
@@ -297,13 +303,17 @@ struct tuning_constants {
     return uci_options(
         option_reduce_depth, option_aspiration_depth, option_nmp_depth, option_history_prune_depth, option_snmp_depth, option_futility_prune_depth,
         option_history_extension_depth, option_R_bias, option_R_div, option_history_prune_threshold_mul, option_history_extension_threshold,
-        option_futility_margin_mul, option_snmp_margin_mul, option_snmp_margin_bias, option_history_reduction_div, option_lmr_tbl_bias,
-        option_lmr_tbl_div);
+        option_futility_margin_mul, option_snmp_margin_mul, option_delta_margin_, option_snmp_margin_bias, option_history_reduction_div,
+        option_lmr_tbl_bias, option_lmr_tbl_div);
   }
 
   tuning_constants(const size_t& thread_count = 1) { update_(thread_count); }
 };
 
+#ifdef TUNE
+using constants = tuning_constants;
+#else
 using constants = fixed_constants;
+#endif
 
 }  // namespace search
