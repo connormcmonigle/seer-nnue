@@ -359,7 +359,7 @@ struct thread_worker {
 
       const board bd_ = bd.forward(mv);
 
-      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx != 0 && best_score > search::max_mate_score;
+      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
 
       // step 10. pruning
       if (try_pruning) {
@@ -407,7 +407,8 @@ struct thread_worker {
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
         auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
 
-        search::score_type zw_score{};
+        if (idx == 0) { return full_width(); }
+        search::score_type zw_score;
 
         // step 12. late move reductions
         const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx != 0 && (depth >= external.constants->reduce_depth());
