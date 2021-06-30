@@ -359,7 +359,7 @@ struct thread_worker {
 
       const board bd_ = bd.forward(mv);
 
-      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx != 0 && best_score > search::max_mate_score;
+      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
 
       // step 10. pruning
       if (try_pruning) {
@@ -410,7 +410,7 @@ struct thread_worker {
         search::score_type zw_score{};
 
         // step 12. late move reductions
-        const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx != 0 && (depth >= external.constants->reduce_depth());
+        const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
