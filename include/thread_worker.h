@@ -407,7 +407,8 @@ struct thread_worker {
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
         auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
 
-        search::score_type zw_score{};
+        search::depth_type lmr_depth;
+        search::score_type zw_score;
 
         // step 12. late move reductions
         const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
@@ -425,12 +426,12 @@ struct thread_worker {
 
           reduction = std::max(reduction, 0);
 
-          const search::depth_type lmr_depth = std::max(1, next_depth - reduction);
+          lmr_depth = std::max(1, next_depth - reduction);
           zw_score = zero_width(lmr_depth);
         }
 
         const bool try_early =
-            !is_pv && try_lmr && depth <= external.constants->early_depth() && zw_score > beta + external.constants->early_margin(improving, depth);
+            !is_pv && try_lmr && depth <= external.constants->early_depth() && zw_score > beta + external.constants->early_margin(depth, lmr_depth);
 
         if (try_early) { return zw_score; }
 
