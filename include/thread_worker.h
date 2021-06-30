@@ -407,6 +407,7 @@ struct thread_worker {
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
         auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
 
+        search::depth_type lmr_depth{};
         search::score_type zw_score{};
 
         // step 12. late move reductions
@@ -425,12 +426,19 @@ struct thread_worker {
 
           reduction = std::max(reduction, 0);
 
-          const search::depth_type lmr_depth = std::max(1, next_depth - reduction);
+          lmr_depth = std::max(1, next_depth - reduction);
           zw_score = zero_width(lmr_depth);
         }
 
         // search again at full depth if necessary
-        if (!try_lmr || (zw_score > alpha)) { zw_score = zero_width(next_depth); }
+        if (!try_lmr || (zw_score > alpha)) {
+          // iterative lmr ~ idea from koivisto
+          if constexpr (is_root) {
+            for (; lmr_depth <= next_depth && (zw_score > alpha); ++lmr_depth) { zw_score = zero_width(lmr_depth); }
+          } else {
+            zw_score = zero_width(next_depth);
+          }
+        }
 
         // search again with full window on pv nodes
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
