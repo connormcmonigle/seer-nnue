@@ -137,7 +137,7 @@ struct fixed_constants {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {
       for (depth_type played{1}; played < lmr_tbl_dim; ++played) {
-        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(1.03800 + std::log(depth) * std::log(played) / 3.94);
+        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(std::log(depth) * std::log(played) / 1.91);
       }
     }
     return *this;
