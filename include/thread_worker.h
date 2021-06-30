@@ -433,8 +433,8 @@ struct thread_worker {
         // search again at full depth if necessary
         if (!try_lmr || (zw_score > alpha)) {
           // iterative lmr ~ idea from koivisto
-          if constexpr (is_root) {
-            for (; lmr_depth <= next_depth && (zw_score > alpha); ++lmr_depth) { zw_score = zero_width(lmr_depth); }
+          if (is_root && try_lmr) {
+            for (; (lmr_depth < next_depth) && (zw_score > alpha); ++lmr_depth) { zw_score = zero_width(lmr_depth + 1); }
           } else {
             zw_score = zero_width(next_depth);
           }
