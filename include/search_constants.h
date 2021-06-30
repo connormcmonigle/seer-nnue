@@ -85,6 +85,7 @@ struct fixed_constants {
   constexpr depth_type history_prune_depth() const { return 8; }
   constexpr depth_type lmp_depth() const { return 7; }
   constexpr depth_type snmp_depth() const { return 7; }
+  constexpr depth_type early_depth() const { return 7; }
   constexpr depth_type futility_prune_depth() const { return 6; }
   constexpr depth_type see_prune_depth() const { return 2; }
   constexpr depth_type history_extension_depth() const { return 8; }
@@ -113,6 +114,13 @@ struct fixed_constants {
     assert(depth > 0);
     constexpr score_type m = 328;
     constexpr score_type b = 164;
+    return m * static_cast<score_type>(depth - improving) + b;
+  }
+
+  constexpr score_type early_margin(const bool& improving, const depth_type& depth) const {
+    assert(depth > 0);
+    constexpr score_type m = 192;
+    constexpr score_type b = 96;
     return m * static_cast<score_type>(depth - improving) + b;
   }
 
