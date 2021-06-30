@@ -409,11 +409,12 @@ struct thread_worker {
 
         if (idx == 0) { return full_width(); }
 
-        search::depth_type lmr_depth{};
-        search::score_type zw_score{};
+        search::depth_type lmr_depth;
+        search::score_type zw_score;
 
         // step 12. late move reductions
-        const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx != 0 && (depth >= external.constants->reduce_depth());
+        const bool try_lmr =
+            !is_check && (mv.is_quiet() || see_value < 0) && !(is_root && idx < 2) && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
@@ -435,8 +436,8 @@ struct thread_worker {
         // search again at full depth if necessary
         if (!try_lmr || (zw_score > alpha)) {
           // iterative lmr ~ idea from koivisto
-          if (is_root && try_lmr) {
-            for (; (lmr_depth < next_depth) && (zw_score > alpha); ++lmr_depth) { zw_score = zero_width(lmr_depth + 1); }
+          if (is_root && try_lmr && zw_score < alpha + external.constants->iterative_lmr_margin()) {
+            for (; lmr_depth < next_depth && zw_score > alpha; ++lmr_depth) { zw_score = zero_width(lmr_depth + 1); }
           } else {
             zw_score = zero_width(next_depth);
           }
