@@ -407,6 +407,8 @@ struct thread_worker {
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
         auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
 
+        if (is_pv && idx == 0) { return full_width(); }
+
         search::score_type zw_score{};
 
         // step 12. late move reductions
