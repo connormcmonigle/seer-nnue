@@ -61,7 +61,7 @@ inline constexpr score_type mate_score = max_mate_score - (max_depth + max_depth
 
 inline constexpr score_type draw_score = 0;
 
-inline constexpr score_type aspiration_delta = 30;
+inline constexpr score_type aspiration_delta = 20;
 
 inline constexpr score_type stability_threshold = 50;
 
