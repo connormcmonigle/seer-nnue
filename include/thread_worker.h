@@ -446,6 +446,12 @@ struct thread_worker {
           if constexpr (is_pv) { ss.prepend_to_pv(mv); }
         }
       }
+
+      const bool fail_prune = !is_root && !is_pv && depth <= 12 && idx == 0 && maybe.has_value() && maybe->bound() == bound_type::upper &&
+                              maybe->depth() >= 4 && score < maybe->score() && (maybe->score() + 64 * depth) < alpha;
+      if (fail_prune) {
+         return make_result(score, move::null());
+      }
     }
 
     // step 13. update histories if appropriate and maybe insert a new transposition_table_entry
