@@ -89,6 +89,7 @@ struct fixed_constants {
   constexpr depth_type see_prune_depth() const { return 2; }
   constexpr depth_type history_extension_depth() const { return 8; }
   constexpr depth_type iir_depth() const { return 4; }
+  constexpr depth_type early_depth() const { return 8; }
 
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
@@ -162,6 +163,7 @@ struct tuning_constants {
   depth_type see_prune_depth_{2};
   depth_type history_extension_depth_{8};
   depth_type iir_depth_{4};
+  depth_type early_depth_{7};
 
   depth_type R_bias_{4};
   depth_type R_div_{6};
@@ -191,7 +193,8 @@ struct tuning_constants {
   depth_type see_prune_depth() const { return see_prune_depth_; }
   depth_type history_extension_depth() const { return history_extension_depth_; }
   depth_type iir_depth() const { return iir_depth_; }
-  constexpr depth_type lmp_depth() const { return 7; }
+  depth_type early_depth() const { return early_depth_; }
+  constexpr depth_type lmp_depth() const { return 8; }
 
   depth_type reduction(const depth_type& depth, const int& move_idx) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;

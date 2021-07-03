@@ -429,6 +429,8 @@ struct thread_worker {
           zw_score = zero_width(lmr_depth);
         }
 
+        if (!is_pv && try_lmr && depth <= external.constants->early_depth() && zw_score >= beta) { return zw_score; }
+
         // search again at full depth if necessary
         if (!try_lmr || (zw_score > alpha)) { zw_score = zero_width(next_depth); }
 
