@@ -357,9 +357,7 @@ struct thread_worker {
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(follow, counter, mv);
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
-      const board bd_ = bd.forward(mv);
-
-      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
+      const bool try_pruning = !is_root && !is_check && idx >= 2 && best_score > search::max_mate_score;
 
       // step 10. pruning
       if (try_pruning) {
@@ -383,6 +381,7 @@ struct thread_worker {
         if (see_prune) { continue; }
       }
 
+      const board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
@@ -392,11 +391,11 @@ struct thread_worker {
 
         if (check_ext) { return 1; }
 
-        const bool history_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && mv.is_quiet() &&
+        /*const bool history_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && mv.is_quiet() &&
                                  depth >= external.constants->history_extension_depth() &&
                                  history_value >= external.constants->history_extension_threshold();
 
-        if (history_ext) { return 1; }
+        if (history_ext) { return 1; }*/
 
         return 0;
       }();
@@ -407,7 +406,10 @@ struct thread_worker {
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
         auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
 
-        search::score_type zw_score{};
+        if (idx == 0) { return full_width(); }
+
+        search::depth_type lmr_depth;
+        search::score_type zw_score;
 
         // step 12. late move reductions
         const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
@@ -425,12 +427,12 @@ struct thread_worker {
 
           reduction = std::max(reduction, 0);
 
-          const search::depth_type lmr_depth = std::max(1, next_depth - reduction);
+          lmr_depth = std::max(1, next_depth - reduction);
           zw_score = zero_width(lmr_depth);
         }
 
         // search again at full depth if necessary
-        if (!try_lmr || (zw_score > alpha)) { zw_score = zero_width(next_depth); }
+        if (!try_lmr || (zw_score > alpha && lmr_depth < next_depth)) { zw_score = zero_width(next_depth); }
 
         // search again with full window on pv nodes
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
