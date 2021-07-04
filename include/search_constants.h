@@ -95,7 +95,11 @@ struct fixed_constants {
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
   }
 
-  constexpr depth_type R(const depth_type& depth) const { return 4 + depth / 6; }
+  constexpr depth_type nmp_reduction_base(const depth_type& depth) const { return 4 + depth / 6; }
+
+  constexpr depth_type nmp_reduction_adjustment(const score_type& eval, const score_type& beta) const {
+    return static_cast<depth_type>(eval - beta) / 512;
+  }
 
   constexpr counter_type history_prune_threshold(const bool& improving, const depth_type& depth) const {
     return static_cast<counter_type>(-256) * static_cast<counter_type>(depth) * static_cast<counter_type>(depth + improving);
