@@ -101,7 +101,7 @@ struct fixed_constants {
     return static_cast<counter_type>(-256) * static_cast<counter_type>(depth) * static_cast<counter_type>(depth + improving);
   }
 
-  constexpr depth_type history_extension_threshold() const { return static_cast<counter_type>(24576); }
+  constexpr depth_type history_extension_threshold() const { return static_cast<counter_type>(36864); }
 
   constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
