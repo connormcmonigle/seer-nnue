@@ -401,8 +401,6 @@ struct thread_worker {
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
         auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
 
-        if (idx == 0) { return full_width(); }
-
         search::depth_type lmr_depth;
         search::score_type zw_score;
 
@@ -427,7 +425,7 @@ struct thread_worker {
         }
 
         // search again at full depth if necessary
-        if (!try_lmr || (zw_score > alpha && lmr_depth < next_depth)) { zw_score = zero_width(next_depth); }
+        if (!try_lmr || (zw_score > alpha)) { zw_score = zero_width(next_depth); }
 
         // search again with full window on pv nodes
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
