@@ -87,7 +87,7 @@ struct fixed_constants {
   constexpr depth_type snmp_depth() const { return 7; }
   constexpr depth_type futility_prune_depth() const { return 6; }
   constexpr depth_type see_prune_depth() const { return 2; }
-  constexpr depth_type history_extension_depth() const { return 8; }
+  constexpr depth_type history_extension_depth() const { return 9; }
   constexpr depth_type iir_depth() const { return 4; }
 
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
@@ -101,7 +101,7 @@ struct fixed_constants {
     return static_cast<counter_type>(-256) * static_cast<counter_type>(depth) * static_cast<counter_type>(depth + improving);
   }
 
-  constexpr depth_type history_extension_threshold() const { return static_cast<counter_type>(24576); }
+  constexpr depth_type history_extension_threshold() const { return static_cast<counter_type>(36348); }
 
   constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
