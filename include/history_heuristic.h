@@ -47,18 +47,18 @@ struct history_heuristic {
 
   size_t counter_idx_(const move& them_mv, const move& mv) const {
     const size_t p0 = static_cast<size_t>(them_mv.piece());
-    const size_t from0 = static_cast<size_t>(them_mv.from().index());
+    const size_t to0 = static_cast<size_t>(them_mv.to().index());
     const size_t p1 = static_cast<size_t>(mv.piece());
     const size_t to1 = static_cast<size_t>(mv.to().index());
-    return p0 * num_squares * num_pieces * num_squares + from0 * num_pieces * num_squares + p1 * num_squares + to1;
+    return p0 * num_squares * num_pieces * num_squares + to0 * num_pieces * num_squares + p1 * num_squares + to1;
   }
 
   size_t follow_idx_(const move& us_mv, const move& mv) const {
     const size_t p0 = static_cast<size_t>(us_mv.piece());
-    const size_t from0 = static_cast<size_t>(us_mv.from().index());
+    const size_t to0 = static_cast<size_t>(us_mv.to().index());
     const size_t p1 = static_cast<size_t>(mv.piece());
     const size_t to1 = static_cast<size_t>(mv.to().index());
-    return p0 * num_squares * num_pieces * num_squares + from0 * num_pieces * num_squares + p1 * num_squares + to1;
+    return p0 * num_squares * num_pieces * num_squares + to0 * num_pieces * num_squares + p1 * num_squares + to1;
   }
 
   history_heuristic& clear() {
