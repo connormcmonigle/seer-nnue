@@ -298,7 +298,7 @@ struct thread_worker {
     }
 
     // step 4. internal iterative reductions
-    const bool should_iir = !maybe.has_value() && depth >= external.constants->iir_depth();
+    const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
     // step 5. compute static eval and adjust appropriately if there's a tt hit
@@ -398,8 +398,8 @@ struct thread_worker {
 
         if (history_ext) { return 1; }
 
-        const bool try_singular = !is_root && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
-                                  maybe->bound() != bound_type::upper && mv == maybe->best_move() &&
+        const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
+                                  mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
                                   maybe->depth() >= (depth - external.constants->singular_extension_depth_margin());
 
         if (try_singular) {
@@ -462,7 +462,7 @@ struct thread_worker {
     }
 
     // step 13. update histories if appropriate and maybe insert a new transposition_table_entry
-    if (loop.keep_going()) {
+    if (loop.keep_going() && !ss.has_excluded()) {
       const bound_type bound = [&] {
         if (best_score >= beta) { return bound_type::lower; }
         if (is_pv && best_score > original_alpha) { return bound_type::exact; }
