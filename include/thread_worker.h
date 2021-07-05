@@ -336,8 +336,7 @@ struct thread_worker {
 
     if (try_nmp) {
       ss.set_played(move::null());
-      const search::depth_type R = external.constants->R(depth);
-      const search::depth_type adjusted_depth = std::max(0, depth - R);
+      const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth));
       const search::score_type nmp_score = -pv_search<is_pv>(ss.next(), eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth);
       if (nmp_score > beta) { return make_result(nmp_score, move::null()); }
     }
@@ -399,12 +398,13 @@ struct thread_worker {
 
         if (history_ext) { return 1; }
 
-        const bool try_singular = !is_root && depth >= 9 && maybe.has_value() && maybe->bound() != bound_type::upper && mv == maybe->best_move() &&
-                                  maybe->depth() >= (depth - 2);
+        const bool try_singular = !is_root && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
+                                  maybe->bound() != bound_type::upper && mv == maybe->best_move() &&
+                                  maybe->depth() >= (depth - external.constants->singular_extension_depth_margin());
 
         if (try_singular) {
-          const search::depth_type singular_depth = depth / 2;
-          const search::score_type singular_beta = maybe->score() - depth * 2;
+          const search::depth_type singular_depth = external.constants->singular_search_depth(depth);
+          const search::score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
           ss.set_excluded(mv);
           const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth);
           ss.set_excluded(move::null());

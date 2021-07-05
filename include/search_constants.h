@@ -88,6 +88,7 @@ struct fixed_constants {
   constexpr depth_type futility_prune_depth() const { return 6; }
   constexpr depth_type see_prune_depth() const { return 2; }
   constexpr depth_type history_extension_depth() const { return 8; }
+  constexpr depth_type singular_extension_depth() const { return 9; }
   constexpr depth_type iir_depth() const { return 4; }
 
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
@@ -95,13 +96,19 @@ struct fixed_constants {
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
   }
 
-  constexpr depth_type R(const depth_type& depth) const { return 4 + depth / 6; }
+  constexpr depth_type nmp_reduction(const depth_type& depth) const { return 4 + depth / 6; }
 
   constexpr counter_type history_prune_threshold(const bool& improving, const depth_type& depth) const {
     return static_cast<counter_type>(-256) * static_cast<counter_type>(depth) * static_cast<counter_type>(depth + improving);
   }
 
   constexpr depth_type history_extension_threshold() const { return static_cast<counter_type>(24576); }
+
+  constexpr depth_type singular_extension_depth_margin() const { return 2; }
+
+  constexpr depth_type singular_search_depth(const depth_type& depth) const { return depth / 2; }
+
+  constexpr score_type singular_beta(const score_type& tt_score, const depth_type& depth) const { return tt_score - 2 * depth; }
 
   constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
