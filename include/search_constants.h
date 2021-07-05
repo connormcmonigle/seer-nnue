@@ -108,7 +108,7 @@ struct fixed_constants {
 
   constexpr depth_type singular_search_depth(const depth_type& depth) const { return depth / 2; }
 
-  constexpr score_type singular_beta(const score_type& tt_score, const depth_type& depth) const { return tt_score - 4 * depth; }
+  constexpr score_type singular_beta(const score_type& tt_score, const depth_type& depth) const { return tt_score - 2 * depth; }
 
   constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
