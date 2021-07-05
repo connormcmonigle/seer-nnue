@@ -37,6 +37,7 @@ struct stack_entry {
   score_type eval_{};
   chess::move played_{chess::move::null()};
   chess::move killer_{chess::move::null()};
+  chess::move excluded_{chess::move::null()};
   std::array<chess::move, safe_depth_> pv_{};
 
   stack_entry() { pv_.fill(chess::move::null()); }
@@ -109,6 +110,10 @@ struct stack_view {
 
   chess::move killer() const { return (view_->at_(height_)).killer_; }
 
+  chess::move excluded() const { return (view_->at_(height_)).excluded_; }
+
+  bool has_excluded() const { return !view_->at_(height_).excluded_.is_null(); }
+
   const std::array<chess::move, safe_depth_>& pv() const { return (view_->at_(height_)).pv_; }
 
   bool nmp_valid() const { return !counter().is_null() && !follow().is_null(); }
@@ -141,6 +146,11 @@ struct stack_view {
 
   const stack_view& set_killer(const chess::move& killer) const {
     (view_->at_(height_)).killer_ = killer;
+    return *this;
+  }
+
+  const stack_view& set_excluded(const chess::move& excluded) const {
+    (view_->at_(height_)).excluded_ = excluded;
     return *this;
   }
 

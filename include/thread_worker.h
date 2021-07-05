@@ -287,7 +287,7 @@ struct thread_worker {
     const move counter = ss.counter();
 
     move_orderer orderer(move_orderer_data{killer, follow, counter, &bd, list, &internal.hh.us(bd.turn())});
-    const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
+    const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = !is_pv && entry.depth() >= depth &&
@@ -325,14 +325,14 @@ struct thread_worker {
     const bool improving = ss.improving();
 
     // step 8. static null move pruning
-    const bool snm_prune = !is_root && !is_pv && !is_check && depth <= external.constants->snmp_depth() &&
+    const bool snm_prune = !is_root && !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
                            static_eval > beta + external.constants->snmp_margin(improving, depth) && static_eval > ss.effective_mate_score();
 
     if (snm_prune) { return make_result(static_eval, move::null()); }
 
     // step 9. null move pruning
-    const bool try_nmp = !is_root && !is_pv && !is_check && depth >= external.constants->nmp_depth() && static_eval > beta && ss.nmp_valid() &&
-                         bd.has_non_pawn_material();
+    const bool try_nmp = !is_root && !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && static_eval > beta &&
+                         ss.nmp_valid() && bd.has_non_pawn_material();
 
     if (try_nmp) {
       ss.set_played(move::null());
@@ -352,6 +352,7 @@ struct thread_worker {
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
+      if (mv == ss.excluded()) { continue; }
       ss.set_played(mv);
 
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(follow, counter, mv);
@@ -397,6 +398,18 @@ struct thread_worker {
                                  history_value >= external.constants->history_extension_threshold();
 
         if (history_ext) { return 1; }
+
+        const bool try_singular = !is_root && depth >= 9 && maybe.has_value() && maybe->bound() != bound_type::upper && mv == maybe->best_move() &&
+                                  maybe->depth() >= (depth - 2);
+
+        if (try_singular) {
+          const search::depth_type singular_depth = depth / 2;
+          const search::score_type singular_beta = maybe->score() - depth * 2;
+          ss.set_excluded(mv);
+          const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth);
+          ss.set_excluded(move::null());
+          if (excluded_score < singular_beta) { return 1; }
+        }
 
         return 0;
       }();
