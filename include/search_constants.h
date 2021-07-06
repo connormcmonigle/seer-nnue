@@ -110,6 +110,8 @@ struct fixed_constants {
 
   constexpr score_type singular_beta(const score_type& tt_score, const depth_type& depth) const { return tt_score - 2 * depth; }
 
+  constexpr score_type singular_double_extension_margin() const { return 160; }
+
   constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
     constexpr score_type m = 2048;
