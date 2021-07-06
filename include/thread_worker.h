@@ -552,7 +552,6 @@ struct thread_worker {
       internal.best_move.store(bd.generate_moves().begin()->data);
       internal.stack = search::stack(hist, bd);
       internal.hh.clear();
-      internal.cache.clear();
     });
   }
 
