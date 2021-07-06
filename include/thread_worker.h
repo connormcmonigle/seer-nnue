@@ -368,7 +368,7 @@ struct thread_worker {
 
         if (lm_prune) { continue; }
 
-        const bool history_prune = mv.is_quiet() && depth <= external.constants->history_prune_depth() &&
+        const bool history_prune = mv.is_quiet() && depth <= external.constants->history_prune_depth() && ss.height() >= 6 &&
                                    history_value <= external.constants->history_prune_threshold(improving, depth);
 
         if (history_prune) { continue; }
@@ -551,7 +551,7 @@ struct thread_worker {
       internal.is_stable.store(false);
       internal.best_move.store(bd.generate_moves().begin()->data);
       internal.stack = search::stack(hist, bd);
-      internal.hh.clear();
+      //internal.hh.clear();
     });
   }
 
