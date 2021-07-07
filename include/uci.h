@@ -113,8 +113,8 @@ struct uci {
 
   void uci_new_game() {
     history.clear();
-    pool_.tt_->clear();
     position = chess::board::start_pos();
+    pool_.reset();
   }
 
   void set_position(const std::string& line) {
