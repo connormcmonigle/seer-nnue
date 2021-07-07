@@ -375,7 +375,7 @@ struct thread_worker {
       // step 10. pruning
       if (try_pruning) {
         const bool lm_prune =
-            mv.is_quiet() && depth <= external.constants->lmp_depth() && quiets_tried.size() > external.constants->lmp_count(improving, depth);
+            mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { continue; }
 
@@ -583,7 +583,7 @@ struct worker_pool {
 
   void reset() {
     tt_->clear();
-    for(auto& worker : pool_) { (worker->internal).reset(); };
+    for (auto& worker : pool_) { (worker->internal).reset(); };
   }
 
   void resize(const size_t& new_size) {
