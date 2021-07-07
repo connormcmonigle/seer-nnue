@@ -164,6 +164,21 @@ struct thread_worker {
   internal_state internal{};
   controlled_loop<is_active> loop;
 
+  std::tuple<search::score_type, search::score_type> compute_eval(
+      const board& bd, const nnue::eval<T>& eval, const std::optional<transposition_table_entry>& maybe) {
+    const auto maybe_eval = internal.cache.find(bd.hash());
+    const search::score_type val = bd.is_check() ? search::max_mate_score : maybe_eval.has_value() ? maybe_eval.value() : eval.evaluate(bd.turn());
+
+    if (!bd.is_check()) { internal.cache.insert(bd.hash(), val); }
+
+    if (maybe.has_value()) {
+      if (maybe->bound() == bound_type::upper && val > maybe->score()) { return std::tuple(val, maybe->score()); }
+      if (maybe->bound() == bound_type::lower && val < maybe->score()) { return std::tuple(val, maybe->score()); }
+    }
+
+    return std::tuple(val, val);
+  }
+
   template <bool is_pv>
   search::score_type q_search(
       const search::stack_view& ss,
@@ -195,20 +210,7 @@ struct thread_worker {
       orderer.set_first(entry.best_move());
     }
 
-    const search::score_type static_eval = [&] {
-      const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type val = is_check                         ? ss.effective_mate_score() :
-                                     !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                        eval.evaluate(bd.turn());
-
-      if (!is_check) { internal.cache.insert(bd.hash(), val); }
-
-      if (maybe.has_value()) {
-        if (maybe->bound() == bound_type::upper && val > maybe->score()) { return maybe->score(); }
-        if (maybe->bound() == bound_type::lower && val < maybe->score()) { return maybe->score(); }
-      }
-      return val;
-    }();
+    const auto [raw_eval, static_eval] = compute_eval(bd, eval, maybe);
 
     if (list.size() == 0 || static_eval >= beta) { return static_eval; }
     if (ss.reached_max_height()) { return static_eval; }
@@ -217,7 +219,8 @@ struct thread_worker {
     search::score_type best_score = static_eval;
     move best_move = move::null();
 
-    ss.set_hash(bd.hash()).set_eval(static_eval);
+    ss.set_hash(bd.hash()).set_eval(raw_eval);
+
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
@@ -313,26 +316,13 @@ struct thread_worker {
     if (should_iir) { --depth; }
 
     // step 5. compute static eval and adjust appropriately if there's a tt hit
-    const search::score_type static_eval = [&] {
-      const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type val = is_check                         ? ss.effective_mate_score() :
-                                     !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                        eval.evaluate(bd.turn());
-
-      if (!is_check) { internal.cache.insert(bd.hash(), val); }
-
-      if (maybe.has_value()) {
-        if (maybe->bound() == bound_type::upper && val > maybe->score()) { return maybe->score(); }
-        if (maybe->bound() == bound_type::lower && val < maybe->score()) { return maybe->score(); }
-      }
-      return val;
-    }();
+    const auto [raw_eval, static_eval] = compute_eval(bd, eval, maybe);
 
     // step 6. return static eval if max depth was reached
     if (ss.reached_max_height()) { return make_result(static_eval, move::null()); }
 
-    // step 7. add position and static eval to stack
-    ss.set_hash(bd.hash()).set_eval(static_eval);
+    // step 7. add position and eval to stack
+    ss.set_hash(bd.hash()).set_eval(raw_eval);
     const bool improving = ss.improving();
 
     // step 8. static null move pruning
@@ -583,7 +573,7 @@ struct worker_pool {
 
   void reset() {
     tt_->clear();
-    for(auto& worker : pool_) { (worker->internal).reset(); };
+    for (auto& worker : pool_) { (worker->internal).reset(); };
   }
 
   void resize(const size_t& new_size) {
