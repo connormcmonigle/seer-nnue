@@ -72,6 +72,17 @@ struct internal_state {
     constexpr size_t bit_pattern = N - 1;
     return (nodes & bit_pattern) == bit_pattern;
   }
+
+  void reset() {
+    stack = search::stack{position_history{}, board::start_pos()};
+    hh.clear();
+    cache.clear();
+    is_stable.store(false);
+    nodes.store(0);
+    depth.store(0);
+    score.store(0);
+    best_move.store(move::null().data);
+  }
 };
 
 template <typename T>
@@ -368,11 +379,6 @@ struct thread_worker {
 
         if (lm_prune) { continue; }
 
-        const bool history_prune = mv.is_quiet() && depth <= external.constants->history_prune_depth() &&
-                                   history_value <= external.constants->history_prune_threshold(improving, depth);
-
-        if (history_prune) { continue; }
-
         const bool futility_prune =
             mv.is_quiet() && depth <= external.constants->futility_prune_depth() && static_eval + external.constants->futility_margin(depth) < alpha;
 
@@ -408,7 +414,7 @@ struct thread_worker {
           ss.set_excluded(mv);
           const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth);
           ss.set_excluded(move::null());
-          if(!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2; }
+          if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2; }
           if (excluded_score < singular_beta) { return 1; }
         }
 
@@ -551,7 +557,6 @@ struct thread_worker {
       internal.is_stable.store(false);
       internal.best_move.store(bd.generate_moves().begin()->data);
       internal.stack = search::stack(hist, bd);
-      internal.hh.clear();
     });
   }
 
@@ -575,6 +580,11 @@ struct worker_pool {
   std::shared_ptr<search::constants> constants_{nullptr};
 
   std::vector<std::unique_ptr<thread_worker<T>>> pool_{};
+
+  void reset() {
+    tt_->clear();
+    for(auto& worker : pool_) { (worker->internal).reset(); };
+  }
 
   void resize(const size_t& new_size) {
     constants_->update_(new_size);
