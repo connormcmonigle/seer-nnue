@@ -72,6 +72,17 @@ struct internal_state {
     constexpr size_t bit_pattern = N - 1;
     return (nodes & bit_pattern) == bit_pattern;
   }
+
+  void reset() {
+    stack = search::stack{position_history{}, board::start_pos()};
+    hh.clear();
+    cache.clear();
+    is_stable.store(false);
+    nodes.store(0);
+    depth.store(0);
+    score.store(0);
+    best_move.store(move::null().data);
+  }
 };
 
 template <typename T>
@@ -287,7 +298,7 @@ struct thread_worker {
     const move counter = ss.counter();
 
     move_orderer orderer(move_orderer_data{killer, follow, counter, &bd, list, &internal.hh.us(bd.turn())});
-    const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
+    const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = !is_pv && entry.depth() >= depth &&
@@ -298,7 +309,7 @@ struct thread_worker {
     }
 
     // step 4. internal iterative reductions
-    const bool should_iir = !maybe.has_value() && depth >= external.constants->iir_depth();
+    const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
     // step 5. compute static eval and adjust appropriately if there's a tt hit
@@ -325,19 +336,18 @@ struct thread_worker {
     const bool improving = ss.improving();
 
     // step 8. static null move pruning
-    const bool snm_prune = !is_root && !is_pv && !is_check && depth <= external.constants->snmp_depth() &&
+    const bool snm_prune = !is_root && !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
                            static_eval > beta + external.constants->snmp_margin(improving, depth) && static_eval > ss.effective_mate_score();
 
     if (snm_prune) { return make_result(static_eval, move::null()); }
 
     // step 9. null move pruning
-    const bool try_nmp = !is_root && !is_pv && !is_check && depth >= external.constants->nmp_depth() && static_eval > beta && ss.nmp_valid() &&
-                         bd.has_non_pawn_material();
+    const bool try_nmp = !is_root && !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && static_eval > beta &&
+                         ss.nmp_valid() && bd.has_non_pawn_material();
 
     if (try_nmp) {
       ss.set_played(move::null());
-      const search::depth_type R = external.constants->R(depth);
-      const search::depth_type adjusted_depth = std::max(0, depth - R);
+      const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth));
       const search::score_type nmp_score = -pv_search<is_pv>(ss.next(), eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth);
       if (nmp_score > beta) { return make_result(nmp_score, move::null()); }
     }
@@ -352,6 +362,7 @@ struct thread_worker {
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
+      if (mv == ss.excluded()) { continue; }
       ss.set_played(mv);
 
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(follow, counter, mv);
@@ -364,14 +375,9 @@ struct thread_worker {
       // step 10. pruning
       if (try_pruning) {
         const bool lm_prune =
-            mv.is_quiet() && depth <= external.constants->lmp_depth() && quiets_tried.size() > external.constants->lmp_count(improving, depth);
+            mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { continue; }
-
-        const bool history_prune = mv.is_quiet() && depth <= external.constants->history_prune_depth() &&
-                                   history_value <= external.constants->history_prune_threshold(improving, depth);
-
-        if (history_prune) { continue; }
 
         const bool futility_prune =
             mv.is_quiet() && depth <= external.constants->futility_prune_depth() && static_eval + external.constants->futility_margin(depth) < alpha;
@@ -397,6 +403,20 @@ struct thread_worker {
                                  history_value >= external.constants->history_extension_threshold();
 
         if (history_ext) { return 1; }
+
+        const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
+                                  mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
+                                  maybe->depth() >= (depth - external.constants->singular_extension_depth_margin());
+
+        if (try_singular) {
+          const search::depth_type singular_depth = external.constants->singular_search_depth(depth);
+          const search::score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
+          ss.set_excluded(mv);
+          const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth);
+          ss.set_excluded(move::null());
+          if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2; }
+          if (excluded_score < singular_beta) { return 1; }
+        }
 
         return 0;
       }();
@@ -455,7 +475,7 @@ struct thread_worker {
     }
 
     // step 13. update histories if appropriate and maybe insert a new transposition_table_entry
-    if (loop.keep_going()) {
+    if (loop.keep_going() && !ss.has_excluded()) {
       const bound_type bound = [&] {
         if (best_score >= beta) { return bound_type::lower; }
         if (is_pv && best_score > original_alpha) { return bound_type::exact; }
@@ -543,8 +563,6 @@ struct thread_worker {
       internal.is_stable.store(false);
       internal.best_move.store(bd.generate_moves().begin()->data);
       internal.stack = search::stack(hist, bd);
-      internal.hh.clear();
-      internal.cache.clear();
     });
   }
 
@@ -568,6 +586,11 @@ struct worker_pool {
   std::shared_ptr<search::constants> constants_{nullptr};
 
   std::vector<std::unique_ptr<thread_worker<T>>> pool_{};
+
+  void reset() {
+    tt_->clear();
+    for (auto& worker : pool_) { (worker->internal).reset(); };
+  }
 
   void resize(const size_t& new_size) {
     constants_->update_(new_size);
