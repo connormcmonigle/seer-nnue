@@ -120,9 +120,9 @@ struct fixed_constants {
     return m * static_cast<score_type>(depth - improving) + b;
   }
 
-  constexpr size_t lmp_count(const bool& improving, const depth_type& depth) const {
-    constexpr std::array<size_t, 8> improving_counts = {0, 5, 8, 12, 20, 30, 42, 65};
-    constexpr std::array<size_t, 8> worsening_counts = {0, 3, 4, 8, 10, 13, 21, 31};
+  constexpr int lmp_count(const bool& improving, const depth_type& depth) const {
+    constexpr std::array<int, 8> improving_counts = {0, 5, 8, 12, 20, 30, 42, 65};
+    constexpr std::array<int, 8> worsening_counts = {0, 3, 4, 8, 10, 13, 21, 31};
     return improving ? improving_counts[depth] : worsening_counts[depth];
   }
 
