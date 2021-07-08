@@ -443,7 +443,7 @@ struct thread_worker {
           if (!improving) { ++reduction; }
           if (!is_pv) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
-          if (behind_lmr) { ++reduction; }
+          if (behind_lmr && (!maybe.has_value() || maybe->bound() == bound_type::upper)) { ++reduction; }
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
           reduction = std::max(reduction, 0);
