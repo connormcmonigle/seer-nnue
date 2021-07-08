@@ -224,7 +224,7 @@ struct thread_worker {
 
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
-      if (best_score > search::max_mate_score && see_value < 0) { continue; }
+      if ((!is_check || best_score > search::max_mate_score) && see_value < 0) { continue; }
 
       const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((static_eval + external.constants->delta_margin()) < alpha);
       if (delta_prune) { continue; }
