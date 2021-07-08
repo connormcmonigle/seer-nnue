@@ -264,7 +264,8 @@ struct thread_worker {
       const board& bd,
       search::score_type alpha,
       const search::score_type& beta,
-      search::depth_type depth) -> pv_search_result_t<is_root> {
+      search::depth_type depth,
+      const bool& behind_lmr=false) -> pv_search_result_t<is_root> {
     auto make_result = [](const search::score_type& score, const move& mv) {
       if constexpr (is_root) { return pv_search_result_t<is_root>{score, mv}; }
       if constexpr (!is_root) { return score; }
@@ -374,8 +375,7 @@ struct thread_worker {
 
       // step 10. pruning
       if (try_pruning) {
-        const bool lm_prune =
-            mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune = mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { continue; }
 
@@ -425,7 +425,7 @@ struct thread_worker {
         const search::depth_type next_depth = depth + extension - 1;
 
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
-        auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
+        auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, zw_depth < next_depth); };
 
         search::score_type zw_score{};
 
@@ -440,7 +440,7 @@ struct thread_worker {
           if (!improving) { ++reduction; }
           if (!is_pv) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
-
+          if (behind_lmr) { ++reduction; }
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
           reduction = std::max(reduction, 0);
