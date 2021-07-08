@@ -425,7 +425,10 @@ struct thread_worker {
         const search::depth_type next_depth = depth + extension - 1;
 
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
-        auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, zw_depth < next_depth); };
+        auto zero_width = [&](const search::depth_type& zw_depth) {
+          const bool is_lmr = zw_depth < next_depth && idx <= 4;
+          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, is_lmr); 
+        };
 
         search::score_type zw_score{};
 
