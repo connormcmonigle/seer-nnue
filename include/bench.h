@@ -35,7 +35,7 @@ namespace engine {
 namespace bench_config {
 
 constexpr search::depth_type init_depth = 1;
-constexpr search::depth_type bench_depth = 12;
+constexpr search::depth_type bench_depth = 20;
 constexpr size_t tt_mb_size = 16;
 
 constexpr std::array<std::string_view, 35> fens = {
