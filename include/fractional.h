@@ -7,8 +7,8 @@
 namespace search {
 
 struct fractional_type {
-  static constexpr depth_type numerator = 3;
-  static constexpr depth_type denominator = 5;
+  static constexpr depth_type numerator = 8;
+  static constexpr depth_type denominator = 9;
   depth_type value_;
 
   constexpr operator depth_type() const { return value_ * numerator / denominator; }
@@ -40,7 +40,5 @@ constexpr fractional_type operator+(const depth_type& b, const fractional_type& 
 constexpr fractional_type operator-(const fractional_type& a, const depth_type& b) {
   return fractional_type((a.value_ * fractional_type::numerator - b * fractional_type::denominator) / fractional_type::numerator);
 }
-
-constexpr fractional_type operator-(const depth_type& b, const fractional_type& a) { return a - b; }
 
 }  // namespace search
