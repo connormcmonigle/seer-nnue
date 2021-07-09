@@ -109,7 +109,7 @@ struct fixed_constants {
 
   constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
-    constexpr score_type m = 2048;
+    constexpr score_type m = 1536;
     return m * static_cast<score_type>(depth);
   }
 
