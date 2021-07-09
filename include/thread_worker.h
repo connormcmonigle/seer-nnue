@@ -449,8 +449,10 @@ struct thread_worker {
           zw_score = zero_width(lmr_depth);
         }
 
+        const bool re_search = !try_lmr || (zw_score > alpha || (is_root && (zw_score + 4) > alpha));
+
         // search again at full depth if necessary
-        if (!try_lmr || (zw_score > alpha)) { zw_score = zero_width(next_depth); }
+        if (re_search) { zw_score = zero_width(next_depth); }
 
         // search again with full window on pv nodes
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
