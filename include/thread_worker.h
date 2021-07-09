@@ -449,7 +449,7 @@ struct thread_worker {
           zw_score = zero_width(lmr_depth);
         }
 
-        const bool re_search = !try_lmr || (zw_score > alpha || (is_root && (zw_score + 4) > alpha));
+        const bool re_search = !try_lmr || (zw_score > alpha || (is_root && zw_score >= alpha));
 
         // search again at full depth if necessary
         if (re_search) { zw_score = zero_width(next_depth); }
