@@ -379,6 +379,10 @@ struct thread_worker {
 
         if (lm_prune) { continue; }
 
+        const bool history_prune = mv.is_quiet() && depth <= 2 && history_value < 0;
+
+        if(history_prune) { continue; }
+
         const bool futility_prune =
             mv.is_quiet() && depth <= external.constants->futility_prune_depth() && static_eval + external.constants->futility_margin(depth) < alpha;
 
