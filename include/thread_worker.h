@@ -328,6 +328,8 @@ struct thread_worker {
       return val;
     }();
 
+    const bool prob_fail = maybe.has_value() && maybe->bound() == bound_type::upper && maybe->score() < original_alpha && maybe->depth() + 3 >= depth;
+
     // step 6. return static eval if max depth was reached
     if (ss.reached_max_height()) { return make_result(static_eval, move::null()); }
 
@@ -440,6 +442,7 @@ struct thread_worker {
           if (!improving) { ++reduction; }
           if (!is_pv) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
+          if (prob_fail) { ++reduction; }
 
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
