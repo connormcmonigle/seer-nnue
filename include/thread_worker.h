@@ -379,7 +379,7 @@ struct thread_worker {
 
         if (lm_prune) { continue; }
 
-        const bool history_prune = mv.is_quiet() && depth <= 2 && history_value < 0;
+        const bool history_prune = !is_pv && mv.is_quiet() && depth <= 2 && history_value < -6144;
 
         if(history_prune) { continue; }
 
