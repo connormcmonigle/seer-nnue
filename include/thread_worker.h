@@ -374,8 +374,7 @@ struct thread_worker {
 
       // step 10. pruning
       if (try_pruning) {
-        const bool lm_prune =
-            mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune = mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { continue; }
 
@@ -398,7 +397,7 @@ struct thread_worker {
 
         if (check_ext) { return 1; }
 
-        const bool history_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && mv.is_quiet() &&
+        const bool history_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && maybe->bound() == bound_type::upper && mv.is_quiet() &&
                                  depth >= external.constants->history_extension_depth() &&
                                  history_value >= external.constants->history_extension_threshold();
 
