@@ -38,7 +38,7 @@ template <typename T>
 inline constexpr T min_logit = static_cast<T>(-8);
 
 template <typename T>
-inline constexpr T logit_scale = static_cast<T>(1024);
+inline constexpr T logit_scale = static_cast<T>(1200);
 
 template <typename T>
 inline constexpr T wdl_scale = static_cast<T>(1024);
