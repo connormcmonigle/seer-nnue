@@ -264,7 +264,8 @@ struct thread_worker {
       const board& bd,
       search::score_type alpha,
       const search::score_type& beta,
-      search::depth_type depth) -> pv_search_result_t<is_root> {
+      search::depth_type depth,
+      const search::depth_type& last_reduction = 0) -> pv_search_result_t<is_root> {
     auto make_result = [](const search::score_type& score, const move& mv) {
       if constexpr (is_root) { return pv_search_result_t<is_root>{score, mv}; }
       if constexpr (!is_root) { return score; }
@@ -414,6 +415,7 @@ struct thread_worker {
           ss.set_excluded(mv);
           const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth);
           ss.set_excluded(move::null());
+          if (excluded_score < singular_beta) { depth += last_reduction; }
           if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2; }
           if (excluded_score < singular_beta) { return 1; }
         }
@@ -425,7 +427,10 @@ struct thread_worker {
         const search::depth_type next_depth = depth + extension - 1;
 
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
-        auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
+        auto zero_width = [&](const search::depth_type& zw_depth) { 
+          const search::depth_type reduction = std::max(next_depth - zw_depth, 0);
+          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, reduction);
+        };
 
         search::score_type zw_score{};
 
