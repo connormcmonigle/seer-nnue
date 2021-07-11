@@ -374,8 +374,7 @@ struct thread_worker {
 
       // step 10. pruning
       if (try_pruning) {
-        const bool lm_prune =
-            mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune = mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { continue; }
 
@@ -451,6 +450,12 @@ struct thread_worker {
 
         // search again at full depth if necessary
         if (!try_lmr || (zw_score > alpha)) { zw_score = zero_width(next_depth); }
+
+        const bool try_again_ext = !is_pv && maybe.has_value() && mv == maybe->best_move() && !try_lmr && extension == 0 && depth >= 8 &&
+                              maybe->bound() == bound_type::lower && maybe->depth() + 3 >= depth && maybe->score() > beta && zw_score < beta &&
+                              zw_score + 8 > beta;
+
+        if (try_again_ext) { zw_score = zero_width(next_depth + 1); }
 
         // search again with full window on pv nodes
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
