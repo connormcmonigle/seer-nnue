@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <apply.h>
 #include <search_constants.h>
 
 #include <atomic>
@@ -159,24 +160,8 @@ struct time_manager {
     return std::chrono::milliseconds(x.value_or(0));
   }
 
-  template <typename F, size_t... I>
-  void apply_impl_(F&& f, std::index_sequence<I...>) {
-    auto helper = [](auto...) {};
-    auto map = [&f](auto&& x) {
-      f(x);
-      return 0;
-    };
-    helper(map(std::get<I>(params_))...);
-  }
-
-  template <typename F>
-  void apply(F&& f) {
-    constexpr size_t cardinality = std::tuple_size<decltype(params_)>::value;
-    apply_impl_(std::forward<F>(f), std::make_index_sequence<cardinality>{});
-  }
-
   time_manager& read(const std::string& line) {
-    apply([&line](auto& param) { param.read(line); });
+    util::apply(params_, [&line](auto& param) { param.read(line); });
     return *this;
   }
 
