@@ -63,7 +63,6 @@ struct manifest {
 
   const manifest_zobrist_src* zobrist_src_;
   zobrist::hash_type hash_{0};
-  std::array<piece_type, num_squares> occ_table{};
   square_set pawn_{};
   square_set knight_{};
   square_set bishop_{};
@@ -74,18 +73,17 @@ struct manifest {
 
   zobrist::hash_type hash() const { return hash_; }
 
-  template <typename S>
-  piece_type& occ(const S& sq) {
-    static_assert(is_square_v<S>, "at must be of square type");
-    return occ_table[sq.index()];
-  }
-
   square_set& get_plane(const piece_type pt) { return get_member(pt, *this); }
 
-  template <typename S>
-  const piece_type& occ(const S& at) const {
-    static_assert(is_square_v<S>, "at must be of square type");
-    return occ_table[at.index()];
+  piece_type occ(const tbl_square& at) const { return occ(at.to_square()); }
+
+  piece_type occ(const square& at) const {
+    if (knight_.is_member(at)) { return piece_type::knight; }
+    if (bishop_.is_member(at)) { return piece_type::bishop; }
+    if (rook_.is_member(at)) { return piece_type::rook; }
+    if (queen_.is_member(at)) { return piece_type::queen; }
+    if (king_.is_member(at)) { return piece_type::king; }
+    return piece_type::pawn;
   }
 
   const square_set& all() const { return all_; }
@@ -104,7 +102,6 @@ struct manifest {
     hash_ ^= zobrist_src_->get(pt, at);
     all_ |= at.bit_board();
     get_plane(pt) |= at.bit_board();
-    occ(at) = pt;
     return *this;
   }
 
