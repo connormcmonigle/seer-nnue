@@ -108,6 +108,23 @@ struct capture_info {
   }
 };
 
+struct counter_capture_info {
+  static constexpr size_t N = constants::num_pieces * constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
+
+  static constexpr bool is_applicable(const context& ctxt, const move& mv) { return mv.is_capture() && !ctxt.counter.is_null(); }
+
+  static constexpr size_t compute_index(const context& ctxt, const move& mv) {
+    const size_t p0 = static_cast<size_t>(ctxt.counter.piece());
+    const size_t from0 = static_cast<size_t>(ctxt.counter.from().index());
+    const size_t p1 = static_cast<size_t>(mv.piece());
+    const size_t to1 = static_cast<size_t>(mv.to().index());
+    const size_t c1 = static_cast<size_t>(mv.captured());
+    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces +
+           from0 * constants::num_pieces * constants::num_squares * constants::num_pieces + p1 * constants::num_squares * constants::num_pieces +
+           to1 * constants::num_pieces + c1;
+  }
+};
+
 template <typename T>
 struct table {
   std::array<value_type, T::N> data_{};
@@ -155,7 +172,8 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic = history::combined<history::butterfly_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic =
+    history::combined<history::butterfly_info, history::counter_info, history::follow_info, history::capture_info, history::counter_capture_info>;
 
 struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;
