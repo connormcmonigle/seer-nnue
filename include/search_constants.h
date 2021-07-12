@@ -97,7 +97,7 @@ struct fixed_constants {
 
   constexpr depth_type nmp_reduction(const depth_type& depth) const { return 4 + depth / 6; }
 
-  constexpr depth_type history_extension_threshold() const { return static_cast<counter_type>(24576); }
+  constexpr depth_type history_extension_threshold() const { return static_cast<counter_type>(32768); }
 
   constexpr depth_type singular_extension_depth_margin() const { return 2; }
 

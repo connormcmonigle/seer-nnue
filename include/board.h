@@ -95,6 +95,8 @@ struct board {
 
   zobrist::hash_type hash() const { return man_.hash() ^ lat_.hash(); }
 
+  square their_king() const { return turn() ? man_.them<color::white>().king().item() : man_.them<color::black>().king().item(); }
+
   template <color c>
   std::tuple<piece_type, square> least_valuable_attacker(const square& tgt, const square_set& ignore) const {
     const auto p_mask = pawn_attack_tbl<them_<c>::value>.look_up(tgt);
