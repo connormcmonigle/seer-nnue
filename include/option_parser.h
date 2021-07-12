@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <apply.h>
+
 #include <functional>
 #include <iostream>
 #include <optional>
@@ -163,23 +165,8 @@ template <typename... Ts>
 struct uci_options {
   std::tuple<option_callback<Ts>...> options_;
 
-  template <typename F, size_t... I>
-  void apply_impl_(F&& f, std::index_sequence<I...>) {
-    auto helper = [](auto...) {};
-    auto map = [&f](auto&& x) {
-      f(x);
-      return 0;
-    };
-    helper(map(std::get<I>(options_))...);
-  }
-
-  template <typename F>
-  void apply(F&& f) {
-    apply_impl_(std::forward<F>(f), std::make_index_sequence<sizeof...(Ts)>{});
-  }
-
   void update(const std::string& cmd) {
-    apply([cmd](auto& opt) { opt.maybe_call(cmd); });
+    util::apply(options_, [cmd](auto& opt) { opt.maybe_call(cmd); });
   }
 
   uci_options(const option_callback<Ts>&... options) : options_{options...} {}
@@ -187,7 +174,7 @@ struct uci_options {
 
 template <typename... Ts>
 std::ostream& operator<<(std::ostream& ostr, uci_options<Ts...> options) {
-  options.apply([&ostr](const auto& opt) { ostr << opt.option_ << std::endl; });
+  util::apply(options.options_, [&ostr](const auto& opt) { ostr << opt.option_ << std::endl; });
   return ostr;
 }
 

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <apply.h>
 #include <enum_util.h>
 #include <move.h>
 #include <position_history.h>
@@ -30,80 +31,118 @@
 
 namespace chess {
 
-struct history_heuristic {
-  using value_type = search::counter_type;
-  static constexpr size_t num_squares = 64;
-  static constexpr size_t num_pieces = 6;
+namespace history {
 
-  std::array<value_type, num_squares * num_squares> butterfly_{};
-  std::array<value_type, num_pieces * num_squares * num_pieces * num_squares> counter_{};
-  std::array<value_type, num_pieces * num_squares * num_pieces * num_squares> follow_{};
+using value_type = search::counter_type;
 
-  size_t butterfly_idx_(const move& mv) const {
+namespace constants {
+
+inline constexpr size_t num_squares = 64;
+inline constexpr size_t num_pieces = 6;
+
+};  // namespace constants
+
+struct context {
+  move follow;
+  move counter;
+};
+
+value_type formula(const value_type& x, const value_type& gain) {
+  constexpr value_type history_multiplier = 32;
+  constexpr value_type history_divisor = 512;
+  return (gain * history_multiplier) - (x * std::abs(gain) / history_divisor);
+}
+
+struct butterfly_info {
+  static constexpr size_t N = constants::num_squares * constants::num_squares;
+
+  static constexpr bool is_applicable(const context&, const move& mv) { return mv.is_quiet(); }
+
+  static constexpr size_t compute_index(const context&, const move& mv) {
     const size_t from = static_cast<size_t>(mv.from().index());
     const size_t to = static_cast<size_t>(mv.to().index());
-    return from * num_squares + to;
-  }
-
-  size_t counter_idx_(const move& them_mv, const move& mv) const {
-    const size_t p0 = static_cast<size_t>(them_mv.piece());
-    const size_t from0 = static_cast<size_t>(them_mv.from().index());
-    const size_t p1 = static_cast<size_t>(mv.piece());
-    const size_t to1 = static_cast<size_t>(mv.to().index());
-    return p0 * num_squares * num_pieces * num_squares + from0 * num_pieces * num_squares + p1 * num_squares + to1;
-  }
-
-  size_t follow_idx_(const move& us_mv, const move& mv) const {
-    const size_t p0 = static_cast<size_t>(us_mv.piece());
-    const size_t from0 = static_cast<size_t>(us_mv.from().index());
-    const size_t p1 = static_cast<size_t>(mv.piece());
-    const size_t to1 = static_cast<size_t>(mv.to().index());
-    return p0 * num_squares * num_pieces * num_squares + from0 * num_pieces * num_squares + p1 * num_squares + to1;
-  }
-
-  history_heuristic& clear() {
-    butterfly_.fill(value_type{});
-    counter_.fill(value_type{});
-    follow_.fill(value_type{});
-    return *this;
-  }
-
-  history_heuristic& update(const move& follow, const move& counter, const move& best_move, const move_list& tried, const search::depth_type& depth) {
-    // more or less lifted from ethereal
-    constexpr value_type history_max = 400;
-    constexpr value_type history_multiplier = 32;
-    constexpr value_type history_divisor = 512;
-    assert((!tried.has(best_move)));
-    auto single_update = [&, this](const auto& mv, const value_type& gain) {
-      auto formula = [=](const value_type& x) { return (gain * history_multiplier) - (x * std::abs(gain) / history_divisor); };
-      // update butterfly history
-      {
-        const size_t idx = butterfly_idx_(mv);
-        butterfly_[idx] += formula(butterfly_[idx]);
-      }
-      // update counter move history
-      if (!counter.is_null()) {
-        const size_t idx = counter_idx_(counter, mv);
-        counter_[idx] += formula(counter_[idx]);
-      }
-      // update follow up move history
-      if (!follow.is_null()) {
-        const size_t idx = follow_idx_(follow, mv);
-        follow_[idx] += formula(follow_[idx]);
-      }
-    };
-    // limit gain to prevent saturation
-    const value_type gain = std::min(history_max, static_cast<value_type>(depth) * static_cast<value_type>(depth));
-    std::for_each(tried.begin(), tried.end(), [single_update, gain](const move& mv) { single_update(mv, -gain); });
-    single_update(best_move, gain);
-    return *this;
-  }
-
-  value_type compute_value(const move& follow, const move& counter, const move& mv) const {
-    return (follow.is_null() ? value_type{} : follow_[follow_idx_(follow, mv)]) +
-           (counter.is_null() ? value_type{} : counter_[counter_idx_(counter, mv)]) + butterfly_[butterfly_idx_(mv)];
+    return from * constants::num_squares + to;
   }
 };
+
+struct counter_info {
+  static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
+
+  static constexpr bool is_applicable(const context& ctxt, const move& mv) { return mv.is_quiet() && !ctxt.counter.is_null(); }
+
+  static constexpr size_t compute_index(const context& ctxt, const move& mv) {
+    const size_t p0 = static_cast<size_t>(ctxt.counter.piece());
+    const size_t from0 = static_cast<size_t>(ctxt.counter.from().index());
+    const size_t p1 = static_cast<size_t>(mv.piece());
+    const size_t to1 = static_cast<size_t>(mv.to().index());
+    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + from0 * constants::num_pieces * constants::num_squares +
+           p1 * constants::num_squares + to1;
+  }
+};
+
+struct follow_info {
+  static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
+
+  static constexpr bool is_applicable(const context& ctxt, const move& mv) { return mv.is_quiet() && !ctxt.follow.is_null(); }
+
+  static constexpr size_t compute_index(const context& ctxt, const move& mv) {
+    const size_t p0 = static_cast<size_t>(ctxt.follow.piece());
+    const size_t from0 = static_cast<size_t>(ctxt.follow.from().index());
+    const size_t p1 = static_cast<size_t>(mv.piece());
+    const size_t to1 = static_cast<size_t>(mv.to().index());
+    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + from0 * constants::num_pieces * constants::num_squares +
+           p1 * constants::num_squares + to1;
+  }
+};
+
+template <typename T>
+struct table {
+  std::array<value_type, T::N> data_{};
+
+  bool is_applicable(const context& ctxt, const move& mv) const { return T::is_applicable(ctxt, mv); }
+
+  const value_type& at(const context& ctxt, const move& mv) const { return data_[T::compute_index(ctxt, mv)]; }
+  value_type& at(const context& ctxt, const move& mv) { return data_[T::compute_index(ctxt, mv)]; }
+
+  void clear() { data_.fill(value_type{}); }
+};
+
+template <typename... Ts>
+struct combined {
+  std::tuple<table<Ts>...> tables_{};
+
+  combined<Ts...>& update(const context& ctxt, const move& best_move, const move_list& tried, const search::depth_type& depth) {
+    constexpr value_type history_max = 400;
+
+    auto single_update = [&, this](const auto& mv, const value_type& gain) {
+      util::apply(tables_, [=](auto& tbl) {
+        if (tbl.is_applicable(ctxt, mv)) { tbl.at(ctxt, mv) += formula(tbl.at(ctxt, mv), gain); }
+      });
+    };
+
+    const value_type gain = std::min(history_max, depth * depth);
+    std::for_each(tried.begin(), tried.end(), [single_update, gain](const move& mv) { single_update(mv, -gain); });
+    single_update(best_move, gain);
+
+    return *this;
+  }
+
+  void clear() {
+    util::apply(tables_, [](auto& tbl) { tbl.clear(); });
+  }
+
+  value_type compute_value(const context& ctxt, const move& mv) const {
+    value_type result{};
+    util::apply(tables_, [&](const auto& tbl) {
+      if (tbl.is_applicable(ctxt, mv)) { result += tbl.at(ctxt, mv); }
+    });
+    return result;
+  }
+};
+
+}  // namespace history
+
+using history_heuristic = history::combined<history::butterfly_info, history::counter_info, history::follow_info>;
 
 struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;
@@ -117,17 +156,5 @@ struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristi
 
   sided_history_heuristic() : white{}, black{} {}
 };
-
-std::ostream& operator<<(std::ostream& ostr, const history_heuristic& hh) {
-  ostr << "butterfly: {";
-  for (const auto& val : hh.butterfly_) { ostr << val << ", "; }
-  ostr << "}\n\n";
-  ostr << "counter: {";
-  for (const auto& val : hh.counter_) { ostr << val << ", "; }
-  ostr << "}\n\n";
-  ostr << "follow: {";
-  for (const auto& val : hh.follow_) { ostr << val << ", "; }
-  return ostr << "}\n\n";
-}
 
 }  // namespace chess
