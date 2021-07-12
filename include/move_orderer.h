@@ -60,9 +60,9 @@ struct move_orderer_entry {
   move mv;
   std::uint64_t data{0};
 
-  move_orderer_entry(const move& mv_, bool is_first, bool is_noisy, bool is_killer, std::int32_t value) : mv{mv_} {
+  move_orderer_entry(const move& mv_, bool is_first, bool is_nonnegative_noisy, bool is_killer, const search::counter_type& value) : mv{mv_} {
     first_::set(data, is_first);
-    nonnegative_noisy_::set(data, is_noisy);
+    nonnegative_noisy_::set(data, is_nonnegative_noisy);
     killer_::set(data, is_killer);
     value_::set(data, make_positive(value));
   }
@@ -111,8 +111,9 @@ struct move_orderer_iterator {
   move_orderer_iterator(const move_orderer_data& data, const int& idx) : move_count_{data.list.size()}, idx_{idx} {
     std::transform(data.list.begin(), data.list.end(), entries_.begin(), [&data](const move& mv) {
       const bool quiet = mv.is_quiet();
-      const std::int32_t value = quiet ? data.hh->compute_value(history::context{data.follow, data.counter}, mv) : data.bd->see<std::int32_t>(mv);
-      return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value);
+      const bool nonnegative_noisy = !quiet && data.bd->see<search::see_type>(mv) >= 0;
+      const search::counter_type value = data.hh->compute_value(history::context{data.follow, data.counter}, mv);
+      return move_orderer_entry(mv, mv == data.first, nonnegative_noisy, quiet && mv == data.killer, value);
     });
     update_list_();
   }

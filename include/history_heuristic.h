@@ -95,6 +95,19 @@ struct follow_info {
   }
 };
 
+struct capture_info {
+  static constexpr size_t N = constants::num_pieces * constants::num_squares * constants::num_pieces;
+
+  static constexpr bool is_applicable(const context&, const move& mv) { return mv.is_capture(); }
+
+  static constexpr size_t compute_index(const context&, const move& mv) {
+    const size_t piece = static_cast<size_t>(mv.piece());
+    const size_t to = static_cast<size_t>(mv.to().index());
+    const size_t captured = static_cast<size_t>(mv.captured());
+    return piece * constants::num_squares * constants::num_pieces + to * constants::num_pieces + captured;
+  }
+};
+
 template <typename T>
 struct table {
   std::array<value_type, T::N> data_{};
@@ -142,7 +155,7 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic = history::combined<history::butterfly_info, history::counter_info, history::follow_info>;
+using history_heuristic = history::combined<history::butterfly_info, history::counter_info, history::follow_info, history::capture_info>;
 
 struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;

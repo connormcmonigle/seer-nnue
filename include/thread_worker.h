@@ -353,7 +353,7 @@ struct thread_worker {
     }
 
     // list of attempted quiets for updating histories
-    move_list quiets_tried{};
+    move_list moves_tried{};
 
     // move loop
     search::score_type best_score = ss.effective_mate_score();
@@ -456,7 +456,7 @@ struct thread_worker {
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
       }();
 
-      if (score < beta && mv.is_quiet()) { quiets_tried.add_(mv); }
+      if (score < beta) { moves_tried.add_(mv); }
 
       if (score > best_score) {
         best_score = score;
@@ -476,9 +476,9 @@ struct thread_worker {
         return bound_type::upper;
       }();
 
-      if (bound == bound_type::lower && best_move.is_quiet()) {
-        internal.hh.us(bd.turn()).update(history::context{follow, counter}, best_move, quiets_tried, depth);
-        ss.set_killer(best_move);
+      if (bound == bound_type::lower) {
+        internal.hh.us(bd.turn()).update(history::context{follow, counter}, best_move, moves_tried, depth);
+        if (best_move.is_quiet()) { ss.set_killer(best_move); }
       }
 
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);
