@@ -56,7 +56,7 @@ value_type formula(const value_type& x, const value_type& gain) {
 struct butterfly_info {
   static constexpr size_t N = constants::num_squares * constants::num_squares;
 
-  static constexpr bool is_applicable(const context&, const move& mv) { return mv.is_quiet(); }
+  static constexpr bool is_applicable(const context&, const move&) { return true; }
 
   static constexpr size_t compute_index(const context&, const move& mv) {
     const size_t from = static_cast<size_t>(mv.from().index());
@@ -68,7 +68,7 @@ struct butterfly_info {
 struct counter_info {
   static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
 
-  static constexpr bool is_applicable(const context& ctxt, const move& mv) { return mv.is_quiet() && !ctxt.counter.is_null(); }
+  static constexpr bool is_applicable(const context& ctxt, const move&) { return !ctxt.counter.is_null(); }
 
   static constexpr size_t compute_index(const context& ctxt, const move& mv) {
     const size_t p0 = static_cast<size_t>(ctxt.counter.piece());
@@ -83,7 +83,7 @@ struct counter_info {
 struct follow_info {
   static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
 
-  static constexpr bool is_applicable(const context& ctxt, const move& mv) { return mv.is_quiet() && !ctxt.follow.is_null(); }
+  static constexpr bool is_applicable(const context& ctxt, const move&) { return !ctxt.follow.is_null(); }
 
   static constexpr size_t compute_index(const context& ctxt, const move& mv) {
     const size_t p0 = static_cast<size_t>(ctxt.follow.piece());
@@ -99,19 +99,19 @@ template <typename T>
 struct table {
   std::array<value_type, T::N> data_{};
 
-  bool is_applicable(const context& ctxt, const move& mv) const { return T::is_applicable(ctxt, mv); }
+  constexpr bool is_applicable(const context& ctxt, const move& mv) const { return T::is_applicable(ctxt, mv); }
 
-  const value_type& at(const context& ctxt, const move& mv) const { return data_[T::compute_index(ctxt, mv)]; }
-  value_type& at(const context& ctxt, const move& mv) { return data_[T::compute_index(ctxt, mv)]; }
+  constexpr const value_type& at(const context& ctxt, const move& mv) const { return data_[T::compute_index(ctxt, mv)]; }
+  constexpr value_type& at(const context& ctxt, const move& mv) { return data_[T::compute_index(ctxt, mv)]; }
 
-  void clear() { data_.fill(value_type{}); }
+  constexpr void clear() { data_.fill(value_type{}); }
 };
 
 template <typename... Ts>
 struct combined {
   std::tuple<table<Ts>...> tables_{};
 
-  combined<Ts...>& update(const context& ctxt, const move& best_move, const move_list& tried, const search::depth_type& depth) {
+  constexpr combined<Ts...>& update(const context& ctxt, const move& best_move, const move_list& tried, const search::depth_type& depth) {
     constexpr value_type history_max = 400;
 
     auto single_update = [&, this](const auto& mv, const value_type& gain) {
@@ -127,11 +127,11 @@ struct combined {
     return *this;
   }
 
-  void clear() {
+  constexpr void clear() {
     util::apply(tables_, [](auto& tbl) { tbl.clear(); });
   }
 
-  value_type compute_value(const context& ctxt, const move& mv) const {
+  constexpr value_type compute_value(const context& ctxt, const move& mv) const {
     value_type result{};
     util::apply(tables_, [&](const auto& tbl) {
       if (tbl.is_applicable(ctxt, mv)) { result += tbl.at(ctxt, mv); }
