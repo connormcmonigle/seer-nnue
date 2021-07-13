@@ -367,7 +367,7 @@ struct thread_worker {
       if (mv == ss.excluded()) { continue; }
       ss.set_played(mv);
 
-      const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(follow, counter, mv);
+      const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, mv);
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
       const board bd_ = bd.forward(mv);
@@ -386,7 +386,7 @@ struct thread_worker {
 
         if (futility_prune) { continue; }
 
-        const bool see_prune = mv.is_capture() && depth <= external.constants->see_prune_depth() && see_value < 0;
+        const bool see_prune = depth <= external.constants->see_prune_depth() && see_value < external.constants->see_prune_threshold(depth);
 
         if (see_prune) { continue; }
       }
@@ -480,7 +480,7 @@ struct thread_worker {
       }();
 
       if (bound == bound_type::lower && best_move.is_quiet()) {
-        internal.hh.us(bd.turn()).update(follow, counter, best_move, quiets_tried, depth);
+        internal.hh.us(bd.turn()).update(history::context{follow, counter}, best_move, quiets_tried, depth);
         ss.set_killer(best_move);
       }
 
