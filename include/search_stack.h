@@ -58,10 +58,12 @@ struct stack {
   chess::board root_pos() const { return present_; }
   depth_type sel_depth() const { return sel_depth_; }
 
-  size_t occurrences(const size_t& height, const zobrist::hash_type& hash) const {
-    size_t occurrences_{0};
-    for (auto it = future_.cbegin(); it != (future_.cbegin() + height); ++it) { occurrences_ += static_cast<size_t>(it->hash_ == hash); }
-    return occurrences_ + past_.occurrences(hash);
+  bool is_repetition(const search::depth_type& height, const zobrist::hash_type& hash) const {
+    for (search::depth_type i = height - 1; i >= 0; --i) {
+       if (future_[i].played_.is_capture()) { return false; }
+       if (future_[i].hash_ == hash) { return true; }
+    }
+    return past_.is_repetition(hash);
   }
 
   std::string pv_string() const {
@@ -96,7 +98,7 @@ struct stack_view {
 
   chess::board root_pos() const { return view_->root_pos(); }
 
-  bool is_two_fold(const zobrist::hash_type& hash) const { return view_->occurrences(height_, hash) >= 1; }
+  bool is_two_fold(const zobrist::hash_type& hash) const { return view_->is_repetition(height_, hash); }
 
   chess::move counter() const {
     if (height_ <= 0) { return chess::move::null(); }

@@ -68,13 +68,14 @@ struct base_history {
 };
 
 struct position_history : base_history<position_history, zobrist::hash_type> {
-  size_t occurrences(const zobrist::hash_type& hash) const {
-    size_t occurrences_{0};
-    for (auto it = history_.crbegin(); it != history_.crend(); ++it) { occurrences_ += static_cast<size_t>(*it == hash); }
-    return occurrences_;
+
+  bool is_repetition(const zobrist::hash_type& hash) const {
+    for (auto it = history_.rbegin(); it != history_.rend(); ++it) {
+      if (*it == hash) { return true; }
+    }
+    return false;
   }
 
-  bool is_two_fold(const zobrist::hash_type& hash) const { return occurrences(hash) >= 1; }
 };
 
 }  // namespace chess
