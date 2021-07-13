@@ -114,6 +114,18 @@ struct transposition_table {
   static_assert(cache_line_size % sizeof(transposition_table_entry) == 0, "transposition_table_entry must divide cache_line_size");
   static_assert(sizeof(bucket_type) == cache_line_size && alignof(bucket_type) == cache_line_size, "bucket_type must be cache_line_size aligned");
 
+  static constexpr search::score_type score_to(const search::score_type& score, const search::depth_type& height) {
+    if (score <= search::max_mate_score) { return score - height; }
+    if (score >= -search::max_mate_score) { return score + height; }
+    return score;
+  }
+
+  static constexpr search::score_type score_from(const search::score_type& score, const search::depth_type& height) {
+    if (score <= search::max_mate_score) { return score + height; }
+    if (score >= -search::max_mate_score) { return score - height; }
+    return score;
+  }
+
   std::atomic<transposition_table_entry::gen_type> current_gen{0};
   std::vector<bucket_type> data;
 

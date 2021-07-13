@@ -32,6 +32,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <cmath>
 #include <iostream>
 #include <iterator>
 #include <regex>
@@ -146,20 +147,25 @@ struct uci {
   void info_string(const T& worker) {
     constexpr search::score_type raw_multiplier = 400;
     constexpr search::score_type raw_divisor = 1024;
-    constexpr search::score_type eval_limit = 256 * 100;
 
     std::lock_guard<std::mutex> os_lk(os_mutex_);
 
-    const search::score_type raw_score = worker.score();
-    const search::score_type scaled_score = raw_score * raw_multiplier / raw_divisor;
-    const int score = std::min(std::max(scaled_score, -eval_limit), eval_limit);
+    const std::string score_string = [&]{
+      const search::score_type raw_score = worker.score();
+      if (raw_score >= -search::max_mate_score || raw_score <= search::max_mate_score) {
+        const search::score_type sign = raw_score >= 0 ? 1 : -1;
+        return "mate " + std::to_string(sign * (1 + -search::mate_score + -std::abs(raw_score)) / 2);
+      }
+      return "cp " + std::to_string(raw_score * raw_multiplier / raw_divisor);
+    }();
 
-    const int depth = worker.depth();
+    const search::depth_type depth = worker.depth();
     const size_t elapsed_ms = timer_.elapsed().count();
     const size_t nodes = pool_.nodes();
     const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
+    
     if (is_searching()) {
-      os << "info depth " << depth << " seldepth " << worker.internal.stack.sel_depth() << " score cp " << score << " nodes " << nodes << " nps "
+      os << "info depth " << depth << " seldepth " << worker.internal.stack.sel_depth() << " score " << score_string << " nodes " << nodes << " nps "
          << nps << " time " << elapsed_ms << " pv " << worker.internal.stack.pv_string() << std::endl;
     }
   }
