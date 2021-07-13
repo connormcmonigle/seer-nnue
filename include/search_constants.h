@@ -85,7 +85,7 @@ struct fixed_constants {
   constexpr depth_type lmp_depth() const { return 7; }
   constexpr depth_type snmp_depth() const { return 7; }
   constexpr depth_type futility_prune_depth() const { return 6; }
-  constexpr depth_type see_prune_depth() const { return 2; }
+  constexpr depth_type see_prune_depth() const { return 7; }
   constexpr depth_type history_extension_depth() const { return 8; }
   constexpr depth_type singular_extension_depth() const { return 9; }
   constexpr depth_type iir_depth() const { return 4; }
@@ -125,6 +125,8 @@ struct fixed_constants {
     constexpr std::array<int, 8> worsening_counts = {0, 3, 4, 8, 10, 13, 21, 31};
     return improving ? improving_counts[depth] : worsening_counts[depth];
   }
+
+  constexpr see_type see_prune_threshold(const search::depth_type& depth) const { return -50 * static_cast<see_type>(depth); }
 
   constexpr depth_type history_reduction(const counter_type& history_value) const {
     constexpr depth_type limit = 2;
