@@ -107,10 +107,10 @@ struct fixed_constants {
 
   constexpr score_type singular_double_extension_margin() const { return 160; }
 
-  constexpr score_type futility_margin(const depth_type& depth) const {
+  constexpr score_type futility_margin(const bool& improving, const depth_type& depth) const {
     assert(depth > 0);
     constexpr score_type m = 1536;
-    return m * static_cast<score_type>(depth);
+    return m * static_cast<score_type>(depth + improving);
   }
 
   constexpr score_type snmp_margin(const bool& improving, const depth_type& depth) const {
