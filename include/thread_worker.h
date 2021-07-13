@@ -270,6 +270,7 @@ struct thread_worker {
       if constexpr (!is_root) { return score; }
     };
 
+    static_assert(!is_root || is_pv);
     assert(depth >= 0);
 
     // callback on entering search function
@@ -336,13 +337,13 @@ struct thread_worker {
     const bool improving = ss.improving();
 
     // step 8. static null move pruning
-    const bool snm_prune = !is_root && !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
+    const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
                            static_eval > beta + external.constants->snmp_margin(improving, depth) && static_eval > ss.effective_mate_score();
 
     if (snm_prune) { return make_result(static_eval, move::null()); }
 
     // step 9. null move pruning
-    const bool try_nmp = !is_root && !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && static_eval > beta &&
+    const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && static_eval > beta &&
                          ss.nmp_valid() && bd.has_non_pawn_material();
 
     if (try_nmp) {
@@ -374,8 +375,7 @@ struct thread_worker {
 
       // step 10. pruning
       if (try_pruning) {
-        const bool lm_prune =
-            mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune = mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { continue; }
 
