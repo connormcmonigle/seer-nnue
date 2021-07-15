@@ -384,7 +384,7 @@ struct thread_worker {
 
         if (futility_prune) { continue; }
 
-        const bool see_prune = depth <= external.constants->see_prune_depth() && see_value < external.constants->see_prune_threshold(depth);
+        const bool see_prune = depth <= external.constants->see_prune_depth() && see_value < external.constants->see_prune_threshold(improving, depth);
 
         if (see_prune) { continue; }
       }
