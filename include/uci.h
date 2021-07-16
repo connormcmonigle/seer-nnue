@@ -211,8 +211,6 @@ struct uci {
     auto evaluator = nnue::eval<weight_type>(&weights_);
     position.show_init(evaluator);
     os << "score: " << evaluator.evaluate(position.turn()) << std::endl;
-    const auto [w, d, l] = evaluator.propagate(position.turn()).data;
-    os << "(w, d, l): (" << w << ", " << d << ", " << l << ")" << std::endl;
   }
 
   void perft(const std::string& line) {
@@ -268,7 +266,7 @@ struct uci {
               if (manager_.should_stop(search_info{worker.depth(), worker.is_stable()})) { stop(); }
             }) {
     nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
-    weights_.load(embedded);
+    options().update("setoption name Weights value ../../../seer-training/scripts/model/save.bin");
     pool_.resize(default_thread_count);
   }
 };
