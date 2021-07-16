@@ -211,8 +211,6 @@ struct uci {
     auto evaluator = nnue::eval<weight_type>(&weights_);
     position.show_init(evaluator);
     os << "score: " << evaluator.evaluate(position.turn()) << std::endl;
-    const auto [w, d, l] = evaluator.propagate(position.turn()).data;
-    os << "(w, d, l): (" << w << ", " << d << ", " << l << ")" << std::endl;
   }
 
   void perft(const std::string& line) {
