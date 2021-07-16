@@ -266,7 +266,6 @@ struct uci {
               if (manager_.should_stop(search_info{worker.depth(), worker.is_stable()})) { stop(); }
             }) {
     nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
-    options().update("setoption name Weights value ../../../seer-training/scripts/model/save.bin");
     pool_.resize(default_thread_count);
   }
 };
