@@ -357,6 +357,7 @@ struct thread_worker {
     move_list quiets_tried{};
 
     // move loop
+    bool did_singular_extend{false};
     search::score_type best_score = ss.effective_mate_score();
     move best_move = *list.begin();
 
@@ -414,8 +415,11 @@ struct thread_worker {
           ss.set_excluded(mv);
           const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth);
           ss.set_excluded(move::null());
-          if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2; }
-          if (excluded_score < singular_beta) { return 1; }
+          if (excluded_score < singular_beta) { 
+            did_singular_extend = true; 
+            if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2; }
+            return 1;
+          }
         }
 
         return 0;
@@ -440,7 +444,7 @@ struct thread_worker {
           if (!improving) { ++reduction; }
           if (!is_pv) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
-
+          if (!is_pv && did_singular_extend) { ++reduction; }
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
           reduction = std::max(reduction, 0);
