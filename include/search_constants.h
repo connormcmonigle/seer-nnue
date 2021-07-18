@@ -139,6 +139,11 @@ struct fixed_constants {
     return margin;
   }
 
+  constexpr score_type trend_value(const score_type& score) const {
+    const score_type limit = 32;
+    return std::clamp(score / 2, -limit, limit);
+  }
+
   fixed_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {

@@ -164,6 +164,12 @@ struct thread_worker {
   internal_state internal{};
   controlled_loop<is_active> loop;
 
+  search::score_type evaluate(const nnue::eval<T>& eval, const board& bd) const {
+    const search::score_type trend = external.constants->trend_value(internal.score);
+    const search::score_type trend_value = internal.stack.root_pos().turn() == bd.turn() ? trend : -trend;
+    return eval.evaluate(bd.turn()) + trend_value;
+  }
+
   template <bool is_pv>
   search::score_type q_search(
       const search::stack_view& ss,
@@ -199,7 +205,7 @@ struct thread_worker {
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type val = is_check                         ? ss.effective_mate_score() :
                                      !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                        eval.evaluate(bd.turn());
+                                                                        evaluate(eval, bd);
 
       if (!is_check) { internal.cache.insert(bd.hash(), val); }
 
@@ -318,7 +324,7 @@ struct thread_worker {
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type val = is_check                         ? ss.effective_mate_score() :
                                      !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                        eval.evaluate(bd.turn());
+                                                                        evaluate(eval, bd);
 
       if (!is_check) { internal.cache.insert(bd.hash(), val); }
 
