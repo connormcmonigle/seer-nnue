@@ -264,7 +264,8 @@ struct thread_worker {
       const board& bd,
       search::score_type alpha,
       const search::score_type& beta,
-      search::depth_type depth) -> pv_search_result_t<is_root> {
+      search::depth_type depth,
+      const search::null_mover_type& null_mover) -> pv_search_result_t<is_root> {
     auto make_result = [](const search::score_type& score, const move& mv) {
       if constexpr (is_root) { return pv_search_result_t<is_root>{score, mv}; }
       if constexpr (!is_root) { return score; }
@@ -349,7 +350,8 @@ struct thread_worker {
     if (try_nmp) {
       ss.set_played(move::null());
       const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth));
-      const search::score_type nmp_score = -pv_search<is_pv>(ss.next(), eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth);
+      const search::score_type nmp_score =
+          -pv_search<is_pv>(ss.next(), eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth, search::null_mover_from(bd.turn()));
       if (nmp_score > beta) { return make_result(nmp_score, move::null()); }
     }
 
@@ -412,7 +414,7 @@ struct thread_worker {
           const search::depth_type singular_depth = external.constants->singular_search_depth(depth);
           const search::score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
           ss.set_excluded(mv);
-          const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth);
+          const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth, null_mover);
           ss.set_excluded(move::null());
           if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2; }
           if (excluded_score < singular_beta) { return 1; }
@@ -424,8 +426,10 @@ struct thread_worker {
       const search::score_type score = [&, this, idx = idx, mv = mv] {
         const search::depth_type next_depth = depth + extension - 1;
 
-        auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
-        auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
+        auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth, null_mover); };
+        auto zero_width = [&](const search::depth_type& zw_depth) {
+          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, null_mover);
+        };
 
         if (is_pv && idx == 0) { return full_width(); }
 
@@ -443,6 +447,7 @@ struct thread_worker {
           if (!improving) { ++reduction; }
           if (!is_pv) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
+          if (search::is_null_mover(null_mover, bd.turn())) { ++reduction; }
 
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
@@ -515,8 +520,10 @@ struct thread_worker {
         internal.stack.clear_future();
 
         const search::depth_type adjusted_depth = std::max(1, internal.depth - failed_high_count);
-        const auto [search_score, search_move] =
-            pv_search<true, true>(search::stack_view::root(internal.stack), evaluator, internal.stack.root_pos(), alpha, beta, adjusted_depth);
+
+        const auto [search_score, search_move] = pv_search<true, true>(
+            search::stack_view::root(internal.stack), evaluator, internal.stack.root_pos(), alpha, beta, adjusted_depth,
+            search::null_mover_type::none);
 
         if (!loop.keep_going()) { break; }
 

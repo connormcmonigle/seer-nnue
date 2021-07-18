@@ -65,6 +65,18 @@ inline constexpr score_type aspiration_delta = 20;
 
 inline constexpr score_type stability_threshold = 50;
 
+enum class null_mover_type { white, black, none };
+
+constexpr null_mover_type null_mover_from(const bool& turn) { return turn ? null_mover_type::white : null_mover_type::black; }
+
+constexpr bool is_null_mover(const null_mover_type& null_mover, const bool& turn) {
+  switch (null_mover) {
+    case null_mover_type::white: return turn;
+    case null_mover_type::black: return !turn;
+    default: return false;
+  }
+}
+
 using counter_type = std::int32_t;
 
 using see_type = std::int32_t;
