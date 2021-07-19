@@ -264,7 +264,8 @@ struct thread_worker {
       const board& bd,
       search::score_type alpha,
       const search::score_type& beta,
-      search::depth_type depth) -> pv_search_result_t<is_root> {
+      search::depth_type depth,
+      const bool& behind_lmr=false) -> pv_search_result_t<is_root> {
     auto make_result = [](const search::score_type& score, const move& mv) {
       if constexpr (is_root) { return pv_search_result_t<is_root>{score, mv}; }
       if constexpr (!is_root) { return score; }
@@ -425,7 +426,10 @@ struct thread_worker {
         const search::depth_type next_depth = depth + extension - 1;
 
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
-        auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
+        auto zero_width = [&](const search::depth_type& zw_depth) {
+          const bool is_lmr = zw_depth < next_depth;
+          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, is_lmr); 
+        };
 
         if (is_pv && idx == 0) { return full_width(); }
 
@@ -450,6 +454,12 @@ struct thread_worker {
 
           lmr_depth = std::max(1, next_depth - reduction);
           zw_score = zero_width(lmr_depth);
+        }
+
+        if (behind_lmr && try_lmr && zw_score > alpha && depth <= 8) {
+          const search::score_type prob_beta = beta + 512;
+          const search::score_type prob_score = -pv_search<false>(ss.next(), eval_, bd_, -prob_beta, -prob_beta + 1, lmr_depth);
+          if (prob_score >= prob_beta) { return prob_score; }
         }
 
         // search again at full depth if necessary
