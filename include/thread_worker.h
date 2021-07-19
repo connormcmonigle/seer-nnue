@@ -406,8 +406,6 @@ struct thread_worker {
                                  depth >= external.constants->history_extension_depth() &&
                                  history_value >= external.constants->history_extension_threshold();
 
-        if (history_ext) { return 1; }
-
         const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
                                   mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
                                   maybe->depth() >= (depth - external.constants->singular_extension_depth_margin());
@@ -418,8 +416,8 @@ struct thread_worker {
           ss.set_excluded(mv);
           const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth);
           ss.set_excluded(move::null());
-          if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2; }
-          if (excluded_score < singular_beta) { return 1; }
+          if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2 + history_ext; }
+          if (excluded_score < singular_beta) { return 1 + history_ext; }
         }
 
         return 0;
