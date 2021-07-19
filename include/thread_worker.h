@@ -353,6 +353,14 @@ struct thread_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
     }
 
+    const search::score_type probcut_beta = beta + 256;
+    const bool try_probcut = !is_pv && !ss.has_excluded() && depth >= 4 && !(maybe.has_value() && maybe->bound() == bound_type::upper && maybe->score() < probcut_beta);
+    if (try_probcut) {
+      const search::depth_type adjusted_depth = depth - 4;
+      const search::score_type probcut_score = pv_search<false>(ss, eval, bd, probcut_beta-1, probcut_beta, adjusted_depth);
+      if (probcut_score >= probcut_beta) { return make_result(probcut_score, move::null()); }
+    }
+
     // list of attempted quiets for updating histories
     move_list quiets_tried{};
 
