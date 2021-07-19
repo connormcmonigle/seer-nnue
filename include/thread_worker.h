@@ -387,6 +387,10 @@ struct thread_worker {
         const bool see_prune = depth <= external.constants->see_prune_depth() && see_value < external.constants->see_prune_threshold(depth);
 
         if (see_prune) { continue; }
+
+        const bool history_prune = mv.is_quiet() && history_value <= -1024 * depth * depth;
+
+        if (history_prune) { continue; }
       }
 
       external.tt->prefetch(bd_.hash());
