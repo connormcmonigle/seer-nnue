@@ -177,7 +177,7 @@ struct thread_worker {
     if (should_update) { external.on_update(*this); }
 
     ++internal.nodes;
-    const move_list list = bd.generate_loud_moves();
+    const move_list list = bd.generate_noisy_moves();
     const bool is_check = bd.is_check();
 
     if (list.size() == 0 && is_check) { return ss.effective_mate_score(); }
