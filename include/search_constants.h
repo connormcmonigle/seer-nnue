@@ -126,7 +126,9 @@ struct fixed_constants {
     return improving ? improving_counts[depth] : worsening_counts[depth];
   }
 
-  constexpr see_type see_prune_threshold(const search::depth_type& depth) const { return -50 * static_cast<see_type>(depth); }
+  constexpr see_type see_prune_threshold(const depth_type& depth) const { return -50 * static_cast<see_type>(depth); }
+
+  constexpr counter_type history_prune_threshold(const depth_type& depth) const { return -1024 * static_cast<counter_type>(depth * depth); }
 
   constexpr depth_type history_reduction(const counter_type& history_value) const {
     constexpr depth_type limit = 2;

@@ -388,7 +388,7 @@ struct thread_worker {
 
         if (see_prune) { continue; }
 
-        const bool history_prune = mv.is_quiet() && history_value <= -1024 * depth * depth;
+        const bool history_prune = mv.is_quiet() && history_value <= external.constants->history_prune_threshold(depth);
 
         if (history_prune) { continue; }
       }
