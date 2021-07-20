@@ -398,7 +398,7 @@ struct thread_worker {
 
       // step 11. extensions
       const search::depth_type extension = [&, mv = mv] {
-        const bool check_ext = see_value > 0 && bd_.is_check();
+        const bool check_ext = see_value >= 0 && bd_.is_check();
 
         if (check_ext) { return 1; }
 
@@ -442,7 +442,6 @@ struct thread_worker {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
           // adjust reduction
-          if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
           if (!improving) { ++reduction; }
           if (!is_pv) { ++reduction; }
