@@ -145,7 +145,7 @@ struct fixed_constants {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {
       for (depth_type played{1}; played < lmr_tbl_dim; ++played) {
-        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(0.75 + std::log(depth) * std::log(played) / 2.15);
+        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(0.75 + std::log(depth) * std::log(played) / 2.35);
       }
     }
     return *this;
@@ -162,7 +162,7 @@ struct tuning_constants : fixed_constants {
 
   depth_type reduce_depth_{3};
   double lmr_tbl_bias_{0.75};
-  double lmr_tbl_div_{2.15};
+  double lmr_tbl_div_{2.35};
 
   depth_type reduce_depth() const { return reduce_depth_; }
 
