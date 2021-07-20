@@ -91,6 +91,7 @@ struct move {
   }
 
   constexpr bool is_quiet() const { return !is_capture() && !(is_promotion() && piece_type::queen == promotion()); }
+  constexpr bool is_noisy() const { return !is_quiet(); }
 
   template <color c>
   std::string name() const {

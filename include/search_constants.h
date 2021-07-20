@@ -85,7 +85,8 @@ struct fixed_constants {
   constexpr depth_type lmp_depth() const { return 7; }
   constexpr depth_type snmp_depth() const { return 7; }
   constexpr depth_type futility_prune_depth() const { return 6; }
-  constexpr depth_type see_prune_depth() const { return 7; }
+  constexpr depth_type quiet_see_prune_depth() const { return 8; }
+  constexpr depth_type noisy_see_prune_depth() const { return 6; }
   constexpr depth_type history_extension_depth() const { return 8; }
   constexpr depth_type singular_extension_depth() const { return 9; }
   constexpr depth_type iir_depth() const { return 4; }
@@ -126,7 +127,9 @@ struct fixed_constants {
     return improving ? improving_counts[depth] : worsening_counts[depth];
   }
 
-  constexpr see_type see_prune_threshold(const depth_type& depth) const { return -50 * static_cast<see_type>(depth); }
+  constexpr see_type quiet_see_prune_threshold(const depth_type& depth) const { return -50 * static_cast<see_type>(depth); }
+  constexpr see_type noisy_see_prune_threshold(const depth_type& depth) const { return -100 * static_cast<see_type>(depth); }
+
 
   constexpr counter_type history_prune_threshold(const depth_type& depth) const { return -1024 * static_cast<counter_type>(depth * depth); }
 

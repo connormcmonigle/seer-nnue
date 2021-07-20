@@ -384,9 +384,15 @@ struct thread_worker {
 
         if (futility_prune) { continue; }
 
-        const bool see_prune = depth <= external.constants->see_prune_depth() && see_value < external.constants->see_prune_threshold(depth);
+        const bool quiet_see_prune =
+            mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
 
-        if (see_prune) { continue; }
+        if (quiet_see_prune) { continue; }
+
+        const bool noisy_see_prune =
+            mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() && see_value < external.constants->noisy_see_prune_threshold(depth);
+
+        if (noisy_see_prune) { continue; }
 
         const bool history_prune = mv.is_quiet() && history_value <= external.constants->history_prune_threshold(depth);
 
