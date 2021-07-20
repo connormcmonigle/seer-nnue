@@ -360,6 +360,8 @@ struct thread_worker {
     search::score_type best_score = ss.effective_mate_score();
     move best_move = *list.begin();
 
+    const bool likely_bad = !is_pv && maybe.has_value() && maybe->depth() + 2 >= depth && maybe->bound() == bound_type::upper && maybe->score() <= alpha;
+
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
@@ -444,6 +446,9 @@ struct thread_worker {
 
         // step 12. late move reductions
         const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
+        
+        if (try_lmr && likely_bad) { return alpha; }
+
         if (try_lmr) {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
