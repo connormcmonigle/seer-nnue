@@ -84,8 +84,8 @@ struct fixed_constants {
   constexpr depth_type nmp_depth() const { return 2; }
   constexpr depth_type lmp_depth() const { return 7; }
   constexpr depth_type snmp_depth() const { return 7; }
-  constexpr depth_type futility_prune_depth() const { return 6; }
-  constexpr depth_type quiet_see_prune_depth() const { return 10; }
+  constexpr depth_type futility_prune_depth() const { return 7; }
+  constexpr depth_type quiet_see_prune_depth() const { return 8; }
   constexpr depth_type noisy_see_prune_depth() const { return 6; }
   constexpr depth_type history_extension_depth() const { return 8; }
   constexpr depth_type singular_extension_depth() const { return 9; }
