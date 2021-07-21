@@ -322,10 +322,6 @@ struct thread_worker {
 
       if (!is_check) { internal.cache.insert(bd.hash(), val); }
 
-      if (maybe.has_value()) {
-        if (maybe->bound() == bound_type::upper && val > maybe->score()) { return maybe->score(); }
-        if (maybe->bound() == bound_type::lower && val < maybe->score()) { return maybe->score(); }
-      }
       return val;
     }();
 
@@ -334,7 +330,7 @@ struct thread_worker {
 
     // step 7. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_eval);
-    const bool improving = ss.improving();
+    const bool improving = !is_check && ss.improving();
 
     // step 8. static null move pruning
     const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
@@ -451,6 +447,7 @@ struct thread_worker {
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
           if (!is_pv) { ++reduction; }
+          if (!improving && depth >= 6) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
 
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }

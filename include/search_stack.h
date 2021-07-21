@@ -118,7 +118,7 @@ struct stack_view {
 
   bool nmp_valid() const { return !counter().is_null() && !follow().is_null(); }
 
-  bool improving() const { return (height_ > 1) && (view_->at_(height_ - 2)).eval_ < (view_->at_(height_)).eval_; }
+  bool improving() const { return (height_ >= 2) && (view_->at_(height_ - 2)).eval_ < (view_->at_(height_)).eval_; }
 
   const stack_view& set_hash(const zobrist::hash_type& hash) const {
     (view_->at_(height_)).hash_ = hash;
