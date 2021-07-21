@@ -375,6 +375,8 @@ struct thread_worker {
 
       // step 10. pruning
       if (try_pruning) {
+        const search::depth_type lmr_depth_est = std::max(1, depth - external.constants->reduction(depth, idx));
+
         const bool lm_prune = depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { break; }
@@ -385,12 +387,12 @@ struct thread_worker {
         if (futility_prune) { continue; }
 
         const bool quiet_see_prune =
-            mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
+            mv.is_quiet() && lmr_depth_est <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
 
         if (quiet_see_prune) { continue; }
 
         const bool noisy_see_prune =
-            mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() && see_value < external.constants->noisy_see_prune_threshold(depth);
+            mv.is_noisy() && lmr_depth_est <= external.constants->noisy_see_prune_depth() && see_value < external.constants->noisy_see_prune_threshold(depth);
 
         if (noisy_see_prune) { continue; }
 
