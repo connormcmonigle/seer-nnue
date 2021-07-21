@@ -455,7 +455,7 @@ struct thread_worker {
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
           if (!is_pv) { ++reduction; }
-          if (!improving) { ++reduction; }
+          if (!improving && depth >= 6) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
 
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
