@@ -266,7 +266,8 @@ struct thread_worker {
       const board& bd,
       search::score_type alpha,
       const search::score_type& beta,
-      search::depth_type depth) -> pv_search_result_t<is_root> {
+      search::depth_type depth,
+      const bool& behind_lmr = false) -> pv_search_result_t<is_root> {
     auto make_result = [](const search::score_type& score, const move& mv) {
       if constexpr (is_root) { return pv_search_result_t<is_root>{score, mv}; }
       if constexpr (!is_root) { return score; }
@@ -424,7 +425,7 @@ struct thread_worker {
 
         if (try_singular) {
           const search::depth_type singular_depth = external.constants->singular_search_depth(depth);
-          const search::score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
+          const search::score_type singular_beta = external.constants->singular_beta(maybe->score(), depth, behind_lmr);
           ss.set_excluded(mv);
           const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth);
           ss.set_excluded(move::null());
@@ -439,7 +440,7 @@ struct thread_worker {
         const search::depth_type next_depth = depth + extension - 1;
 
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
-        auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
+        auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, zw_depth < next_depth); };
 
         if (is_pv && idx == 0) { return full_width(); }
 

@@ -104,7 +104,7 @@ struct fixed_constants {
 
   constexpr depth_type singular_search_depth(const depth_type& depth) const { return depth / 2 - 1; }
 
-  constexpr score_type singular_beta(const score_type& tt_score, const depth_type& depth) const { return tt_score - 2 * depth; }
+  constexpr score_type singular_beta(const score_type& tt_score, const depth_type& depth, const bool& behind_lmr) const { return tt_score - 2 * (depth + behind_lmr); }
 
   constexpr score_type singular_double_extension_margin() const { return 160; }
 
