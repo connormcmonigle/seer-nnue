@@ -59,7 +59,6 @@ struct internal_state {
   sided_history_heuristic hh{};
   eval_cache cache{};
 
-  std::atomic_bool is_stable{false};
   std::atomic_size_t nodes{};
   std::atomic<search::depth_type> depth{};
 
@@ -77,7 +76,6 @@ struct internal_state {
     stack = search::stack{position_history{}, board::start_pos()};
     hh.clear();
     cache.clear();
-    is_stable.store(false);
     nodes.store(0);
     depth.store(0);
     score.store(0);
@@ -543,9 +541,6 @@ struct thread_worker {
           ++failed_high_count;
         } else {
           // store updated information
-
-          internal.is_stable.store(std::abs(score() - search_score) <= search::stability_threshold && internal.best_move.load() == search_move.data);
-
           internal.score.store(search_score);
           internal.best_move.store(search_move.data);
           break;
@@ -560,7 +555,6 @@ struct thread_worker {
     }
   }
 
-  bool is_stable() const { return internal.is_stable.load(); }
   size_t nodes() const { return internal.nodes.load(); }
   search::depth_type depth() const { return internal.depth.load(); }
   move best_move() const { return move{internal.best_move.load()}; }
@@ -570,7 +564,6 @@ struct thread_worker {
     loop.next([hist, bd, start_depth, this] {
       internal.nodes.store(0);
       internal.depth.store(start_depth);
-      internal.is_stable.store(false);
       internal.best_move.store(bd.generate_moves().begin()->data);
       internal.stack = search::stack(hist, bd);
     });

@@ -261,9 +261,12 @@ struct uci {
       : pool_(
             &weights_,
             default_hash_size,
-            [this](const auto& worker) { info_string(worker); },
+            [this](const auto& worker) { 
+              info_string(worker);
+              if (manager_.should_stop(search_info{worker.depth(), true})) { stop(); }
+            },
             [this](const auto& worker) {
-              if (manager_.should_stop(search_info{worker.depth(), worker.is_stable()})) { stop(); }
+              if (manager_.should_stop(search_info{worker.depth(), false})) { stop(); }
             }) {
     nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
     weights_.load(embedded);

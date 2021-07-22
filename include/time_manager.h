@@ -114,7 +114,7 @@ struct named_condition {
 
 struct search_info {
   search::depth_type depth;
-  bool is_stable;
+  bool is_iter;
 };
 
 struct time_manager {
@@ -208,7 +208,7 @@ struct time_manager {
     // stopping conditions
     if (get<go::depth>().has_value()) { return get<go::depth>().value() < info.depth; }
     if (elapsed() >= max_budget) { return true; }
-    if (elapsed() >= min_budget && info.is_stable) { return true; }
+    if (elapsed() >= min_budget && info.is_iter) { return true; }
     return false;
   }
 };
