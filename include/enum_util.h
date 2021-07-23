@@ -96,6 +96,18 @@ struct sided {
 
 color color_from(char ch) { return std::isupper(ch) ? color::white : color::black; }
 
+enum class player_type { white, black, none };
+
+constexpr player_type player_from(const bool& turn) { return turn ? player_type::white : player_type::black; }
+
+constexpr bool is_player(const player_type& player, const bool& turn) {
+  switch (player) {
+    case player_type::white: return turn;
+    case player_type::black: return !turn;
+    default: return false;
+  }
+}
+
 enum class piece_type : std::uint8_t { pawn, knight, bishop, rook, queen, king };
 
 piece_type type_from(const char& ch) {
