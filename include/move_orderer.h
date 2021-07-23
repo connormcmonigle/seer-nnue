@@ -36,19 +36,36 @@ constexpr std::uint32_t make_positive(const std::int32_t& x) {
 }
 
 struct move_orderer_data {
-  move killer{};
-  move follow{};
-  move counter{};
-  const board* bd{nullptr};
-  move_list list{};
-  const history_heuristic* hh{nullptr};
+  move killer{move::null()};
+  move follow{move::null()};
+  move counter{move::null()};
   move first{move::null()};
 
-  move_orderer_data(
-      const move& killer_, const move& follow_, const move& counter_, const board* bd_, const move_list& list_, const history_heuristic* hh_)
-      : killer{killer_}, follow{follow_}, counter{counter_}, bd{bd_}, list{list_}, hh{hh_} {}
+  const board* bd;
+  const move_list* list;
+  const history_heuristic* hh;
 
-  move_orderer_data() {}
+  move_orderer_data& set_killer(const move& mv) {
+    killer = mv;
+    return *this;
+  }
+
+  move_orderer_data& set_follow(const move& mv) {
+    follow = mv;
+    return *this;
+  }
+
+  move_orderer_data& set_counter(const move& mv) {
+    counter = mv;
+    return *this;
+  }
+
+  move_orderer_data& set_first(const move& mv) {
+    first = mv;
+    return *this;
+  }
+
+  move_orderer_data(const board* bd_, const move_list* list_, const history_heuristic* hh_) : bd{bd_}, list{list_}, hh{hh_} {}
 };
 
 struct move_orderer_entry {
@@ -108,8 +125,8 @@ struct move_orderer_iterator {
 
   std::tuple<int, move> operator*() const { return std::tuple(idx_, entries_[idx_].mv); }
 
-  move_orderer_iterator(const move_orderer_data& data, const int& idx) : move_count_{data.list.size()}, idx_{idx} {
-    std::transform(data.list.begin(), data.list.end(), entries_.begin(), [&data](const move& mv) {
+  move_orderer_iterator(const move_orderer_data& data, const int& idx) : move_count_{data.list->size()}, idx_{idx} {
+    std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data](const move& mv) {
       const bool quiet = mv.is_quiet();
       const std::int32_t value = quiet ? data.hh->compute_value(history::context{data.follow, data.counter}, mv) : data.bd->see<std::int32_t>(mv);
       return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value);
@@ -126,7 +143,7 @@ struct move_orderer {
   move_orderer_data data_;
 
   move_orderer_iterator begin() { return move_orderer_iterator(data_, 0); }
-  move_orderer_iterator end() { return move_orderer_iterator(data_.list.size()); }
+  move_orderer_iterator end() { return move_orderer_iterator(data_.list->size()); }
 
   move_orderer& set_first(const move& mv) {
     data_.first = mv;

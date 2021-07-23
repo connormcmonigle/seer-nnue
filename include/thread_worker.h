@@ -184,7 +184,7 @@ struct thread_worker {
     if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
     if (bd.is_trivially_drawn()) { return search::draw_score; }
 
-    move_orderer orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &internal.hh.us(bd.turn())});
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())));
 
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
@@ -301,7 +301,7 @@ struct thread_worker {
     const move follow = ss.follow();
     const move counter = ss.counter();
 
-    move_orderer orderer(move_orderer_data{killer, follow, counter, &bd, list, &internal.hh.us(bd.turn())});
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter));
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
@@ -354,7 +354,8 @@ struct thread_worker {
     if (try_nmp) {
       ss.set_played(move::null());
       const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth));
-      const search::score_type nmp_score = -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
+      const search::score_type nmp_score =
+          -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
       if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
     }
 
@@ -440,10 +441,10 @@ struct thread_worker {
         const search::depth_type next_depth = depth + extension - 1;
 
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth, reducer); };
-   
-        auto zero_width = [&](const search::depth_type& zw_depth) { 
+
+        auto zero_width = [&](const search::depth_type& zw_depth) {
           const player_type next_reducer = (is_pv || zw_depth < next_depth) ? player_from(bd.turn()) : reducer;
-          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, next_reducer); 
+          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, next_reducer);
         };
 
         if (is_pv && idx == 0) { return full_width(); }
@@ -461,7 +462,7 @@ struct thread_worker {
           if (bd.is_passed_push(mv)) { --reduction; }
           if (!is_pv) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
-          
+
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
           // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
           if (is_player(reducer, !bd.turn())) { ++reduction; }
