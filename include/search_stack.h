@@ -149,6 +149,11 @@ struct stack_view {
     return *this;
   }
 
+  const stack_view& reset_grandchildren_killer() const {
+    if (height_ < safe_depth_ - 2) { (view_->at_(height_ + 2)).killer_ = chess::move::null(); }
+    return *this;
+  }
+
   const stack_view& set_excluded(const chess::move& excluded) const {
     (view_->at_(height_)).excluded_ = excluded;
     return *this;

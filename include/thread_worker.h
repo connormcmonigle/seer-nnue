@@ -280,6 +280,8 @@ struct thread_worker {
     const bool should_update = loop.keep_going() && (is_root || internal.one_of<search::nodes_per_update>());
     if (should_update) { external.on_update(*this); }
 
+    ss.reset_grandchildren_killer();
+
     // step 1. drop into qsearch if depth reaches zero
     if (depth <= 0) { return make_result(q_search<is_pv>(ss, eval, bd, alpha, beta, 0), move::null()); }
     ++internal.nodes;
@@ -458,14 +460,8 @@ struct thread_worker {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
           // adjust reduction
-          if (bd_.is_check()) {
-            --reduction;
-          } else if (bd.is_passed_push(mv)) {
-            --reduction;
-          } else if (mv == killer) {
-            --reduction;
-          }
-          
+          if (bd_.is_check()) { --reduction; }
+          if (bd.is_passed_push(mv)) { --reduction; }
           if (!is_pv) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
 
