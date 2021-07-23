@@ -36,7 +36,8 @@ constexpr std::uint32_t make_positive(const std::int32_t& x) {
 }
 
 struct move_orderer_data {
-  move killer{move::null()};
+  move killer0{move::null()};
+  move killer1{move::null()};
   move follow{move::null()};
   move counter{move::null()};
   move first{move::null()};
@@ -45,8 +46,13 @@ struct move_orderer_data {
   const move_list* list;
   const history_heuristic* hh;
 
-  move_orderer_data& set_killer(const move& mv) {
-    killer = mv;
+  move_orderer_data& set_killer0(const move& mv) {
+    killer0 = mv;
+    return *this;
+  }
+
+  move_orderer_data& set_killer1(const move& mv) {
+    killer1 = mv;
     return *this;
   }
 
@@ -129,7 +135,7 @@ struct move_orderer_iterator {
     std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data](const move& mv) {
       const bool quiet = mv.is_quiet();
       const std::int32_t value = quiet ? data.hh->compute_value(history::context{data.follow, data.counter}, mv) : data.bd->see<std::int32_t>(mv);
-      return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value);
+      return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && (mv == data.killer0 || mv == data.killer1), value);
     });
     update_list_();
   }

@@ -36,7 +36,8 @@ struct stack_entry {
   zobrist::hash_type hash_{};
   score_type eval_{};
   chess::move played_{chess::move::null()};
-  chess::move killer_{chess::move::null()};
+  chess::move killer0_{chess::move::null()};
+  chess::move killer1_{chess::move::null()};
   chess::move excluded_{chess::move::null()};
   std::array<chess::move, safe_depth_> pv_{};
 
@@ -108,7 +109,9 @@ struct stack_view {
     return (view_->at_(height_ - 2)).played_;
   }
 
-  chess::move killer() const { return (view_->at_(height_)).killer_; }
+  chess::move killer0() const { return (view_->at_(height_)).killer0_; }
+
+  chess::move killer1() const { return (view_->at_(height_)).killer1_; }
 
   chess::move excluded() const { return (view_->at_(height_)).excluded_; }
 
@@ -144,8 +147,19 @@ struct stack_view {
     return *this;
   }
 
-  const stack_view& set_killer(const chess::move& killer) const {
-    (view_->at_(height_)).killer_ = killer;
+  const stack_view& clear_grandchildren_killers() const {
+    if (height_ + 2 < safe_depth_) {
+      (view_->at_(height_ + 2)).killer0_ = chess::move::null();
+      (view_->at_(height_ + 2)).killer1_ = chess::move::null();
+    }
+    return *this;
+  }
+
+  const stack_view& add_killer(const chess::move& killer) const {
+    if ((view_->at_(height_)).killer0_ != killer) {
+      (view_->at_(height_)).killer1_ = (view_->at_(height_)).killer0_;
+      (view_->at_(height_)).killer0_ = killer;
+    }
     return *this;
   }
 

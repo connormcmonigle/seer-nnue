@@ -280,6 +280,8 @@ struct thread_worker {
     const bool should_update = loop.keep_going() && (is_root || internal.one_of<search::nodes_per_update>());
     if (should_update) { external.on_update(*this); }
 
+    ss.clear_grandchildren_killers();
+
     // step 1. drop into qsearch if depth reaches zero
     if (depth <= 0) { return make_result(q_search<is_pv>(ss, eval, bd, alpha, beta, 0), move::null()); }
     ++internal.nodes;
@@ -297,11 +299,13 @@ struct thread_worker {
 
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
-    const move killer = ss.killer();
+    const move killer0 = ss.killer0();
+    const move killer1 = ss.killer1();
     const move follow = ss.follow();
     const move counter = ss.counter();
 
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter));
+    move_orderer orderer(
+        move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())).set_killer0(killer0).set_killer1(killer1).set_follow(follow).set_counter(counter));
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
@@ -463,7 +467,7 @@ struct thread_worker {
           if (!is_pv) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
 
-          // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
+          // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search.
           // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
           if (is_player(reducer, !bd.turn())) { ++reduction; }
 
@@ -504,7 +508,7 @@ struct thread_worker {
 
       if (bound == bound_type::lower && best_move.is_quiet()) {
         internal.hh.us(bd.turn()).update(history::context{follow, counter}, best_move, quiets_tried, depth);
-        ss.set_killer(best_move);
+        ss.add_killer(best_move);
       }
 
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);
