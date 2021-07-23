@@ -297,7 +297,9 @@ struct thread_worker {
 
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
-    const move killer = ss.killer();
+    
+    //const move killer = ss.killer();
+    const move killer = move::null();
     const move follow = ss.follow();
     const move counter = ss.counter();
 
