@@ -463,6 +463,7 @@ struct thread_worker {
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
           
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
+          // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
           if (is_player(reducer, !bd.turn())) { ++reduction; }
 
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
