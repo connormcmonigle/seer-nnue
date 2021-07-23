@@ -213,6 +213,13 @@ struct uci {
     os << "score: " << evaluator.evaluate(position.turn()) << std::endl;
   }
 
+  void see() {
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    for (const chess::move& mv : position.generate_moves()) {
+      os << mv.name(position.turn()) << ": " << position.see<search::see_type>(mv) << std::endl; 
+    }
+  }
+
   void perft(const std::string& line) {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     const std::regex perft_with_depth("perft ([0-9]+)");
@@ -243,6 +250,8 @@ struct uci {
       bench();
     } else if (!is_searching() && line == "eval") {
       eval();
+    } else if (!is_searching() && line == "see") {
+      see();
     }else if (!is_searching() && std::regex_match(line, perft_rgx)) {
       perft(line);
     } else if (!is_searching() && std::regex_match(line, go_rgx)) {
