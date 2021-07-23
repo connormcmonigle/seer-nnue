@@ -354,7 +354,8 @@ struct thread_worker {
     if (try_nmp) {
       ss.set_played(move::null());
       const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth));
-      const search::score_type nmp_score = -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
+      const search::score_type nmp_score =
+          -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
       if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
     }
 
@@ -440,10 +441,10 @@ struct thread_worker {
         const search::depth_type next_depth = depth + extension - 1;
 
         auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth, reducer); };
-   
-        auto zero_width = [&](const search::depth_type& zw_depth) { 
+
+        auto zero_width = [&](const search::depth_type& zw_depth) {
           const player_type next_reducer = (is_pv || zw_depth < next_depth) ? player_from(bd.turn()) : reducer;
-          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, next_reducer); 
+          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, next_reducer);
         };
 
         if (is_pv && idx == 0) { return full_width(); }
@@ -457,12 +458,17 @@ struct thread_worker {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
           // adjust reduction
-          if (bd_.is_check()) { --reduction; }
-          if (bd.is_passed_push(mv)) { --reduction; }
-          if (mv == killer) { --reduction; }
+          if (bd_.is_check()) {
+            --reduction;
+          } else if (bd.is_passed_push(mv)) {
+            --reduction;
+          } else if (mv == killer) {
+            --reduction;
+          }
+          
           if (!is_pv) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
-          
+
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
           // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
           if (is_player(reducer, !bd.turn())) { ++reduction; }
