@@ -146,7 +146,7 @@ struct move_orderer {
   move_orderer_iterator end() { return move_orderer_iterator(data_.list->size()); }
 
   move_orderer& set_first(const move& mv) {
-    data_.first = mv;
+    data_.set_first(mv);
     return *this;
   }
 
