@@ -280,7 +280,7 @@ struct thread_worker {
     const bool should_update = loop.keep_going() && (is_root || internal.one_of<search::nodes_per_update>());
     if (should_update) { external.on_update(*this); }
 
-    ss.clear_grandchildren_killer();
+    ss.clear_children_killer();
 
     // step 1. drop into qsearch if depth reaches zero
     if (depth <= 0) { return make_result(q_search<is_pv>(ss, eval, bd, alpha, beta, 0), move::null()); }
