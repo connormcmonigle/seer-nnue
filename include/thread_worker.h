@@ -359,6 +359,13 @@ struct thread_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
     }
 
+    const bool try_razor = !is_pv && !ss.has_excluded() && !is_check && depth <= 3 && value + 512 < alpha;
+
+    if (try_razor) {
+      const search::score_type razor_score = q_search<false>(ss, eval, bd, alpha, alpha+1, 0);
+      if (razor_score <= alpha) { return make_result(razor_score, move::null()); }
+    }
+
     // list of attempted quiets for updating histories
     move_list quiets_tried{};
 
