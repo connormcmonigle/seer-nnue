@@ -455,7 +455,7 @@ struct thread_worker {
         // step 12. late move reductions
         const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
-          search::depth_type reduction = external.constants->reduction(depth, idx);
+          search::depth_type reduction = external.constants->reduction(depth, idx, improving);
 
           // adjust reduction
           if (bd_.is_check()) { --reduction; }

@@ -91,9 +91,10 @@ struct fixed_constants {
   constexpr depth_type singular_extension_depth() const { return 9; }
   constexpr depth_type iir_depth() const { return 4; }
 
-  constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
+  constexpr depth_type reduction(const depth_type& depth, const int& move_idx, const bool& improving) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
-    return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
+    const depth_type value = lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)] + !improving * 512;
+    return value / 1024;
   }
 
   constexpr depth_type nmp_reduction(const depth_type& depth) const { return 4 + depth / 6; }
@@ -148,7 +149,7 @@ struct fixed_constants {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {
       for (depth_type played{1}; played < lmr_tbl_dim; ++played) {
-        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(0.75 + std::log(depth) * std::log(played) / 2.25);
+        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(768 + 455 * std::log(depth) * std::log(played));
       }
     }
     return *this;
@@ -164,21 +165,22 @@ struct tuning_constants : fixed_constants {
   static constexpr depth_type lmr_tbl_dim = 64;
 
   depth_type reduce_depth_{3};
-  double lmr_tbl_bias_{0.75};
-  double lmr_tbl_div_{2.25};
+  double lmr_tbl_bias_{768};
+  double lmr_tbl_mul_{455};
 
   depth_type reduce_depth() const { return reduce_depth_; }
 
-  depth_type reduction(const depth_type& depth, const int& move_idx) const {
+  depth_type reduction(const depth_type& depth, const int& move_idx, const bool& improving) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
-    return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
+    const depth_type value = lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)] + !improving * 512;
+    return value / 1024;
   }
 
   tuning_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {
       for (depth_type played{1}; played < lmr_tbl_dim; ++played) {
-        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(lmr_tbl_bias_ + std::log(depth) * std::log(played) / lmr_tbl_div_);
+        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(lmr_tbl_bias_ + lmr_tbl_mul_ * std::log(depth) * std::log(played));
       }
     }
     return *this;
@@ -195,13 +197,13 @@ struct tuning_constants : fixed_constants {
       update_(thread_count_);
     });
 
-    auto option_lmr_tbl_div = option_callback(string_option("lmr_tbl_div_", std::to_string(lmr_tbl_div_)), [this](const std::string d) {
+    auto option_lmr_tbl_mul = option_callback(string_option("lmr_tbl_mul_", std::to_string(lmr_tbl_mul_)), [this](const std::string d) {
       std::istringstream ss(d);
-      ss >> lmr_tbl_div_;
+      ss >> lmr_tbl_mul_;
       update_(thread_count_);
     });
 
-    return uci_options(option_reduce_depth, option_lmr_tbl_bias, option_lmr_tbl_div);
+    return uci_options(option_reduce_depth, option_lmr_tbl_bias, option_lmr_tbl_mul);
   }
 
   tuning_constants(const size_t& thread_count = 1) { update_(thread_count); }
