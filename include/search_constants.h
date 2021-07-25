@@ -94,7 +94,7 @@ struct fixed_constants {
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx, const bool& improving) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
     const size_t idx = std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx);
-    return (lmr_tbl[idx] + !improving * 256) / 1024;
+    return (lmr_tbl[idx] + !improving * 480) / 1024;
   }
 
   constexpr depth_type nmp_reduction(const depth_type& depth) const { return 4 + depth / 6; }
