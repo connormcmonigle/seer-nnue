@@ -458,7 +458,7 @@ struct thread_worker {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
           // adjust reduction
-          if (!improving && reduction >= 2) { ++reduction; }
+          if (!improving) { ++reduction; }
 
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
