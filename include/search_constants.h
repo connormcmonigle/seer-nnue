@@ -93,8 +93,8 @@ struct fixed_constants {
 
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx, const bool& improving) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
-    const depth_type value = lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)] + !improving * 512;
-    return value / 1024;
+    const size_t idx = std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx);
+    return (lmr_tbl[idx] + !improving * 256) / 1024;
   }
 
   constexpr depth_type nmp_reduction(const depth_type& depth) const { return 4 + depth / 6; }
@@ -169,12 +169,6 @@ struct tuning_constants : fixed_constants {
   double lmr_tbl_mul_{455};
 
   depth_type reduce_depth() const { return reduce_depth_; }
-
-  depth_type reduction(const depth_type& depth, const int& move_idx, const bool& improving) const {
-    constexpr depth_type last_idx = lmr_tbl_dim - 1;
-    const depth_type value = lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)] + !improving * 512;
-    return value / 1024;
-  }
 
   tuning_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;
