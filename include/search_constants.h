@@ -75,7 +75,9 @@ struct fixed_constants {
   static constexpr bool tuning = false;
   static constexpr depth_type lmr_tbl_dim = 64;
   size_t thread_count_;
-  std::array<depth_type, lmr_tbl_dim * lmr_tbl_dim> lmr_tbl{};
+
+  std::array<depth_type, lmr_tbl_dim * lmr_tbl_dim> improving_lmr{};
+  std::array<depth_type, lmr_tbl_dim * lmr_tbl_dim> worsening_lmr{};
 
   const size_t& thread_count() const { return thread_count_; }
 
@@ -94,7 +96,7 @@ struct fixed_constants {
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx, const bool& improving) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
     const size_t idx = std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx);
-    return (lmr_tbl[idx] + !improving * 480) / 1024;
+    return improving ? improving_lmr[idx] : worsening_lmr[idx];
   }
 
   constexpr depth_type nmp_reduction(const depth_type& depth) const { return 4 + depth / 6; }
@@ -149,7 +151,8 @@ struct fixed_constants {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {
       for (depth_type played{1}; played < lmr_tbl_dim; ++played) {
-        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(768 + 455 * std::log(depth) * std::log(played));
+        improving_lmr[depth * lmr_tbl_dim + played] = static_cast<depth_type>(0.75 + std::log(depth) * std::log(played) / 2.25);
+        worsening_lmr[depth * lmr_tbl_dim + played] = static_cast<depth_type>(1.20 + std::log(depth) * std::log(played) / 2.20);
       }
     }
     return *this;
@@ -160,7 +163,7 @@ struct fixed_constants {
   fixed_constants(const size_t& thread_count = 1) { update_(thread_count); }
 };
 
-struct tuning_constants : fixed_constants {
+/*struct tuning_constants : fixed_constants {
   static constexpr bool tuning = true;
   static constexpr depth_type lmr_tbl_dim = 64;
 
@@ -201,7 +204,7 @@ struct tuning_constants : fixed_constants {
   }
 
   tuning_constants(const size_t& thread_count = 1) { update_(thread_count); }
-};
+};*/
 
 #ifdef TUNE
 using constants = tuning_constants;
