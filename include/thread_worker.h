@@ -164,7 +164,7 @@ struct thread_worker {
   internal_state internal{};
   controlled_loop<is_active> loop;
 
-  template <bool is_pv>
+  template <bool is_pv, bool use_tt=true>
   search::score_type q_search(
       const search::stack_view& ss,
       const nnue::eval<T>& eval,
@@ -191,7 +191,7 @@ struct thread_worker {
       const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = (entry.bound() == bound_type::lower && entry.score() >= beta) || (entry.bound() == bound_type::exact) ||
                              (entry.bound() == bound_type::upper && entry.score() <= alpha);
-      if (is_cutoff) { return entry.score(); }
+      if (use_tt && is_cutoff) { return entry.score(); }
       orderer.set_first(entry.best_move());
     }
 
@@ -204,7 +204,7 @@ struct thread_worker {
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
       search::score_type value = static_value;
-      if (maybe.has_value()) {
+      if (use_tt && maybe.has_value()) {
         if (maybe->bound() == bound_type::upper && static_value > maybe->score()) { value = maybe->score(); }
         if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
       }
@@ -238,7 +238,7 @@ struct thread_worker {
 
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
-      const search::score_type score = -q_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
+      const search::score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
 
       if (score > best_score) {
         best_score = score;
@@ -250,7 +250,7 @@ struct thread_worker {
       }
     }
 
-    if (loop.keep_going()) {
+    if (use_tt && loop.keep_going()) {
       const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
       external.tt->insert(entry);
