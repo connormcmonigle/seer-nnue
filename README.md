@@ -32,5 +32,5 @@ The latest network can be found [here](https://github.com/connormcmonigle/seer-t
 ```
 cd build
 wget -O eval.bin https://github.com/connormcmonigle/seer-training/releases/download/0xd203e246/0xd203e246.bin
-make EVALFILE=eval.bin
+make pgo EVALFILE=eval.bin
 ```
