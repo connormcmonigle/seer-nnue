@@ -217,8 +217,13 @@ struct uci {
     auto evaluator = nnue::eval<weight_type>(&weights_);
     position.show_init(evaluator);
     os << "score: " << evaluator.evaluate(position.turn()) << std::endl;
-    const auto [w, d, l] = evaluator.propagate(position.turn()).data;
-    os << "(w, d, l): (" << w << ", " << d << ", " << l << ")" << std::endl;
+  }
+
+  void see() {
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    for (const chess::move& mv : position.generate_moves()) {
+      os << mv.name(position.turn()) << ": " << position.see<search::see_type>(mv) << std::endl; 
+    }
   }
 
   void perft(const std::string& line) {
@@ -251,6 +256,8 @@ struct uci {
       bench();
     } else if (!is_searching() && line == "eval") {
       eval();
+    } else if (!is_searching() && line == "see") {
+      see();
     }else if (!is_searching() && std::regex_match(line, perft_rgx)) {
       perft(line);
     } else if (!is_searching() && std::regex_match(line, go_rgx)) {

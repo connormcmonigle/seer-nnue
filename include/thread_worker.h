@@ -164,7 +164,7 @@ struct thread_worker {
   internal_state internal{};
   controlled_loop<is_active> loop;
 
-  template <bool is_pv>
+  template <bool is_pv, bool use_tt=true>
   search::score_type q_search(
       const search::stack_view& ss,
       const nnue::eval<T>& eval,
@@ -177,48 +177,49 @@ struct thread_worker {
     if (should_update) { external.on_update(*this); }
 
     ++internal.nodes;
-    const move_list list = bd.generate_loud_moves();
+    const move_list list = bd.generate_noisy_moves();
     const bool is_check = bd.is_check();
 
     if (list.size() == 0 && is_check) { return ss.effective_mate_score(); }
     if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
     if (bd.is_trivially_drawn()) { return search::draw_score; }
 
-    move_orderer orderer(move_orderer_data{move::null(), move::null(), move::null(), &bd, list, &internal.hh.us(bd.turn())});
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())));
 
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
-      const search::score_type entry_score = transposition_table::score_from(entry.score(), ss.height());
-      const bool is_cutoff = (entry.bound() == bound_type::lower && entry_score >= beta) || (entry.bound() == bound_type::exact) ||
-                             (entry.bound() == bound_type::upper && entry_score <= alpha);
-      if (is_cutoff) { return entry_score; }
+      const bool is_cutoff = (entry.bound() == bound_type::lower && entry.score() >= beta) || (entry.bound() == bound_type::exact) ||
+                             (entry.bound() == bound_type::upper && entry.score() <= alpha);
+      if (use_tt && is_cutoff) { return entry.score(); }
       orderer.set_first(entry.best_move());
     }
 
-    const search::score_type static_eval = [&] {
+    const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type val = is_check                         ? ss.effective_mate_score() :
-                                     !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                        eval.evaluate(bd.turn());
+      const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
+                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+                                                                                 eval.evaluate(bd.turn());
 
-      if (!is_check) { internal.cache.insert(bd.hash(), val); }
+      if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
-      if (maybe.has_value()) {
-        if (maybe->bound() == bound_type::upper && val > maybe->score()) { return maybe->score(); }
-        if (maybe->bound() == bound_type::lower && val < maybe->score()) { return maybe->score(); }
+      search::score_type value = static_value;
+      if (use_tt && maybe.has_value()) {
+        if (maybe->bound() == bound_type::upper && static_value > maybe->score()) { value = maybe->score(); }
+        if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
       }
-      return val;
+
+      return std::tuple(static_value, value);
     }();
 
-    if (list.size() == 0 || static_eval >= beta) { return static_eval; }
-    if (ss.reached_max_height()) { return static_eval; }
+    if (list.size() == 0 || value >= beta) { return value; }
+    if (ss.reached_max_height()) { return value; }
 
-    alpha = std::max(alpha, static_eval);
-    search::score_type best_score = static_eval;
+    alpha = std::max(alpha, value);
+    search::score_type best_score = value;
     move best_move = move::null();
 
-    ss.set_hash(bd.hash()).set_eval(static_eval);
+    ss.set_hash(bd.hash()).set_eval(static_value);
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
@@ -227,7 +228,7 @@ struct thread_worker {
 
       if (!is_check && see_value < 0) { continue; }
 
-      const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((static_eval + external.constants->delta_margin()) < alpha);
+      const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((value + external.constants->delta_margin()) < alpha);
       if (delta_prune) { continue; }
 
       ss.set_played(mv);
@@ -237,7 +238,7 @@ struct thread_worker {
 
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
-      const search::score_type score = -q_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
+      const search::score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
 
       if (score > best_score) {
         best_score = score;
@@ -249,7 +250,7 @@ struct thread_worker {
       }
     }
 
-    if (loop.keep_going()) {
+    if (use_tt && loop.keep_going()) {
       const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
       const transposition_table_entry entry(bd.hash(), bound, transposition_table::score_to(best_score, ss.height()), best_move, 0);
       external.tt->insert(entry);
@@ -265,12 +266,14 @@ struct thread_worker {
       const board& bd,
       search::score_type alpha,
       search::score_type beta,
-      search::depth_type depth) -> pv_search_result_t<is_root> {
+      search::depth_type depth,
+      const player_type& reducer) -> pv_search_result_t<is_root> {
     auto make_result = [](const search::score_type& score, const move& mv) {
       if constexpr (is_root) { return pv_search_result_t<is_root>{score, mv}; }
       if constexpr (!is_root) { return score; }
     };
 
+    static_assert(!is_root || is_pv);
     assert(depth >= 0);
 
     // callback on entering search function
@@ -306,7 +309,7 @@ struct thread_worker {
     const move follow = ss.follow();
     const move counter = ss.counter();
 
-    move_orderer orderer(move_orderer_data{killer, follow, counter, &bd, list, &internal.hh.us(bd.turn())});
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter));
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
@@ -322,44 +325,47 @@ struct thread_worker {
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
-    // step 6. compute static eval and adjust appropriately if there's a tt hit
-    const search::score_type static_eval = [&] {
+    // step 5. compute static eval and adjust appropriately if there's a tt hit
+    const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type val = is_check                         ? ss.effective_mate_score() :
-                                     !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                        eval.evaluate(bd.turn());
+      const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
+                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+                                                                                 eval.evaluate(bd.turn());
 
-      if (!is_check) { internal.cache.insert(bd.hash(), val); }
+      if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
+      search::score_type value = static_value;
       if (maybe.has_value()) {
-        if (maybe->bound() == bound_type::upper && val > maybe->score()) { return maybe->score(); }
-        if (maybe->bound() == bound_type::lower && val < maybe->score()) { return maybe->score(); }
+        if (maybe->bound() == bound_type::upper && static_value > maybe->score()) { value = maybe->score(); }
+        if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
       }
-      return val;
+
+      return std::tuple(static_value, value);
     }();
 
-    // step 7. return static eval if max depth was reached
-    if (ss.reached_max_height()) { return make_result(static_eval, move::null()); }
+    // step 6. return static eval if max depth was reached
+    if (ss.reached_max_height()) { return make_result(value, move::null()); }
 
-    // step 8. add position and static eval to stack
-    ss.set_hash(bd.hash()).set_eval(static_eval);
-    const bool improving = ss.improving();
+    // step 7. add position and static eval to stack
+    ss.set_hash(bd.hash()).set_eval(static_value);
+    const bool improving = !is_check && ss.improving();
 
-    // step 9. static null move pruning
-    const bool snm_prune = !is_root && !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
-                           static_eval > beta + external.constants->snmp_margin(improving, depth) && static_eval > ss.effective_mate_score();
+    // step 8. static null move pruning
+    const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
+                           value > beta + external.constants->snmp_margin(improving, depth) && value > ss.effective_mate_score();
 
-    if (snm_prune) { return make_result(static_eval, move::null()); }
+    if (snm_prune) { return make_result(value, move::null()); }
 
-    // step 10. null move pruning
-    const bool try_nmp = !is_root && !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && static_eval > beta &&
-                         ss.nmp_valid() && bd.has_non_pawn_material();
+    // step 9. null move pruning
+    const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
+                         bd.has_non_pawn_material();
 
     if (try_nmp) {
       ss.set_played(move::null());
       const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth));
-      const search::score_type nmp_score = -pv_search<is_pv>(ss.next(), eval, bd.forward(move::null()), -beta, -alpha, adjusted_depth);
-      if (nmp_score > beta) { return make_result(nmp_score, move::null()); }
+      const search::score_type nmp_score =
+          -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
+      if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
     }
 
     // list of attempted quiets for updating histories
@@ -384,18 +390,28 @@ struct thread_worker {
 
       // step 11. pruning
       if (try_pruning) {
-        const bool lm_prune = mv.is_quiet() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune = depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
-        if (lm_prune) { continue; }
+        if (lm_prune) { break; }
 
         const bool futility_prune =
-            mv.is_quiet() && depth <= external.constants->futility_prune_depth() && static_eval + external.constants->futility_margin(depth) < alpha;
+            mv.is_quiet() && depth <= external.constants->futility_prune_depth() && value + external.constants->futility_margin(depth) < alpha;
 
         if (futility_prune) { continue; }
 
-        const bool see_prune = mv.is_capture() && depth <= external.constants->see_prune_depth() && see_value < 0;
+        const bool quiet_see_prune =
+            mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
 
-        if (see_prune) { continue; }
+        if (quiet_see_prune) { continue; }
+
+        const bool noisy_see_prune =
+            mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() && see_value < external.constants->noisy_see_prune_threshold(depth);
+
+        if (noisy_see_prune) { continue; }
+
+        const bool history_prune = mv.is_quiet() && history_value <= external.constants->history_prune_threshold(depth);
+
+        if (history_prune) { continue; }
       }
 
       external.tt->prefetch(bd_.hash());
@@ -421,7 +437,7 @@ struct thread_worker {
           const search::depth_type singular_depth = external.constants->singular_search_depth(depth);
           const search::score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
           ss.set_excluded(mv);
-          const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth);
+          const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
           ss.set_excluded(move::null());
           if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2; }
           if (excluded_score < singular_beta) { return 1; }
@@ -433,10 +449,17 @@ struct thread_worker {
       const search::score_type score = [&, this, idx = idx, mv = mv] {
         const search::depth_type next_depth = depth + extension - 1;
 
-        auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth); };
-        auto zero_width = [&](const search::depth_type& zw_depth) { return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth); };
+        auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth, reducer); };
 
-        search::score_type zw_score{};
+        auto zero_width = [&](const search::depth_type& zw_depth) {
+          const player_type next_reducer = (is_pv || zw_depth < next_depth) ? player_from(bd.turn()) : reducer;
+          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, next_reducer);
+        };
+
+        if (is_pv && idx == 0) { return full_width(); }
+
+        search::depth_type lmr_depth;
+        search::score_type zw_score;
 
         // step 13. late move reductions
         const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
@@ -446,20 +469,23 @@ struct thread_worker {
           // adjust reduction
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
-          if (!improving) { ++reduction; }
           if (!is_pv) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
 
+          // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
+          // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
+          if (is_player(reducer, !bd.turn())) { ++reduction; }
+
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
-          reduction = std::max(reduction, 0);
+          reduction = std::max(0, reduction);
 
-          const search::depth_type lmr_depth = std::max(1, next_depth - reduction);
+          lmr_depth = std::max(1, next_depth - reduction);
           zw_score = zero_width(lmr_depth);
         }
 
         // search again at full depth if necessary
-        if (!try_lmr || (zw_score > alpha)) { zw_score = zero_width(next_depth); }
+        if (!try_lmr || (zw_score > alpha && lmr_depth < next_depth)) { zw_score = zero_width(next_depth); }
 
         // search again with full window on pv nodes
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
@@ -521,8 +547,8 @@ struct thread_worker {
         internal.stack.clear_future();
 
         const search::depth_type adjusted_depth = std::max(1, internal.depth - failed_high_count);
-        const auto [search_score, search_move] =
-            pv_search<true, true>(search::stack_view::root(internal.stack), evaluator, internal.stack.root_pos(), alpha, beta, adjusted_depth);
+        const auto [search_score, search_move] = pv_search<true, true>(
+            search::stack_view::root(internal.stack), evaluator, internal.stack.root_pos(), alpha, beta, adjusted_depth, player_type::none);
 
         if (!loop.keep_going()) { break; }
 
