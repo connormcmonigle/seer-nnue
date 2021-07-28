@@ -312,11 +312,7 @@ struct thread_worker {
       orderer.set_first(entry.best_move());
     }
 
-    // step 4. internal iterative reductions
-    const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
-    if (should_iir) { --depth; }
-
-    // step 5. compute static eval and adjust appropriately if there's a tt hit
+    // step 4. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
@@ -334,20 +330,20 @@ struct thread_worker {
       return std::tuple(static_value, value);
     }();
 
-    // step 6. return static eval if max depth was reached
+    // step 5. return static eval if max depth was reached
     if (ss.reached_max_height()) { return make_result(value, move::null()); }
 
-    // step 7. add position and static eval to stack
+    // step 6. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_value);
     const bool improving = !is_check && ss.improving();
 
-    // step 8. static null move pruning
+    // step 7. static null move pruning
     const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
                            value > beta + external.constants->snmp_margin(improving, depth) && value > ss.effective_mate_score();
 
     if (snm_prune) { return make_result(value, move::null()); }
 
-    // step 9. prob pruning
+    // step 8. prob pruning
     const bool try_prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
                                 maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
                                 maybe->score() > beta + external.constants->prob_prune_margin() &&
@@ -357,7 +353,7 @@ struct thread_worker {
       if (list.has(maybe->best_move()) && bd.see<search::see_type>(maybe->best_move()) > 0) { return make_result(maybe->score(), move::null()); }
     }
 
-    // step 10. null move pruning
+    // step 9. null move pruning
     const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
                          bd.has_non_pawn_material();
 
@@ -368,6 +364,10 @@ struct thread_worker {
           -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
       if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
     }
+
+    // step 10. internal iterative reductions
+    const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
+    if (should_iir) { --depth; }
 
     // list of attempted quiets for updating histories
     move_list quiets_tried{};
@@ -471,6 +471,7 @@ struct thread_worker {
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
           if (!is_pv) { ++reduction; }
+          if (!improving) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
 
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
