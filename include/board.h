@@ -91,7 +91,8 @@ struct board {
   sided_manifest man_{};
   sided_latent lat_{};
 
-  bool turn() const { return lat_.move_count % 2 == 0; }
+  bool turn() const { return lat_.ply_count % 2 == 0; }
+  size_t is_rule50_draw() const { return lat_.half_clock >= 100; }
 
   zobrist::hash_type hash() const { return man_.hash() ^ lat_.hash(); }
 
@@ -433,7 +434,7 @@ struct board {
 
   template <color c>
   board forward_(const move& mv) const {
-    auto cpy = *this;
+    board cpy = *this;
     if (mv.is_null()) {
       assert(!is_check_<c>());
     } else if (mv.is_castle_ooo<c>()) {
@@ -477,7 +478,9 @@ struct board {
       }
     }
     cpy.lat_.them<c>().clear_ep_mask();
-    ++cpy.lat_.move_count;
+    ++cpy.lat_.ply_count;
+    ++cpy.lat_.half_clock;
+    if (mv.is_capture() || mv.piece() == piece_type::pawn) { cpy.lat_.half_clock = 0; }
     return cpy;
   }
 
@@ -497,7 +500,7 @@ struct board {
     mirror.lat_.black.set_oo(lat_.white.oo());
     if (lat_.black.ep_mask().any()) { mirror.lat_.white.set_ep_mask(lat_.black.ep_mask().mirrored().item()); }
     if (lat_.white.ep_mask().any()) { mirror.lat_.black.set_ep_mask(lat_.white.ep_mask().mirrored().item()); }
-    mirror.lat_.move_count = lat_.move_count ^ static_cast<size_t>(1);
+    mirror.lat_.ply_count = lat_.ply_count ^ static_cast<size_t>(1);
     mirror.lat_.half_clock = lat_.half_clock;
 
     return mirror;
@@ -623,7 +626,7 @@ struct board {
     fen.push_back(' ');
     fen.append(std::to_string(lat_.half_clock));
     fen.push_back(' ');
-    fen.append(std::to_string(1 + (lat_.move_count / 2)));
+    fen.append(std::to_string(1 + (lat_.ply_count / 2)));
     return fen;
   }
 
@@ -643,8 +646,8 @@ struct board {
     ss >> ep_sq;
     std::string half_clock;
     ss >> half_clock;
-    std::string ply;
-    ss >> ply;
+    std::string move_count;
+    ss >> move_count;
     {
       std::stringstream body_s(body);
       std::string rank;
@@ -669,7 +672,7 @@ struct board {
     fen_pos.lat_.black.set_ooo(castle.find('q') != std::string::npos);
     fen_pos.lat_.half_clock = std::stol(half_clock);
     if (ep_sq != "-") { fen_pos.lat_.them(side == "w").set_ep_mask(tbl_square::from_name(ep_sq)); }
-    fen_pos.lat_.move_count = static_cast<size_t>(2 * (std::stoi(ply) - 1) + static_cast<int>(side != "w"));
+    fen_pos.lat_.ply_count = static_cast<size_t>(2 * (std::stol(move_count) - 1) + static_cast<size_t>(side != "w"));
     return fen_pos;
   }
 };
@@ -678,7 +681,7 @@ std::ostream& operator<<(std::ostream& ostr, const board& bd) {
   ostr << std::boolalpha;
   ostr << "board(hash=" << bd.hash();
   ostr << ", half_clock=" << bd.lat_.half_clock;
-  ostr << ", move_count=" << bd.lat_.move_count;
+  ostr << ", ply_count=" << bd.lat_.ply_count;
   ostr << ", white.oo_=" << bd.lat_.white.oo();
   ostr << ", white.ooo_=" << bd.lat_.white.ooo();
   ostr << ", black.oo_=" << bd.lat_.black.oo();
