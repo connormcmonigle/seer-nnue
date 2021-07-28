@@ -90,6 +90,7 @@ struct fixed_constants {
   constexpr depth_type history_extension_depth() const { return 8; }
   constexpr depth_type singular_extension_depth() const { return 9; }
   constexpr depth_type iir_depth() const { return 4; }
+  constexpr depth_type prob_prune_depth() const { return 4; }
 
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
@@ -107,6 +108,10 @@ struct fixed_constants {
   constexpr score_type singular_beta(const score_type& tt_score, const depth_type& depth) const { return tt_score - 2 * depth; }
 
   constexpr score_type singular_double_extension_margin() const { return 160; }
+
+  constexpr depth_type prob_prune_depth_margin() const { return 3; }
+
+  constexpr score_type prob_prune_margin() const { return 512; }
 
   constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
@@ -129,7 +134,6 @@ struct fixed_constants {
 
   constexpr see_type quiet_see_prune_threshold(const depth_type& depth) const { return -50 * static_cast<see_type>(depth); }
   constexpr see_type noisy_see_prune_threshold(const depth_type& depth) const { return -100 * static_cast<see_type>(depth); }
-
 
   constexpr counter_type history_prune_threshold(const depth_type& depth) const { return -1024 * static_cast<counter_type>(depth * depth); }
 

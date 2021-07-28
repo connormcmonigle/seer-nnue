@@ -164,7 +164,7 @@ struct thread_worker {
   internal_state internal{};
   controlled_loop<is_active> loop;
 
-  template <bool is_pv, bool use_tt=true>
+  template <bool is_pv, bool use_tt = true>
   search::score_type q_search(
       const search::stack_view& ss,
       const nnue::eval<T>& eval,
@@ -347,7 +347,17 @@ struct thread_worker {
 
     if (snm_prune) { return make_result(value, move::null()); }
 
-    // step 9. null move pruning
+    // step 9. prob pruning
+    const bool try_prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
+                                maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
+                                maybe->score() > beta + external.constants->prob_prune_margin() &&
+                                maybe->depth() + external.constants->prob_prune_depth_margin() >= depth;
+
+    if (try_prob_prune) {
+      if (list.has(maybe->best_move()) && bd.see<search::see_type>(maybe->best_move()) > 0) { return make_result(maybe->score(), move::null()); }
+    }
+
+    // step 10. null move pruning
     const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
                          bd.has_non_pawn_material();
 
@@ -379,7 +389,7 @@ struct thread_worker {
 
       const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
 
-      // step 10. pruning
+      // step 11. pruning
       if (try_pruning) {
         const bool lm_prune = depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
@@ -408,7 +418,7 @@ struct thread_worker {
       external.tt->prefetch(bd_.hash());
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
-      // step 11. extensions
+      // step 12. extensions
       const search::depth_type extension = [&, mv = mv] {
         const bool check_ext = see_value > 0 && bd_.is_check();
 
@@ -422,7 +432,7 @@ struct thread_worker {
 
         const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
                                   mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
-                                  maybe->depth() >= (depth - external.constants->singular_extension_depth_margin());
+                                  maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
 
         if (try_singular) {
           const search::depth_type singular_depth = external.constants->singular_search_depth(depth);
@@ -452,7 +462,7 @@ struct thread_worker {
         search::depth_type lmr_depth;
         search::score_type zw_score;
 
-        // step 12. late move reductions
+        // step 13. late move reductions
         const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           search::depth_type reduction = external.constants->reduction(depth, idx);
@@ -494,7 +504,7 @@ struct thread_worker {
       }
     }
 
-    // step 13. update histories if appropriate and maybe insert a new transposition_table_entry
+    // step 14. update histories if appropriate and maybe insert a new transposition_table_entry
     if (loop.keep_going() && !ss.has_excluded()) {
       const bound_type bound = [&] {
         if (best_score >= beta) { return bound_type::lower; }
