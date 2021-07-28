@@ -164,7 +164,7 @@ struct thread_worker {
   internal_state internal{};
   controlled_loop<is_active> loop;
 
-  template <bool is_pv, bool use_tt=true>
+  template <bool is_pv, bool use_tt = true>
   search::score_type q_search(
       const search::stack_view& ss,
       const nnue::eval<T>& eval,
@@ -346,6 +346,13 @@ struct thread_worker {
                            value > beta + external.constants->snmp_margin(improving, depth) && value > ss.effective_mate_score();
 
     if (snm_prune) { return make_result(value, move::null()); }
+
+    const bool try_prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= 4 && maybe->best_move().is_capture() &&
+                                maybe->bound() == bound_type::lower && maybe->score() > beta + 512 && maybe->depth() + 3 >= depth;
+
+    if (try_prob_prune) {
+      if (list.has(maybe->best_move()) && bd.see<search::see_type>(maybe->best_move()) > 0) { return make_result(maybe->score(), move::null()); }
+    }
 
     // step 9. null move pruning
     const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
