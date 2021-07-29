@@ -357,7 +357,7 @@ struct thread_worker {
 
     // step 10. null move pruning
     const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
-                         bd.has_non_pawn_material();
+                         bd.has_non_pawn_material() && (!maybe.has_value() || maybe->best_move().is_quiet());
 
     if (try_nmp) {
       ss.set_played(move::null());
