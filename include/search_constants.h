@@ -138,9 +138,10 @@ struct fixed_constants {
   constexpr counter_type history_prune_threshold(const depth_type& depth) const { return -1024 * static_cast<counter_type>(depth * depth); }
 
   constexpr depth_type history_reduction(const counter_type& history_value) const {
-    constexpr depth_type limit = 2;
+    constexpr depth_type upper_limit = 3;
+    constexpr depth_type lower_limit = -2;
     const depth_type raw = -static_cast<depth_type>(history_value / 5000);
-    return std::clamp(raw, -limit, limit);
+    return std::clamp(raw, lower_limit, upper_limit);
   }
 
   constexpr score_type delta_margin() const {
