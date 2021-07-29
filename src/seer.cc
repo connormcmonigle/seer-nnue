@@ -15,18 +15,20 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <iostream>
-#include <chrono>
-#include <string>
-
 #include <uci.h>
 
+#include <chrono>
+#include <iostream>
+#include <string>
 
-int main(int argc, char* argv[]){
+int main(int argc, char* argv[]) {
   engine::uci uci{};
 
   const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if(perform_bench){ uci.bench(); return 0; }
+  if (perform_bench) {
+    uci.bench();
+    return 0;
+  }
 
-  for(std::string line{}; !uci.should_quit() && std::getline(std::cin, line);){ uci.read(line); }
+  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
 }
