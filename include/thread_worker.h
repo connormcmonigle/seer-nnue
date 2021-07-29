@@ -349,15 +349,15 @@ struct thread_worker {
 
     // step 9. prob pruning
     const bool prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
-                                maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
-                                maybe->score() > beta + external.constants->prob_prune_margin() &&
-                                maybe->depth() + external.constants->prob_prune_depth_margin() >= depth;
+                            maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
+                            maybe->score() > beta + external.constants->prob_prune_margin() &&
+                            maybe->depth() + external.constants->prob_prune_depth_margin() >= depth;
 
     if (prob_prune) { return make_result(beta, move::null()); }
 
     // step 10. null move pruning
-    const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
-                         bd.has_non_pawn_material();
+    const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta &&
+                         static_value > beta && ss.nmp_valid() && bd.has_non_pawn_material();
 
     if (try_nmp) {
       ss.set_played(move::null());
@@ -440,9 +440,9 @@ struct thread_worker {
           ss.set_excluded(mv);
           const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
           ss.set_excluded(move::null());
-          if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { 
+          if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) {
             did_double_extend = true;
-            return 2; 
+            return 2;
           }
           if (excluded_score < singular_beta) { return 1; }
         }
