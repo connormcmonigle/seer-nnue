@@ -354,7 +354,7 @@ struct thread_worker {
                                 maybe->depth() + external.constants->prob_prune_depth_margin() >= depth;
 
     if (try_prob_prune) {
-      if (list.has(maybe->best_move())) { return make_result(maybe->score(), move::null()); }
+      if (list.has(maybe->best_move())) { return make_result(beta, move::null()); }
     }
 
     // step 10. null move pruning
