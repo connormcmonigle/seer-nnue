@@ -624,7 +624,7 @@ struct worker_pool {
 
   void reset() {
     tt_->clear();
-    for (auto& worker : pool_) { (worker->internal).reset(); };
+    for (auto& worker : pool_) { worker->internal.reset(); };
   }
 
   void resize(const size_t& new_size) {

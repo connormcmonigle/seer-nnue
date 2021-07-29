@@ -50,7 +50,7 @@ struct stack {
   chess::board present_;
   std::array<stack_entry, safe_depth_> future_{};
 
-  stack_entry& at_(const depth_type& height) {
+  stack_entry& at(const depth_type& height) {
     sel_depth_ = std::max(sel_depth_, height);
     return future_[height];
   }
@@ -100,43 +100,43 @@ struct stack_view {
 
   chess::move counter() const {
     if (height_ <= 0) { return chess::move::null(); }
-    return (view_->at_(height_ - 1)).played_;
+    return view_->at(height_ - 1).played_;
   }
 
   chess::move follow() const {
     if (height_ <= 1) { return chess::move::null(); }
-    return (view_->at_(height_ - 2)).played_;
+    return view_->at(height_ - 2).played_;
   }
 
-  chess::move killer() const { return (view_->at_(height_)).killer_; }
+  chess::move killer() const { return view_->at(height_).killer_; }
 
-  chess::move excluded() const { return (view_->at_(height_)).excluded_; }
+  chess::move excluded() const { return view_->at(height_).excluded_; }
 
-  bool has_excluded() const { return !view_->at_(height_).excluded_.is_null(); }
+  bool has_excluded() const { return !view_->at(height_).excluded_.is_null(); }
 
-  const std::array<chess::move, safe_depth_>& pv() const { return (view_->at_(height_)).pv_; }
+  const std::array<chess::move, safe_depth_>& pv() const { return view_->at(height_).pv_; }
 
   bool nmp_valid() const { return !counter().is_null() && !follow().is_null(); }
 
-  bool improving() const { return (height_ >= 2) && (view_->at_(height_ - 2)).eval_ < (view_->at_(height_)).eval_; }
+  bool improving() const { return (height_ >= 2) && view_->at(height_ - 2).eval_ < view_->at(height_).eval_; }
 
   const stack_view& set_hash(const zobrist::hash_type& hash) const {
-    (view_->at_(height_)).hash_ = hash;
+    view_->at(height_).hash_ = hash;
     return *this;
   }
 
   const stack_view& set_eval(const score_type& eval) const {
-    (view_->at_(height_)).eval_ = eval;
+    view_->at(height_).eval_ = eval;
     return *this;
   }
 
   const stack_view& set_played(const chess::move& played) const {
-    (view_->at_(height_)).played_ = played;
+    view_->at(height_).played_ = played;
     return *this;
   }
 
   const stack_view& prepend_to_pv(const chess::move& pv_mv) const {
-    auto& our_pv = (view_->at_(height_)).pv_;
+    auto& our_pv = view_->at(height_).pv_;
     const auto& child_pv = next().pv();
     our_pv[0] = pv_mv;
     const auto output_iter = our_pv.begin() + 1;
@@ -145,12 +145,12 @@ struct stack_view {
   }
 
   const stack_view& set_killer(const chess::move& killer) const {
-    (view_->at_(height_)).killer_ = killer;
+    view_->at(height_).killer_ = killer;
     return *this;
   }
 
   const stack_view& set_excluded(const chess::move& excluded) const {
-    (view_->at_(height_)).excluded_ = excluded;
+    view_->at(height_).excluded_ = excluded;
     return *this;
   }
 

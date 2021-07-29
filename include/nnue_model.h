@@ -102,7 +102,7 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>> {
     return static_cast<search::score_type>(value);
   }
 
-  eval(const weights<T>* src) : weights_{src}, white{&(src->w)}, black{&(src->b)} {}
+  eval(const weights<T>* src) : weights_{src}, white{&src->w}, black{&src->b} {}
 };
 
 }  // namespace nnue
