@@ -99,13 +99,17 @@ struct fixed_constants {
 
   constexpr depth_type nmp_reduction(const depth_type& depth) const { return 4 + depth / 6; }
 
-  constexpr depth_type history_extension_threshold() const { return static_cast<counter_type>(24576); }
+  constexpr see_type nmp_see_threshold() const { return 200; }
+
+  constexpr depth_type history_extension_threshold() const { return 24576; }
 
   constexpr depth_type singular_extension_depth_margin() const { return 2; }
 
   constexpr depth_type singular_search_depth(const depth_type& depth) const { return depth / 2 - 1; }
 
-  constexpr score_type singular_beta(const score_type& tt_score, const depth_type& depth) const { return tt_score - 2 * depth; }
+  constexpr score_type singular_beta(const score_type& tt_score, const depth_type& depth) const {
+    return tt_score - 2 * static_cast<score_type>(depth);
+  }
 
   constexpr score_type singular_double_extension_margin() const { return 160; }
 
