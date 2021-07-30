@@ -349,7 +349,8 @@ struct thread_worker {
 
     // step 9. prob pruning
     const bool prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
-                            maybe->bound() == bound_type::lower && maybe->score() > beta + external.constants->prob_prune_margin() &&
+                            maybe->bound() == bound_type::lower &&
+                            maybe->score() > beta + external.constants->prob_prune_margin(maybe->best_move().is_quiet()) &&
                             maybe->depth() + external.constants->prob_prune_depth_margin() >= depth;
 
     if (prob_prune) { return make_result(beta, move::null()); }
