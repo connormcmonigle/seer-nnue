@@ -305,9 +305,9 @@ struct thread_worker {
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
-      const bool is_cutoff = !is_pv && entry.depth() >= depth &&
-                             ((entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
-                              (entry.bound() == bound_type::upper && entry.score() <= alpha));
+      const bool sufficient = !is_pv && ((counter.is_null() && ss.height() >= 1) || entry.depth() >= depth);
+      const bool is_cutoff = sufficient && ((entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
+                                            (entry.bound() == bound_type::upper && entry.score() <= alpha));
       if (is_cutoff) { return make_result(entry.score(), entry.best_move()); }
       orderer.set_first(entry.best_move());
     }
