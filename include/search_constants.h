@@ -115,7 +115,7 @@ struct fixed_constants {
 
   constexpr depth_type prob_prune_depth_margin() const { return 2; }
 
-  constexpr score_type prob_prune_margin() const { return 512; }
+  constexpr score_type prob_prune_margin() const { return 768; }
 
   constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
