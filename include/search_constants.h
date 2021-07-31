@@ -113,7 +113,7 @@ struct fixed_constants {
 
   constexpr score_type singular_double_extension_margin() const { return 160; }
 
-  constexpr depth_type prob_prune_depth_margin() const { return 2; }
+  constexpr depth_type prob_prune_depth_margin() const { return 3; }
 
   constexpr score_type prob_prune_margin() const { return 768; }
 
