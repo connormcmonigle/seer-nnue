@@ -376,6 +376,7 @@ struct thread_worker {
     search::score_type best_score = ss.effective_mate_score();
     move best_move = *list.begin();
 
+    const int no_lmr_idx = !is_pv && maybe.has_value() ? 1 : 2;
     bool did_double_extend = false;
 
     for (const auto& [idx, mv] : orderer) {
@@ -389,7 +390,7 @@ struct thread_worker {
 
       const board bd_ = bd.forward(mv);
 
-      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
+      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= no_lmr_idx && best_score > search::max_mate_score;
 
       // step 11. pruning
       if (try_pruning) {
@@ -468,7 +469,7 @@ struct thread_worker {
         search::score_type zw_score;
 
         // step 13. late move reductions
-        const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= (2 - maybe.has_value()) && (depth >= external.constants->reduce_depth());
+        const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= no_lmr_idx && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
