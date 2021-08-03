@@ -31,7 +31,7 @@ namespace nnue {
 
 constexpr size_t half_ka_numel = 768 * 64;
 constexpr size_t max_active_half_features = 32;
-constexpr size_t base_dim = 160;
+constexpr size_t base_dim = 192;
 
 template <typename T>
 struct weights {
