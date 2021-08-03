@@ -363,7 +363,7 @@ struct thread_worker {
 
     if (try_nmp) {
       ss.set_played(move::null());
-      const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth));
+      const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth, beta, value));
       const search::score_type nmp_score =
           -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
       if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
