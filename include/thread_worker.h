@@ -376,6 +376,8 @@ struct thread_worker {
     search::score_type best_score = ss.effective_mate_score();
     move best_move = *list.begin();
 
+    const bool likely_fail = !is_pv && maybe.has_value() && (maybe->bound() == bound_type::upper || maybe->bound() == bound_type::exact) &&
+                             maybe->depth() + 3 >= depth && maybe->score() <= alpha;
     bool did_double_extend = false;
 
     for (const auto& [idx, mv] : orderer) {
@@ -478,6 +480,7 @@ struct thread_worker {
           if (improving) { --reduction; }
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
+          if (likely_fail) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
 
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
