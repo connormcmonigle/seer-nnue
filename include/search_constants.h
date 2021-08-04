@@ -59,6 +59,10 @@ inline constexpr score_type max_mate_score = -2 * big_number;
 
 inline constexpr score_type mate_score = max_mate_score - (max_depth + max_depth_margin);
 
+inline constexpr score_type tb_win_score = big_number + 1;
+
+inline constexpr score_type tb_loss_score = -tb_win_score;
+
 inline constexpr score_type draw_score = 0;
 
 inline constexpr score_type aspiration_delta = 20;
@@ -97,7 +101,9 @@ struct fixed_constants {
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
   }
 
-  constexpr depth_type nmp_reduction(const depth_type& depth, const score_type& beta, const score_type& value) const { return 4 + depth / 6 + std::min(3, (value - beta) / 256); }
+  constexpr depth_type nmp_reduction(const depth_type& depth, const score_type& beta, const score_type& value) const {
+    return 4 + depth / 6 + std::min(3, (value - beta) / 256);
+  }
 
   constexpr see_type nmp_see_threshold() const { return 200; }
 

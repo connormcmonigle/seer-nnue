@@ -25,6 +25,7 @@
 #include <option_parser.h>
 #include <search_constants.h>
 #include <search_stack.h>
+#include <syzygy.h>
 #include <thread_worker.h>
 #include <time_manager.h>
 #include <version.h>
@@ -108,7 +109,9 @@ struct uci {
       book_info_string();
     });
 
-    return uci_options(weight_path, hash_size, thread_count, own_book, book_path);
+    auto syzygy_path = option_callback(string_option("SyzygyPath"), [this](const std::string& path) { syzygy::init(path); });
+
+    return uci_options(weight_path, hash_size, thread_count, own_book, book_path, syzygy_path);
   }
 
   void uci_new_game() {
@@ -160,7 +163,7 @@ struct uci {
     const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
     if (is_searching()) {
       os << "info depth " << depth << " seldepth " << worker.internal.stack.sel_depth() << " score cp " << score << " nodes " << nodes << " nps "
-         << nps << " time " << elapsed_ms << " pv " << worker.internal.stack.pv_string() << std::endl;
+         << nps << " time " << elapsed_ms << " tbhits " << worker.internal.tb_hits << " pv " << worker.internal.stack.pv_string() << std::endl;
     }
   }
 
@@ -216,7 +219,7 @@ struct uci {
   void see() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     for (const chess::move& mv : position.generate_moves()) {
-      os << mv.name(position.turn()) << ": " << position.see<search::see_type>(mv) << std::endl; 
+      os << mv.name(position.turn()) << ": " << position.see<search::see_type>(mv) << std::endl;
     }
   }
 
@@ -252,7 +255,7 @@ struct uci {
       eval();
     } else if (!is_searching() && line == "see") {
       see();
-    }else if (!is_searching() && std::regex_match(line, perft_rgx)) {
+    } else if (!is_searching() && std::regex_match(line, perft_rgx)) {
       perft(line);
     } else if (!is_searching() && std::regex_match(line, go_rgx)) {
       go(line);

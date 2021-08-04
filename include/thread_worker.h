@@ -25,6 +25,7 @@
 #include <nnue_model.h>
 #include <search_constants.h>
 #include <search_stack.h>
+#include <syzygy.h>
 #include <transposition_table.h>
 
 #include <atomic>
@@ -61,6 +62,7 @@ struct internal_state {
 
   std::atomic_bool is_stable{false};
   std::atomic_size_t nodes{};
+  std::atomic_size_t tb_hits{};
   std::atomic<search::depth_type> depth{};
 
   std::atomic<search::score_type> score{};
@@ -79,6 +81,7 @@ struct internal_state {
     cache.clear();
     is_stable.store(false);
     nodes.store(0);
+    tb_hits.store(0);
     depth.store(0);
     score.store(0);
     best_move.store(move::null().data);
@@ -294,6 +297,16 @@ struct thread_worker {
     if (!is_root && bd.is_trivially_drawn()) { return make_result(search::draw_score, move::null()); }
 
     const search::score_type original_alpha = alpha;
+
+    if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(bd); !is_root && result.success) {
+      ++internal.tb_hits;
+      const bool is_cutoff = ((result.bound == bound_type::lower && result.score >= beta) || result.bound == bound_type::exact ||
+      (result.bound == bound_type::upper && result.score <= alpha));
+      if (is_cutoff) { return make_result(result.score, move::null()); }
+      if (result.bound == bound_type::lower) { 
+        alpha = std::max(alpha, result.score); 
+      }
+    }
 
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
@@ -596,6 +609,7 @@ struct thread_worker {
   void go(const position_history& hist, const board& bd, const search::depth_type& start_depth) {
     loop.next([hist, bd, start_depth, this] {
       internal.nodes.store(0);
+      internal.tb_hits.store(0);
       internal.depth.store(start_depth);
       internal.is_stable.store(false);
       internal.best_move.store(bd.generate_moves().begin()->data);
