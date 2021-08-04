@@ -250,10 +250,8 @@ struct thread_worker {
       }
     }
 
-    if (use_tt && loop.keep_going()) {
-      const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
-      const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
-      external.tt->insert(entry);
+    if (use_tt && best_score >= beta && loop.keep_going()) {
+      external.tt->insert(transposition_table_entry(bd.hash(), bound_type::lower, best_score, best_move, 0));
     }
 
     return best_score;
