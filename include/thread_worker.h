@@ -475,7 +475,7 @@ struct thread_worker {
           // adjust reduction
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
-          if (improving) { --reduction; }
+          if (!improving && mv != ss.killer()) { ++reduction; }
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
