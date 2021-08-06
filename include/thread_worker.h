@@ -347,6 +347,10 @@ struct thread_worker {
 
     if (snm_prune) { return make_result(value, move::null()); }
 
+    const bool killer_prune = !is_pv && !ss.has_excluded() && !killer.is_null() && depth <= 3 && list.has(killer) && internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, killer) > 32768;
+
+    if (killer_prune) { return make_result(beta, move::null()); }
+
     // step 9. prob pruning
     const bool prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
                             maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
