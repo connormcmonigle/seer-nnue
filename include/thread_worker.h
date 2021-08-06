@@ -347,6 +347,12 @@ struct thread_worker {
 
     if (snm_prune) { return make_result(value, move::null()); }
 
+    const bool good_move_prune = !is_pv && !ss.has_excluded() && depth <= 4 && maybe.has_value() && maybe->bound() == bound_type::lower &&
+                                 maybe->best_move().is_quiet() &&
+                                 internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, maybe->best_move()) > 16384;
+
+    if (good_move_prune) { return make_result(beta, move::null()); }
+
     // step 9. prob pruning
     const bool prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
                             maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
