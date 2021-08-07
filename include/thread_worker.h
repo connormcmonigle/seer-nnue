@@ -298,16 +298,6 @@ struct thread_worker {
 
     const search::score_type original_alpha = alpha;
 
-    if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(bd); !is_root && result.success) {
-      ++internal.tb_hits;
-      const bool is_cutoff = ((result.bound == bound_type::lower && result.score >= beta) || result.bound == bound_type::exact ||
-      (result.bound == bound_type::upper && result.score <= alpha));
-      if (is_cutoff) { return make_result(result.score, move::null()); }
-      if (result.bound == bound_type::lower) { 
-        alpha = std::max(alpha, result.score); 
-      }
-    }
-
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
     const move killer = ss.killer();
@@ -323,6 +313,15 @@ struct thread_worker {
                               (entry.bound() == bound_type::upper && entry.score() <= alpha));
       if (is_cutoff) { return make_result(entry.score(), entry.best_move()); }
       orderer.set_first(entry.best_move());
+    }
+
+    if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(bd); !is_root && result.success) {
+      ++internal.tb_hits;
+      const bool is_cutoff =
+          ((result.bound == bound_type::lower && result.score >= beta) || result.bound == bound_type::exact ||
+           (result.bound == bound_type::upper && result.score <= alpha));
+      if (is_cutoff) { return make_result(result.score, move::null()); }
+      if (result.bound == bound_type::lower) { alpha = std::max(alpha, result.score); }
     }
 
     // step 4. internal iterative reductions

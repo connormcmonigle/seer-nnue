@@ -23,10 +23,10 @@ struct tb_wdl_result {
 };
 
 tb_wdl_result probe_wdl(const chess::board& bd) {
-  if (bd.num_pieces() > TB_LARGEST) { return tb_wdl_result::failure(); }
+  if (bd.num_pieces() > TB_LARGEST || bd.lat_.half_clock != 0) { return tb_wdl_result::failure(); }
   if (bd.lat_.white.oo() || bd.lat_.white.ooo() || bd.lat_.black.oo() || bd.lat_.black.ooo()) { return tb_wdl_result::failure(); }
 
-  const unsigned int rule_50 = bd.lat_.half_clock;
+  constexpr unsigned int rule_50 = 0;
   constexpr unsigned int castling_rights = 0;
   const unsigned int ep = bd.lat_.them(bd.turn()).ep_mask().any() ? bd.lat_.them(bd.turn()).ep_mask().item().index() : 0;
   const bool turn = bd.turn();
