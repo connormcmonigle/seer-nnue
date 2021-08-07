@@ -347,7 +347,8 @@ struct thread_worker {
 
     if (snm_prune) { return make_result(value, move::null()); }
 
-    const bool killer_prune = !is_pv && !ss.has_excluded() && !killer.is_null() && depth <= 3 && list.has(killer) && internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, killer) > 32768;
+    const bool killer_prune = !is_pv && !ss.has_excluded() && !killer.is_null() && depth <= 3 && value >= beta && list.has(killer) &&
+                              internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, killer) > 32768;
 
     if (killer_prune) { return make_result(beta, move::null()); }
 
