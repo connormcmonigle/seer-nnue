@@ -315,6 +315,7 @@ struct thread_worker {
     // step 4. internal iterative reductions
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
+    if (is_check) { ++depth; }
 
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
@@ -387,9 +388,7 @@ struct thread_worker {
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, mv);
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
-      const board bd_ = bd.forward(mv);
-
-      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
+      const bool try_pruning = !is_root && !is_check && idx >= 2 && best_score > search::max_mate_score;
 
       // step 11. pruning
       if (try_pruning) {
@@ -417,6 +416,7 @@ struct thread_worker {
         if (history_prune) { continue; }
       }
 
+      const board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
 
@@ -469,7 +469,6 @@ struct thread_worker {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
           // adjust reduction
-          if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
           if (improving) { --reduction; }
           if (!is_pv) { ++reduction; }
