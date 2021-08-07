@@ -445,6 +445,8 @@ struct thread_worker {
           if (excluded_score < singular_beta) { return 1; }
         }
 
+        if (bd_.is_check() && depth <= 8) { return 1; }
+
         return 0;
       }();
 
@@ -469,7 +471,6 @@ struct thread_worker {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
           // adjust reduction
-          if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
           if (improving) { --reduction; }
           if (!is_pv) { ++reduction; }
