@@ -216,6 +216,15 @@ struct uci {
     os << "score: " << evaluator.evaluate(position.turn()) << std::endl;
   }
 
+  void probe() {
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(position); result.success) {
+      std::cout << "success: " << result.score << std::endl;
+    } else {
+      std::cout << "fail" << std::endl;
+    }
+  }
+
   void see() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     for (const chess::move& mv : position.generate_moves()) {
@@ -255,6 +264,8 @@ struct uci {
       eval();
     } else if (!is_searching() && line == "see") {
       see();
+    } else if (!is_searching() && line == "probe") {
+      probe();
     } else if (!is_searching() && std::regex_match(line, perft_rgx)) {
       perft(line);
     } else if (!is_searching() && std::regex_match(line, go_rgx)) {

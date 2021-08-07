@@ -320,6 +320,7 @@ struct thread_worker {
       const bool is_cutoff =
           ((result.bound == bound_type::lower && result.score >= beta) || result.bound == bound_type::exact ||
            (result.bound == bound_type::upper && result.score <= alpha));
+      
       if (is_cutoff) { return make_result(result.score, move::null()); }
       if (result.bound == bound_type::lower) { alpha = std::max(alpha, result.score); }
     }
