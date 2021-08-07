@@ -445,6 +445,8 @@ struct thread_worker {
           if (excluded_score < singular_beta) { return 1; }
         }
 
+        if (!is_pv && depth <= 4 && bd_.is_check() && see_value >= 0) { return 1; }
+
         return 0;
       }();
 
