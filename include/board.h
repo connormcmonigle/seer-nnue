@@ -92,7 +92,7 @@ struct board {
   sided_latent lat_{};
 
   bool turn() const { return lat_.ply_count % 2 == 0; }
-  size_t is_rule50_draw() const { return lat_.half_clock >= 100; }
+  bool is_rule50_draw() const { return lat_.half_clock >= 100; }
 
   zobrist::hash_type hash() const { return man_.hash() ^ lat_.hash(); }
 

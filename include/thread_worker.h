@@ -364,7 +364,7 @@ struct thread_worker {
     const bool prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
                             maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
                             maybe->score() > beta + external.constants->prob_prune_margin() &&
-                            maybe->depth() + external.constants->prob_prune_depth_margin() >= depth;
+                            maybe->depth() + external.constants->prob_prune_depth_margin(improving) >= depth;
 
     if (prob_prune) { return make_result(beta, move::null()); }
 
@@ -435,10 +435,6 @@ struct thread_worker {
 
       // step 12. extensions
       const search::depth_type extension = [&, mv = mv] {
-        const bool check_ext = see_value > 0 && bd_.is_check();
-
-        if (check_ext) { return 1; }
-
         const bool history_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && mv.is_quiet() &&
                                  depth >= external.constants->history_extension_depth() &&
                                  history_value >= external.constants->history_extension_threshold();
