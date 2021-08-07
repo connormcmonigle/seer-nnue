@@ -125,8 +125,8 @@ struct fixed_constants {
 
   constexpr score_type snmp_margin(const bool& improving, const depth_type& depth) const {
     assert(depth > 0);
-    constexpr score_type m = 328;
-    constexpr score_type b = 164;
+    constexpr score_type m = 288;
+    constexpr score_type b = 128;
     return m * static_cast<score_type>(depth - improving) + b;
   }
 
