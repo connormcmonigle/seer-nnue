@@ -72,10 +72,10 @@ struct counter_info {
 
   static constexpr size_t compute_index(const context& ctxt, const move& mv) {
     const size_t p0 = static_cast<size_t>(ctxt.counter.piece());
-    const size_t from0 = static_cast<size_t>(ctxt.counter.from().index());
+    const size_t to0 = static_cast<size_t>(ctxt.counter.to().index());
     const size_t p1 = static_cast<size_t>(mv.piece());
     const size_t to1 = static_cast<size_t>(mv.to().index());
-    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + from0 * constants::num_pieces * constants::num_squares +
+    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
            p1 * constants::num_squares + to1;
   }
 };
@@ -87,10 +87,10 @@ struct follow_info {
 
   static constexpr size_t compute_index(const context& ctxt, const move& mv) {
     const size_t p0 = static_cast<size_t>(ctxt.follow.piece());
-    const size_t from0 = static_cast<size_t>(ctxt.follow.from().index());
+    const size_t to0 = static_cast<size_t>(ctxt.follow.to().index());
     const size_t p1 = static_cast<size_t>(mv.piece());
     const size_t to1 = static_cast<size_t>(mv.to().index());
-    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + from0 * constants::num_pieces * constants::num_squares +
+    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
            p1 * constants::num_squares + to1;
   }
 };
