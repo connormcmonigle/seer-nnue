@@ -17,11 +17,14 @@
 
 #pragma once
 
+#include <dot_type.h>
 #include <simd.h>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
+#include <random>
 #include <utility>
 
 namespace nnue {
@@ -75,7 +78,14 @@ struct stack_vector {
     return *this;
   }
 
-  inline T dot(const T* other) const { return simd::dot_product<T, dim>(data, other); }
+  template <typename U>
+  inline stack_vector<U, dim> mul_convert(const U& mul) const {
+    stack_vector<U, dim> result{};
+    simd::mul_convert<dim>(data, result.data, mul);
+    return result;
+  }
+
+  inline util::dot_type<T> dot(const T* other) const { return simd::dot_product<dim>(data, other); }
 
   inline T item() const {
     static_assert(dim == 1, "called item() on vector with dim != 1");
@@ -131,16 +141,19 @@ inline stack_vector<T, dim0 + dim1> splice(const stack_vector<T, dim0>& a, const
 
 template <typename T, size_t dim0, size_t dim1>
 struct stack_affine {
+  using weight_type = T;
+  using bias_type = util::dot_type<T>;
+
   static constexpr size_t W_numel = dim0 * dim1;
   static constexpr size_t b_numel = dim1;
 
-  alignas(simd::alignment) T W[W_numel];
-  alignas(simd::alignment) T b[b_numel];
+  alignas(simd::alignment) weight_type W[W_numel];
+  alignas(simd::alignment) bias_type b[b_numel];
 
   constexpr size_t num_parameters() const { return W_numel + b_numel; }
 
-  inline stack_vector<T, dim1> forward(const stack_vector<T, dim0>& x) const {
-    auto result = stack_vector<T, dim1>::from(b);
+  inline stack_vector<bias_type, dim1> forward(const stack_vector<weight_type, dim0>& x) const {
+    auto result = stack_vector<bias_type, dim1>::from(b);
     for (size_t i = 0; i < dim1; ++i) { result.data[i] += x.dot(W + i * dim0); }
     return result;
   }
@@ -154,6 +167,9 @@ struct stack_affine {
 
 template <typename T, size_t dim0, size_t dim1>
 struct big_affine {
+  using weight_type = T;
+  using bias_type = T;
+
   static constexpr size_t W_numel = dim0 * dim1;
   static constexpr size_t b_numel = dim1;
 
@@ -208,5 +224,21 @@ struct big_affine {
     if (W != nullptr) { delete[] W; }
   }
 };
+
+template <typename A, typename B>
+void quantized_affine(const A& a, B& b, const typename A::weight_type& mul) {
+  static_assert(A::W_numel == B::W_numel);
+  static_assert(A::b_numel == B::b_numel);
+  static_assert(std::is_floating_point_v<typename A::weight_type>);
+  static_assert(std::is_floating_point_v<typename A::bias_type>);
+  static_assert(std::is_integral_v<typename B::weight_type>);
+  static_assert(std::is_integral_v<typename B::bias_type>);
+
+  using weight_type = typename B::weight_type;
+  using bias_type = typename B::bias_type;
+
+  for (size_t i = 0; i < A::W_numel; ++i) { b.W[i] = static_cast<weight_type>(mul * a.W[i]); }
+  for (size_t i = 0; i < A::b_numel; ++i) { b.b[i] = static_cast<bias_type>(mul * a.b[i]); }
+}
 
 }  // namespace nnue
