@@ -37,7 +37,7 @@ struct eval_cache {
   std::array<eval_cache_entry, N> data{};
 
   std::optional<search::score_type> find(const zobrist::hash_type& hash) const {
-    if (data[hash % N].hash == hash) { return data[hash % N].eval; }
+    if (data[hash % N].hash == zobrist::upper_half(hash)) { return data[hash % N].eval; }
     return std::nullopt;
   }
 
