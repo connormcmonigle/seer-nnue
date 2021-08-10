@@ -25,6 +25,8 @@
 namespace zobrist {
 
 using hash_type = std::uint64_t;
+using half_hash_type = std::uint32_t;
+
 constexpr std::mt19937::result_type seed = 0x019ec6dc;
 
 inline hash_type random_bit_string() {
@@ -34,5 +36,7 @@ inline hash_type random_bit_string() {
   std::uniform_int_distribution<hash_type> dist(a, b);
   return dist(gen);
 }
+
+constexpr half_hash_type upper_half(const hash_type& hash) { return static_cast<half_hash_type>(hash >> static_cast<hash_type>(32)); }
 
 }  // namespace zobrist

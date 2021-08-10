@@ -15,16 +15,12 @@ namespace chess {
 struct book {
   static constexpr char delimiter = '|';
 
-  static constexpr std::uint32_t upper_half(const zobrist::hash_type& hash) {
-    return static_cast<std::uint32_t>(hash >> static_cast<std::uint64_t>(32));
-  }
-
-  std::unordered_map<std::uint32_t, std::uint32_t> positions{};
+  std::unordered_map<zobrist::half_hash_type, move::data_type> positions{};
 
   size_t size() const { return positions.size(); }
 
   std::optional<move> find(const zobrist::hash_type& key) const {
-    const auto it = positions.find(upper_half(key));
+    const auto it = positions.find(zobrist::upper_half(key));
     if (it != positions.end()) { return std::optional(move(std::get<1>(*it))); }
     return std::nullopt;
   }
@@ -45,7 +41,7 @@ struct book {
       const move_list list = bd.generate_moves();
       const auto it = std::find_if(list.begin(), list.end(), [=](const move& mv) { return mv.name(bd.turn()) == mv_name; });
 
-      if (it != list.end()) { positions.insert(std::make_pair(upper_half(bd.hash()), it->data)); }
+      if (it != list.end()) { positions.insert(std::make_pair(zobrist::upper_half(bd.hash()), it->data)); }
     }
   }
 };

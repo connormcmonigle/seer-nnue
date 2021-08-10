@@ -26,7 +26,7 @@
 namespace chess {
 
 struct eval_cache_entry {
-  zobrist::hash_type hash{};
+  zobrist::half_hash_type hash{};
   search::score_type eval{};
 };
 
@@ -41,7 +41,7 @@ struct eval_cache {
     return std::nullopt;
   }
 
-  void insert(const zobrist::hash_type& hash, const search::score_type& eval) { data[hash % N] = eval_cache_entry{hash, eval}; }
+  void insert(const zobrist::hash_type& hash, const search::score_type& eval) { data[hash % N] = eval_cache_entry{zobrist::upper_half(hash), eval}; }
 
   void clear() { return data.fill(eval_cache_entry{}); }
 };
