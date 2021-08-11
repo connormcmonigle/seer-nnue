@@ -2,7 +2,7 @@ EXE = seer
 SRC = ../src/seer.cc
 CC = g++
 
-EVALFILE = weights/0x3db3bfc4.bin
+EVALFILE = weights/0xc73c9c09.bin
 
 OPSLIMIT = 1000000000
 CXXSTANDARD = 17
