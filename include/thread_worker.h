@@ -402,7 +402,7 @@ struct thread_worker {
 
         if (futility_prune) { continue; }
 
-        const bool hopeless_prune = !is_pv && mv.is_quiet() && maybe.has_value() && maybe->depth() + 1 >= depth && maybe->bound() == bound_type::upper && maybe->score() < alpha;
+        const bool hopeless_prune = !is_pv && mv.is_quiet() && depth >= 5 && maybe.has_value() && maybe->depth() + 1 >= depth && maybe->bound() == bound_type::upper && maybe->score() <= alpha;
 
         if (hopeless_prune) { continue; }
 
