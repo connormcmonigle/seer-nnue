@@ -30,6 +30,12 @@
 
 namespace chess {
 
+template<typename T>
+constexpr T mvv_lva(const move& mv) {
+  constexpr T num_pieces = 6;
+  return static_cast<T>(mv.captured()) * num_pieces + (num_pieces - static_cast<T>(mv.piece()));
+}
+
 constexpr std::uint32_t make_positive(const std::int32_t& x) {
   constexpr std::uint32_t upper = static_cast<std::uint32_t>(1) + std::numeric_limits<std::int32_t>::max();
   return upper + x;
@@ -128,7 +134,11 @@ struct move_orderer_iterator {
   move_orderer_iterator(const move_orderer_data& data, const int& idx) : move_count_{data.list->size()}, idx_{idx} {
     std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data](const move& mv) {
       const bool quiet = mv.is_quiet();
-      const std::int32_t value = quiet ? data.hh->compute_value(history::context{data.follow, data.counter}, mv) : data.bd->see<std::int32_t>(mv);
+      const std::int32_t value = [&]{
+        if (quiet) { return  data.hh->compute_value(history::context{data.follow, data.counter}, mv); }
+        const search::see_type see_value = data.bd->see<search::see_type>(mv);
+        return see_value >= 0 ? mvv_lva<search::see_type>(mv) : see_value;
+      }();
       return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value);
     });
     update_list_();
