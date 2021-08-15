@@ -88,7 +88,9 @@ struct stack_view {
   stack* view_;
   depth_type height_{};
 
-  constexpr score_type effective_mate_score() const { return mate_score + height_; }
+  constexpr score_type loss_score() const {  return mate_score + height_; }
+
+  constexpr score_type win_score() const { return -mate_score - height_; }
 
   bool reached_max_height() const { return height_ >= (safe_depth_ - 1); }
 

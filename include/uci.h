@@ -219,7 +219,13 @@ struct uci {
   void probe() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(position); result.success) {
-      std::cout << "success: " << result.score << std::endl;
+      std::cout << "success: " << [&]{
+        switch (result.wdl) {
+          case syzygy::wdl_type::loss: return "loss";
+          case syzygy::wdl_type::draw: return "draw";
+          case syzygy::wdl_type::win: return "win";
+        }
+      }() << std::endl;
     } else {
       std::cout << "fail" << std::endl;
     }
