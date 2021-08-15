@@ -75,7 +75,7 @@ struct stack_vector {
     return *this;
   }
 
-  inline T dot(const T* other) const { return simd::dot_product<T, dim>(data, other); }
+  inline T dot(const T* other) const { return simd::dot_product<dim>(data, other); }
 
   inline T item() const {
     static_assert(dim == 1, "called item() on vector with dim != 1");
