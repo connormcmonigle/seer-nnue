@@ -67,11 +67,17 @@ struct stack {
   std::string pv_string() const {
     auto bd = present_;
     std::string result{};
-    for (const auto& pv_mv : future_[0].pv_) {
+    for (const auto& pv_mv : future_.begin()->pv_) {
       if (!bd.generate_moves().has(pv_mv)) { break; }
       result += pv_mv.name(bd.turn()) + " ";
       bd = bd.forward(pv_mv);
     }
+    return result;
+  }
+
+  chess::move ponder_move(const chess::move& best_move) const {
+    const chess::move result = *(future_.begin()->pv_.begin() + 1);
+    if (!root_pos().forward(best_move).generate_moves().has(result)) { return chess::move::null(); }
     return result;
   }
 

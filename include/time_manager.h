@@ -70,6 +70,10 @@ struct depth {
   using type = search::depth_type;
 };
 
+struct ponder {
+  static constexpr std::string_view name = "ponder";
+};
+
 struct infinite {
   static constexpr std::string_view name = "infinite";
 };
@@ -83,6 +87,8 @@ struct named_numeric_param {
 
   constexpr std::string_view name() const { return name_; }
   std::optional<typename N::type> data() const { return data_; }
+  void set_data(const typename N::type& value) { data_ = value; }
+  void clear_data() { data_ = std::nullopt; }
 
   void read(const std::string& line) {
     std::regex pattern(".*" + std::string(name_) + " ([-+]?[0-9]+).*");
@@ -104,6 +110,7 @@ struct named_condition {
 
   constexpr std::string_view name() const { return name_; }
   bool data() const { return data_; }
+  void set_data(const bool& value) { data_ = value; }
 
   void read(const std::string& line) {
     std::regex pattern(".*" + std::string(name_) + ".*");
@@ -128,11 +135,11 @@ struct time_manager {
       named_numeric_param<go::movetime>,
       named_numeric_param<go::movestogo>,
       named_numeric_param<go::depth>,
+      named_condition<go::ponder>,
       named_condition<go::infinite> >
       params_{};
 
   std::chrono::steady_clock::time_point search_start{};
-
   std::chrono::milliseconds min_budget{};
   std::chrono::milliseconds max_budget{};
 
@@ -141,22 +148,30 @@ struct time_manager {
   }
 
   template <typename N, size_t idx = 0>
-  auto get() const {
+  auto& get() {
     constexpr std::string_view name_idx = std::tuple_element<idx, decltype(params_)>::type::name_;
     if constexpr (name_idx == N::name) {
-      return std::get<idx>(params_).data();
+      return std::get<idx>(params_);
     } else {
       return get<N, idx + 1>();
     }
   }
 
-  std::chrono::milliseconds our_time(const bool& pov) const {
-    const auto x = pov ? get<go::wtime>() : get<go::btime>();
+  bool is_pondering() { return get<go::ponder>().data(); }
+
+  void ponder_hit() {
+    std::lock_guard<std::mutex> access_lk(access_mutex_);
+    search_start = std::chrono::steady_clock::now();
+    get<go::ponder>().set_data(false);
+  }
+
+  std::chrono::milliseconds our_time(const bool& pov) {
+    const auto x = pov ? get<go::wtime>().data() : get<go::btime>().data();
     return std::chrono::milliseconds(x.value_or(10000));
   }
 
-  std::chrono::milliseconds our_increment(const bool& pov) const {
-    const auto x = pov ? get<go::winc>() : get<go::binc>();
+  std::chrono::milliseconds our_increment(const bool& pov) {
+    const auto x = pov ? get<go::winc>().data() : get<go::binc>().data();
     return std::chrono::milliseconds(x.value_or(0));
   }
 
@@ -170,10 +185,10 @@ struct time_manager {
     search_start = std::chrono::steady_clock::now();
     read(line);
     // early return if depth limited or infinite search
-    if (get<go::depth>().has_value() || get<go::infinite>()) { return *this; }
+    if (get<go::depth>().data().has_value() || get<go::infinite>().data()) { return *this; }
     // early return if searching for fixed, user specified, time
-    if (get<go::movetime>().has_value()) {
-      min_budget = max_budget = std::chrono::milliseconds(get<go::movetime>().value());
+    if (get<go::movetime>().data().has_value()) {
+      min_budget = max_budget = std::chrono::milliseconds(get<go::movetime>().data().value());
       return *this;
     }
 
@@ -181,9 +196,9 @@ struct time_manager {
     const auto remaining = our_time(pov);
     const auto inc = our_increment(pov);
 
-    if (get<go::movestogo>().has_value()) {
+    if (get<go::movestogo>().data().has_value()) {
       // handle cyclical time controls (x / y + z)
-      const go::movestogo::type moves_to_go = get<go::movestogo>().value();
+      const go::movestogo::type moves_to_go = get<go::movestogo>().data().value();
       min_budget = 2 * (remaining - over_head) / (3 * moves_to_go) + inc;
       max_budget = 10 * (remaining - over_head) / (3 * moves_to_go) + inc;
     } else {
@@ -201,12 +216,14 @@ struct time_manager {
 
   bool should_stop(const search_info& info) {
     std::lock_guard<std::mutex> access_lk(access_mutex_);
+    // never stop whilst pondering
+    if (get<go::ponder>().data()) { return false; }
     // never stop an infinite search
-    if (get<go::infinite>()) { return false; }
+    if (get<go::infinite>().data()) { return false; }
     // otherwise, stop if max depth was exceeded
     if (info.depth >= search::max_depth) { return true; }
     // stopping conditions
-    if (get<go::depth>().has_value()) { return get<go::depth>().value() < info.depth; }
+    if (get<go::depth>().data().has_value()) { return get<go::depth>().data().value() < info.depth; }
     if (elapsed() >= max_budget) { return true; }
     if (elapsed() >= min_budget && info.is_stable) { return true; }
     return false;
