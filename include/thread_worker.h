@@ -574,7 +574,7 @@ struct thread_worker {
 
           internal.score.store(search_score);
           internal.best_move.store(search_move.data);
-          internal.ponder_move.store(internal.stack.ponder_move(search_move).data);
+          internal.ponder_move.store(internal.stack.ponder_move().data);
           break;
         }
 

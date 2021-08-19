@@ -75,11 +75,7 @@ struct stack {
     return result;
   }
 
-  chess::move ponder_move(const chess::move& best_move) const {
-    const chess::move result = *(future_.begin()->pv_.begin() + 1);
-    if (!root_pos().forward(best_move).generate_moves().has(result)) { return chess::move::null(); }
-    return result;
-  }
+  chess::move ponder_move() const { return *(future_.begin()->pv_.begin() + 1); }
 
   stack& clear_future() {
     sel_depth_ = 0;

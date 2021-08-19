@@ -191,7 +191,7 @@ struct uci {
   void best_move(const chess::move& mv, const chess::move& ponder = chess::move::null()) {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     os << "bestmove " << mv.name(position.turn()) << [&] {
-      if (ponder.is_null()) { return std::string{}; }
+      if (!position.forward(mv).generate_moves().has(ponder)) { return std::string{}; }
       return std::string(" ponder ") + ponder.name(position.forward(mv).turn());
     }() << std::endl;
   }
