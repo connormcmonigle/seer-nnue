@@ -318,6 +318,9 @@ struct thread_worker {
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
+    const bool should_lfr = !is_pv && maybe.has_value() && maybe->bound() == bound_type::upper && maybe->score() <= alpha && depth >= 6;
+    if (should_lfr) { --depth; }
+
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
@@ -539,7 +542,7 @@ struct thread_worker {
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
     for (; loop.keep_going(); ++internal.depth) {
-       internal.depth = std::min(search::max_depth, internal.depth.load());
+      internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;
