@@ -404,6 +404,10 @@ struct thread_worker {
 
         if (futility_prune) { continue; }
 
+        const bool likely_fail_prune = maybe.has_value() && depth <= 9 && maybe->depth() + 1 >= depth && (mv.is_quiet() || see_value < 0);
+
+        if (likely_fail_prune) { continue; }
+
         const bool quiet_see_prune =
             mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
 
