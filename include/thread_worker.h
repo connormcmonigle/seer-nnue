@@ -357,6 +357,12 @@ struct thread_worker {
 
     if (prob_prune) { return make_result(beta, move::null()); }
 
+    const bool good_quiet_prune = !is_pv && !is_check && !ss.has_excluded() && maybe.has_value() && depth <= 6 && maybe->best_move().is_quiet() &&
+                                  maybe->bound() == bound_type::lower && maybe->score() > beta + 256 &&
+                                  internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, maybe->best_move()) >= 24576;
+
+    if (good_quiet_prune) { return make_result(beta, move::null()); }
+
     // step 10. null move pruning
     const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
                          bd.has_non_pawn_material() &&
@@ -539,7 +545,7 @@ struct thread_worker {
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
     for (; loop.keep_going(); ++internal.depth) {
-       internal.depth = std::min(search::max_depth, internal.depth.load());
+      internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;
