@@ -88,7 +88,7 @@ struct fixed_constants {
   constexpr depth_type quiet_see_prune_depth() const { return 8; }
   constexpr depth_type noisy_see_prune_depth() const { return 6; }
   constexpr depth_type history_extension_depth() const { return 8; }
-  constexpr depth_type singular_extension_depth() const { return 9; }
+  constexpr depth_type singular_extension_depth() const { return 8; }
   constexpr depth_type iir_depth() const { return 4; }
   constexpr depth_type prob_prune_depth() const { return 4; }
 
