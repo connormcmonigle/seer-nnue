@@ -389,6 +389,10 @@ struct thread_worker {
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, mv);
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
+      if (!is_pv && !is_check && depth <= 3 && static_value >= beta && !maybe.has_value() && mv.is_capture() && see_value >= 200) {
+        return make_result(beta, mv);
+      }
+
       const board bd_ = bd.forward(mv);
 
       const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
@@ -539,7 +543,7 @@ struct thread_worker {
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
     for (; loop.keep_going(); ++internal.depth) {
-       internal.depth = std::min(search::max_depth, internal.depth.load());
+      internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;
