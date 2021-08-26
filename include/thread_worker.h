@@ -389,7 +389,7 @@ struct thread_worker {
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, mv);
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
-      if (!is_pv && !is_check && depth <= 3 && static_value >= beta && !maybe.has_value() && mv.is_capture() && see_value >= 200) {
+      if (!is_pv && !is_check && depth <= 3 && static_value >= beta && !maybe.has_value() && mv.is_capture() && see_value >= 100) {
         return make_result(beta, mv);
       }
 
