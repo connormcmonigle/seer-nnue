@@ -19,9 +19,9 @@
 
 #include <type_traits>
 
-#ifdef __AVX__
+#if defined(__AVX__)
 #include <immintrin.h>
-#elif __SSE__
+#elif defined(__SSE__)
 #include <xmmintrin.h>
 #endif
 
