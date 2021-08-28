@@ -378,7 +378,8 @@ struct thread_worker {
     search::score_type best_score = ss.effective_mate_score();
     move best_move = *list.begin();
 
-    bool did_double_extend = false;
+    bool did_singlular_extend = false;
+    bool did_singular_double_extend = false;
 
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
@@ -440,11 +441,16 @@ struct thread_worker {
           ss.set_excluded(mv);
           const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
           ss.set_excluded(move::null());
+
           if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) {
-            did_double_extend = true;
+            did_singular_double_extend = did_singlular_extend = true;
             return 2;
           }
-          if (excluded_score < singular_beta) { return 1; }
+
+          if (excluded_score < singular_beta) {
+            did_singlular_extend = true;
+            return 1;
+          }
         }
 
         return 0;
@@ -475,7 +481,7 @@ struct thread_worker {
           if (bd.is_passed_push(mv)) { --reduction; }
           if (improving) { --reduction; }
           if (!is_pv) { ++reduction; }
-          if (did_double_extend) { ++reduction; }
+          if (did_singular_double_extend || (did_singlular_extend && depth >= 10)) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
 
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
@@ -539,7 +545,7 @@ struct thread_worker {
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
     for (; loop.keep_going(); ++internal.depth) {
-       internal.depth = std::min(search::max_depth, internal.depth.load());
+      internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;
