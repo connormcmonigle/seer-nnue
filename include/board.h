@@ -539,19 +539,21 @@ struct board {
   }
 
   template <typename U>
-  void show_init(U& u) const {
+  auto show_init(U&& u) const {
     u.white.clear();
     u.black.clear();
     show_feature_indices<color::white>(u);
     show_feature_indices<color::black>(u);
+    return u;
   }
 
   template <typename U>
-  void show_pawn_init(U& u) const {
+  auto show_pawn_init(U&& u) const {
     u.white.clear();
     u.black.clear();
     show_pawn_feature_indices<color::white>(u);
     show_pawn_feature_indices<color::black>(u);
+    return u;
   }
 
   template <color c, typename U>

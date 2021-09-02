@@ -199,9 +199,10 @@ struct thread_worker {
 
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
-                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn());
+      const search::score_type static_value =
+          is_check                         ? ss.effective_mate_score() :
+          !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+                                             eval.evaluate(bd.turn(), bd.show_pawn_init(nnue::p_eval<T>(eval.weights_)).propagate(bd.turn()));
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -321,9 +322,10 @@ struct thread_worker {
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
-                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn());
+      const search::score_type static_value =
+          is_check                         ? ss.effective_mate_score() :
+          !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+                                             eval.evaluate(bd.turn(), bd.show_pawn_init(nnue::p_eval<T>(eval.weights_)).propagate(bd.turn()));
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -539,7 +541,7 @@ struct thread_worker {
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
     for (; loop.keep_going(); ++internal.depth) {
-       internal.depth = std::min(search::max_depth, internal.depth.load());
+      internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;

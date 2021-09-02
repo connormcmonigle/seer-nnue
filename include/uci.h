@@ -219,7 +219,7 @@ struct uci {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     auto evaluator = nnue::eval<weight_type>(&weights_);
     position.show_init(evaluator);
-    os << "score: " << evaluator.evaluate(position.turn()) << std::endl;
+    os << "score: " << evaluator.evaluate(position.turn(), position.show_pawn_init(nnue::p_eval<weight_type>(&weights_)).propagate(position.turn())) << std::endl;
   }
 
   void see() {
@@ -287,6 +287,7 @@ struct uci {
             }) {
     nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
     weights_.load(embedded);
+    options().update("setoption name Weights value /home/connor/Develop/seer_selfplay_training/seer-training/scripts/model/save.bin");
     pool_.resize(default_thread_count);
   }
 };
