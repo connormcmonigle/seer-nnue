@@ -38,7 +38,7 @@ namespace chess {
 
 namespace feature_idx {
 
-constexpr size_t major = 64 * 12;
+constexpr size_t major = 12 * 64;
 constexpr size_t minor = 64;
 
 constexpr size_t us_pawn_offset = 0;
@@ -95,6 +95,7 @@ struct board {
   bool is_rule50_draw() const { return lat_.half_clock >= 100; }
 
   zobrist::hash_type hash() const { return man_.hash() ^ lat_.hash(); }
+  zobrist::hash_type kpt_hash() const { return man_.kp_hash() ^ lat_.turn_hash(); }
 
   template <color c>
   std::tuple<piece_type, square> least_valuable_attacker(const square& tgt, const square_set& ignore) const {
@@ -526,12 +527,31 @@ struct board {
     for (const auto sq : man_.them<c>().king()) { updatable.template us<c>().insert(major * king_idx + them_king_offset + sq.index()); }
   }
 
+  template <color c, typename U>
+  void show_pawn_feature_indices(U& updatable) const {
+    constexpr size_t major = 2 * 64;
+    constexpr size_t minor = 64;
+    constexpr size_t us_pawn_offset = 0;
+    constexpr size_t them_pawn_offset = us_pawn_offset + minor;
+    const size_t king_idx = man_.us<c>().king().item().index();
+    for (const auto sq : man_.us<c>().pawn()) { updatable.template us<c>().insert(major * king_idx + us_pawn_offset + sq.index()); }
+    for (const auto sq : man_.them<c>().pawn()) { updatable.template us<c>().insert(major * king_idx + them_pawn_offset + sq.index()); }
+  }
+
   template <typename U>
   void show_init(U& u) const {
     u.white.clear();
     u.black.clear();
     show_feature_indices<color::white>(u);
     show_feature_indices<color::black>(u);
+  }
+
+  template <typename U>
+  void show_pawn_init(U& u) const {
+    u.white.clear();
+    u.black.clear();
+    show_pawn_feature_indices<color::white>(u);
+    show_pawn_feature_indices<color::black>(u);
   }
 
   template <color c, typename U>

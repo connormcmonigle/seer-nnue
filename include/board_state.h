@@ -63,6 +63,7 @@ struct manifest {
 
   const manifest_zobrist_src* zobrist_src_;
   zobrist::hash_type hash_{0};
+  zobrist::hash_type kp_hash_{0};
   square_set pawn_{};
   square_set knight_{};
   square_set bishop_{};
@@ -72,6 +73,7 @@ struct manifest {
   square_set all_{};
 
   zobrist::hash_type hash() const { return hash_; }
+  zobrist::hash_type kp_hash() const { return kp_hash_; }
 
   square_set& get_plane(const piece_type pt) { return get_member(pt, *this); }
 
@@ -100,6 +102,7 @@ struct manifest {
   manifest& add_piece(const piece_type& pt, const S& at) {
     static_assert(is_square_v<S>, "at must be of square type");
     hash_ ^= zobrist_src_->get(pt, at);
+    if (pt == piece_type::pawn || pt == piece_type::king) { kp_hash_ ^= zobrist_src_->get(pt, at); }
     all_ |= at.bit_board();
     get_plane(pt) |= at.bit_board();
     return *this;
@@ -109,6 +112,7 @@ struct manifest {
   manifest& remove_piece(const piece_type& pt, const S& at) {
     static_assert(is_square_v<S>, "at must be of square type");
     hash_ ^= zobrist_src_->get(pt, at);
+    if (pt == piece_type::pawn || pt == piece_type::king) { kp_hash_ ^= zobrist_src_->get(pt, at); }
     all_ &= ~at.bit_board();
     get_plane(pt) &= ~at.bit_board();
     return *this;
@@ -125,6 +129,7 @@ struct sided_manifest : sided<sided_manifest, manifest> {
   manifest black;
 
   zobrist::hash_type hash() const { return white.hash() ^ black.hash(); }
+  zobrist::hash_type kp_hash() const { return white.kp_hash() ^ black.kp_hash(); }
 
   sided_manifest() : white(&w_manifest_src), black(&b_manifest_src) {}
 };
@@ -207,9 +212,11 @@ struct sided_latent : sided<sided_latent, latent> {
   latent white;
   latent black;
 
+  zobrist::hash_type turn_hash() const { return (ply_count % 2 == 0) ? turn_white_src : turn_black_src; }
+
   zobrist::hash_type hash() const {
     const zobrist::hash_type result = white.hash() ^ black.hash();
-    return ((ply_count % 2) == 0) ? (result ^ turn_white_src) : (result ^ turn_black_src);
+    return result ^ turn_hash();
   }
 
   sided_latent() : white(&w_latent_src), black(&b_latent_src) {}

@@ -29,8 +29,10 @@
 
 namespace nnue {
 
-constexpr size_t half_ka_numel = 768 * 64;
+constexpr size_t half_ka_numel = 64 * 12 * 64;
+constexpr size_t half_pawn_numel = 64 * 2 * 64;
 constexpr size_t max_active_half_features = 32;
+constexpr size_t max_active_half_pawn_features = 16;
 constexpr size_t base_dim = 160;
 
 template <typename T>
