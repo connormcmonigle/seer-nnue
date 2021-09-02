@@ -39,6 +39,7 @@ constexpr size_t p_base_dim = 512;
 
 template <typename T>
 struct weights {
+  using weight_type = T;
   using p_encoding_type = stack_vector<T, 16>;
 
   typename weights_streamer<T>::signature_type signature_{0};
@@ -129,7 +130,7 @@ struct eval : chess::sided<eval<T>, feature_transformer<T, half_ka_numel, base_d
     return weights_->fc3.forward(x3).item();
   }
 
-  inline search::score_type evaluate(const bool& pov, const typename weights<T>::p_encoding_type& p_encoding) const {
+  inline search::score_type evaluate(const bool& pov, const p_encoding_type& p_encoding) const {
     const T eval = propagate(pov, p_encoding);
     const T value = search::logit_scale<T> * std::clamp(eval, search::min_logit<T>, search::max_logit<T>);
     return static_cast<search::score_type>(value);

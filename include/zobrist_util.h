@@ -27,6 +27,8 @@ namespace zobrist {
 using hash_type = std::uint64_t;
 constexpr std::mt19937::result_type seed = 0x019ec6dc;
 
+constexpr zobrist::hash_type empty_key = zobrist::hash_type{};
+
 inline hash_type random_bit_string() {
   static std::mt19937 gen(seed);
   constexpr hash_type a = std::numeric_limits<hash_type>::min();

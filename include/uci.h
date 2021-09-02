@@ -217,9 +217,9 @@ struct uci {
 
   void eval() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    auto evaluator = nnue::eval<weight_type>(&weights_);
-    position.show_init(evaluator);
-    os << "score: " << evaluator.evaluate(position.turn(), position.show_pawn_init(nnue::p_eval<weight_type>(&weights_)).propagate(position.turn())) << std::endl;
+    const auto encoding = position.show_pawn_init(nnue::p_eval<weight_type>(&weights_)).propagate(position.turn());
+    const auto score = position.show_init(nnue::eval<weight_type>(&weights_)).evaluate(position.turn(), encoding);
+    os << "score: " << score << std::endl;
   }
 
   void see() {

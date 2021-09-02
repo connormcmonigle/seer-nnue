@@ -26,12 +26,12 @@
 namespace chess {
 
 struct eval_cache_entry {
-  zobrist::hash_type hash{};
+  zobrist::hash_type hash{zobrist::empty_key};
   search::score_type eval{};
 };
 
 struct eval_cache {
-  static constexpr size_t size_mb = 6;
+  static constexpr size_t size_mb = 4;
   static constexpr size_t N = (size_mb << 20) / sizeof(eval_cache_entry);
 
   std::array<eval_cache_entry, N> data{};

@@ -701,7 +701,7 @@ struct board {
 
 std::ostream& operator<<(std::ostream& ostr, const board& bd) {
   ostr << std::boolalpha;
-  ostr << "board(hash=" << bd.hash();
+  ostr << "board(hash=" << bd.hash() << ", kpt_hash=" << bd.kpt_hash();
   ostr << ", half_clock=" << bd.lat_.half_clock;
   ostr << ", ply_count=" << bd.lat_.ply_count;
   ostr << ", white.oo_=" << bd.lat_.white.oo();

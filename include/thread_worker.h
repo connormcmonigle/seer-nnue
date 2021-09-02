@@ -20,6 +20,7 @@
 #include <board.h>
 #include <eval_cache.h>
 #include <history_heuristic.h>
+#include <kpt_cache.h>
 #include <move.h>
 #include <move_orderer.h>
 #include <nnue_model.h>
@@ -54,10 +55,12 @@ struct pv_search_result<true> {
 template <bool is_root>
 using pv_search_result_t = typename pv_search_result<is_root>::type;
 
+template <typename T>
 struct internal_state {
-  search::stack stack{position_history{}, board::start_pos()};
-  sided_history_heuristic hh{};
-  eval_cache cache{};
+  search::stack stack;
+  sided_history_heuristic hh;
+  eval_cache cache;
+  nnue::kpt_cache<typename T::weight_type> kpt_cache;
 
   std::atomic_bool is_stable{false};
   std::atomic_size_t nodes{};
@@ -79,12 +82,16 @@ struct internal_state {
     stack = search::stack{position_history{}, board::start_pos()};
     hh.clear();
     cache.clear();
+    kpt_cache.clear();
     is_stable.store(false);
     nodes.store(0);
     depth.store(0);
     score.store(0);
     best_move.store(move::null().data);
   }
+
+  internal_state(const nnue::weights<typename T::weight_type>* weights)
+      : stack{position_history{}, board::start_pos()}, hh{}, cache{}, kpt_cache{weights} {}
 };
 
 template <typename T>
@@ -163,7 +170,7 @@ struct thread_worker {
   using weight_type = T;
 
   external_state<thread_worker<T, is_active>> external;
-  internal_state internal{};
+  internal_state<thread_worker<T, is_active>> internal;
   controlled_loop<is_active> loop;
 
   template <bool is_pv, bool use_tt = true>
@@ -175,7 +182,7 @@ struct thread_worker {
       const search::score_type& beta,
       const search::depth_type& elevation) {
     // callback on entering search function
-    const bool should_update = loop.keep_going() && internal.one_of<search::nodes_per_update>();
+    const bool should_update = loop.keep_going() && internal.template one_of<search::nodes_per_update>();
     if (should_update) { external.on_update(*this); }
 
     ++internal.nodes;
@@ -199,10 +206,9 @@ struct thread_worker {
 
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value =
-          is_check                         ? ss.effective_mate_score() :
-          !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                             eval.evaluate(bd.turn(), bd.show_pawn_init(nnue::p_eval<T>(eval.weights_)).propagate(bd.turn()));
+      const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
+                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+                                                                                 eval.evaluate(bd.turn(), internal.kpt_cache.encoding(bd));
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -280,7 +286,7 @@ struct thread_worker {
     assert(depth >= 0);
 
     // callback on entering search function
-    const bool should_update = loop.keep_going() && (is_root || internal.one_of<search::nodes_per_update>());
+    const bool should_update = loop.keep_going() && (is_root || internal.template one_of<search::nodes_per_update>());
     if (should_update) { external.on_update(*this); }
 
     // step 1. drop into qsearch if depth reaches zero
@@ -322,10 +328,9 @@ struct thread_worker {
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value =
-          is_check                         ? ss.effective_mate_score() :
-          !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                             eval.evaluate(bd.turn(), bd.show_pawn_init(nnue::p_eval<T>(eval.weights_)).propagate(bd.turn()));
+      const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
+                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+                                                                                 eval.evaluate(bd.turn(), internal.kpt_cache.encoding(bd));
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -616,7 +621,7 @@ struct thread_worker {
       std::shared_ptr<search::constants> constants,
       std::function<void(const thread_worker<T, is_active>&)> on_iter = [](auto&&...) {},
       std::function<void(const thread_worker<T, is_active>&)> on_update = [](auto&&...) {})
-      : external(weights, tt, constants, on_iter, on_update), loop([this] { iterative_deepening_loop_(); }) {}
+      : external(weights, tt, constants, on_iter, on_update), internal(weights), loop([this] { iterative_deepening_loop_(); }) {}
 };
 
 template <typename T>
