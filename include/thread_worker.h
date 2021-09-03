@@ -395,7 +395,8 @@ struct thread_worker {
 
       // step 11. pruning
       if (try_pruning) {
-        const bool lm_prune = depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune =
+            depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving && !is_player(reducer, !bd.turn()), depth);
 
         if (lm_prune) { break; }
 
@@ -539,7 +540,7 @@ struct thread_worker {
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
     for (; loop.keep_going(); ++internal.depth) {
-       internal.depth = std::min(search::max_depth, internal.depth.load());
+      internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;
