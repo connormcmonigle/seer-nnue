@@ -35,7 +35,7 @@ constexpr size_t max_active_half_features = 32;
 constexpr size_t max_active_half_pawn_features = 16;
 
 constexpr size_t base_dim = 160;
-constexpr size_t p_base_dim = 512;
+constexpr size_t p_base_dim = 256;
 
 template <typename T>
 struct weights {
