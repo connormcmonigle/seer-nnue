@@ -201,7 +201,7 @@ struct thread_worker {
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
                                               !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn());
+                                                                                 eval.evaluate(bd.turn(), bd.phase<T>());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -323,7 +323,7 @@ struct thread_worker {
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
                                               !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn());
+                                                                                 eval.evaluate(bd.turn(), bd.phase<T>());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
