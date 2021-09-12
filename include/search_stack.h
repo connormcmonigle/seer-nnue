@@ -38,6 +38,7 @@ struct stack_entry {
   chess::move played_{chess::move::null()};
   chess::move killer_{chess::move::null()};
   chess::move excluded_{chess::move::null()};
+  chess::move refutation_{chess::move::null()};
   std::array<chess::move, safe_depth_> pv_{};
 
   stack_entry() { pv_.fill(chess::move::null()); }
@@ -114,6 +115,8 @@ struct stack_view {
 
   chess::move excluded() const { return view_->at(height_).excluded_; }
 
+  chess::move refutation() const { return view_->at(height_).refutation_; }
+
   bool has_excluded() const { return !view_->at(height_).excluded_.is_null(); }
 
   const std::array<chess::move, safe_depth_>& pv() const { return view_->at(height_).pv_; }
@@ -152,6 +155,11 @@ struct stack_view {
 
   const stack_view& set_excluded(const chess::move& excluded) const {
     view_->at(height_).excluded_ = excluded;
+    return *this;
+  }
+
+  const stack_view& set_refutation(const chess::move& refutation) const {
+    view_->at(height_).refutation_ = refutation;
     return *this;
   }
 

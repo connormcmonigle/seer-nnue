@@ -315,8 +315,8 @@ struct thread_worker {
     }
 
     // step 4. internal iterative reductions
-    const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
-    if (should_iir) { --depth; }
+    const bool should_iir = !maybe.has_value() && is_pv && !ss.has_excluded() && depth >= external.constants->iir_depth();
+    if (should_iir) { depth -= 2; }
 
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
@@ -363,12 +363,17 @@ struct thread_worker {
                          (!maybe.has_value() || (maybe->bound() == bound_type::lower &&
                                                  bd.see<search::see_type>(maybe->best_move()) <= external.constants->nmp_see_threshold()));
 
+    move null_refutation = move::null();
     if (try_nmp) {
       ss.set_played(move::null());
       const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth, beta, value));
       const search::score_type nmp_score =
           -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
-      if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
+      if (nmp_score >= beta) {
+        return make_result(nmp_score, move::null());
+      } else {
+        null_refutation = ss.next().refutation();
+      }
     }
 
     // list of attempted quiets for updating histories
@@ -386,12 +391,15 @@ struct thread_worker {
       if (mv == ss.excluded()) { continue; }
       ss.set_played(mv);
 
+      const bool is_evasion = !null_refutation.is_null() && null_refutation.is_capture() && mv.from() == null_refutation.to();
+
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, mv);
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
       const board bd_ = bd.forward(mv);
 
-      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
+      const bool try_pruning =
+          !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score && (!is_evasion || depth <= 3);
 
       // step 11. pruning
       if (try_pruning) {
@@ -510,12 +518,15 @@ struct thread_worker {
     }
 
     // step 14. update histories if appropriate and maybe insert a new transposition_table_entry
+    ss.set_refutation(move::null());
     if (loop.keep_going() && !ss.has_excluded()) {
       const bound_type bound = [&] {
         if (best_score >= beta) { return bound_type::lower; }
         if (is_pv && best_score > original_alpha) { return bound_type::exact; }
         return bound_type::upper;
       }();
+
+      if (bound == bound_type::lower) { ss.set_refutation(best_move); }
 
       if (bound == bound_type::lower && best_move.is_quiet()) {
         internal.hh.us(bd.turn()).update(history::context{follow, counter}, best_move, quiets_tried, depth);
@@ -539,7 +550,7 @@ struct thread_worker {
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
     for (; loop.keep_going(); ++internal.depth) {
-       internal.depth = std::min(search::max_depth, internal.depth.load());
+      internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;
