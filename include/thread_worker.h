@@ -318,7 +318,7 @@ struct thread_worker {
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
-    if (!is_check && !is_pv) { --depth; }
+    if (!is_check && !is_pv && depth >= 6) { --depth; }
 
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
