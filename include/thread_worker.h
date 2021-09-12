@@ -315,7 +315,7 @@ struct thread_worker {
     }
 
     // step 4. internal iterative reductions
-    const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
+    const bool should_iir = !maybe.has_value() && is_pv && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
     // step 5. compute static eval and adjust appropriately if there's a tt hit
