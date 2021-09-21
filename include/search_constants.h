@@ -143,7 +143,7 @@ struct fixed_constants {
 
   constexpr depth_type history_reduction(const counter_type& history_value) const {
     constexpr depth_type limit = 2;
-    const depth_type raw = -static_cast<depth_type>(history_value / 5000);
+    const depth_type raw = -static_cast<depth_type>(history_value / 4096);
     return std::clamp(raw, -limit, limit);
   }
 
