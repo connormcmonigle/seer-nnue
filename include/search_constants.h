@@ -101,7 +101,7 @@ struct fixed_constants {
 
   constexpr see_type nmp_see_threshold() const { return 200; }
 
-  constexpr depth_type history_extension_threshold() const { return 20482; }
+  constexpr depth_type history_extension_threshold() const { return 16384; }
 
   constexpr depth_type singular_extension_depth_margin() const { return 2; }
 
