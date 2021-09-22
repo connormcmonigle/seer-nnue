@@ -424,7 +424,7 @@ struct thread_worker {
 
       // step 12. extensions
       const search::depth_type extension = [&, mv = mv] {
-        const bool killer_ext = !is_root && mv == ss.killer() && maybe.has_value() && depth <= 3;
+        const bool killer_ext = !is_root && mv == ss.killer() && depth == 1;
 
         if (killer_ext) { return 1; }
 
