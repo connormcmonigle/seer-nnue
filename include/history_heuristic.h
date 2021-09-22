@@ -109,19 +109,21 @@ struct table {
 
 template <typename... Ts>
 struct combined {
+  static constexpr value_type num_tables = static_cast<value_type>(sizeof...(Ts));
+
   std::tuple<table<Ts>...> tables_{};
 
   constexpr combined<Ts...>& update(const context& ctxt, const move& best_move, const move_list& tried, const search::depth_type& depth) {
-    constexpr value_type history_max = 400;
+    constexpr value_type max_gain = 400;
 
     auto single_update = [&, this](const auto& mv, const value_type& gain) {
       const value_type value = compute_value(ctxt, mv);
       util::apply(tables_, [=](auto& tbl) {
-        if (tbl.is_applicable(ctxt, mv)) { tbl.at(ctxt, mv) += formula(value, gain); }
+        if (tbl.is_applicable(ctxt, mv)) { tbl.at(ctxt, mv) += formula(value, gain) / num_tables; }
       });
     };
 
-    const value_type gain = std::min(history_max, depth * depth);
+    const value_type gain = std::min(max_gain, depth * depth);
     std::for_each(tried.begin(), tried.end(), [single_update, gain](const move& mv) { single_update(mv, -gain); });
     single_update(best_move, gain);
 
