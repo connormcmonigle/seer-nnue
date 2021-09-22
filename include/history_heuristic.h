@@ -48,8 +48,8 @@ struct context {
 };
 
 value_type formula(const value_type& x, const value_type& gain) {
-  constexpr value_type history_multiplier = 32;
-  constexpr value_type history_divisor = 512;
+  constexpr value_type history_multiplier = 128;
+  constexpr value_type history_divisor = 128;
   return (gain * history_multiplier) - (x * std::abs(gain) / history_divisor);
 }
 
@@ -114,7 +114,7 @@ struct combined {
   std::tuple<table<Ts>...> tables_{};
 
   constexpr combined<Ts...>& update(const context& ctxt, const move& best_move, const move_list& tried, const search::depth_type& depth) {
-    constexpr value_type max_gain = 400;
+    constexpr value_type max_gain = 384;
 
     auto single_update = [&, this](const auto& mv, const value_type& gain) {
       const value_type value = compute_value(ctxt, mv);
