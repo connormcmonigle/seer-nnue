@@ -424,6 +424,10 @@ struct thread_worker {
 
       // step 12. extensions
       const search::depth_type extension = [&, mv = mv] {
+        const bool tt_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && depth == 1 && maybe->depth() != 0;
+
+        if (tt_ext) { return 1; }
+
         const bool history_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && mv.is_quiet() &&
                                  depth >= external.constants->history_extension_depth() &&
                                  history_value >= external.constants->history_extension_threshold();
