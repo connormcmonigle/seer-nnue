@@ -349,6 +349,8 @@ struct thread_worker {
 
     if (snm_prune) { return make_result(value, move::null()); }
 
+    if (!is_pv && !ss.has_excluded() && !is_check && depth <= 3 && value + 6144 <= alpha) { return make_result(value, move::null()); }
+
     // step 9. prob pruning
     const bool prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
                             maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
@@ -539,7 +541,7 @@ struct thread_worker {
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
     for (; loop.keep_going(); ++internal.depth) {
-       internal.depth = std::min(search::max_depth, internal.depth.load());
+      internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;
