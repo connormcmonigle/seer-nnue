@@ -424,6 +424,11 @@ struct thread_worker {
 
       // step 12. extensions
       const search::depth_type extension = [&, mv = mv] {
+        const bool capture_ext =
+            !is_root && depth <= 3 && maybe.has_value() && maybe->bound() == bound_type::lower && maybe->best_move().is_capture();
+
+        if (capture_ext) { return 1; }
+
         const bool history_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && mv.is_quiet() &&
                                  depth >= external.constants->history_extension_depth() &&
                                  history_value >= external.constants->history_extension_threshold();
@@ -539,7 +544,7 @@ struct thread_worker {
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
     for (; loop.keep_going(); ++internal.depth) {
-       internal.depth = std::min(search::max_depth, internal.depth.load());
+      internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;
