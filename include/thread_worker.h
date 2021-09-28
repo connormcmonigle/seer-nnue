@@ -379,6 +379,7 @@ struct thread_worker {
     move best_move = *list.begin();
 
     bool did_double_extend = false;
+    int searched_move_count = 0;
 
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
@@ -418,6 +419,8 @@ struct thread_worker {
 
         if (history_prune) { continue; }
       }
+
+      ++searched_move_count;
 
       external.tt->prefetch(bd_.hash());
       const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
@@ -468,7 +471,7 @@ struct thread_worker {
         // step 13. late move reductions
         const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
-          search::depth_type reduction = external.constants->reduction(depth, idx);
+          search::depth_type reduction = external.constants->reduction(depth, searched_move_count);
 
           // adjust reduction
           if (bd_.is_check()) { --reduction; }
