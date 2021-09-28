@@ -75,6 +75,11 @@ struct internal_state {
     return (nodes & bit_pattern) == bit_pattern;
   }
 
+  template <search::score_type width>
+  search::score_type draw_score() const {
+    return search::draw_score + width - nodes % (2 * width + 1);
+  }
+
   void reset() {
     stack = search::stack{position_history{}, board::start_pos()};
     hh.clear();
@@ -183,8 +188,8 @@ struct thread_worker {
     const bool is_check = bd.is_check();
 
     if (list.size() == 0 && is_check) { return ss.effective_mate_score(); }
-    if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
-    if (bd.is_trivially_drawn()) { return search::draw_score; }
+    if (ss.is_two_fold(bd.hash())) { return internal.draw_score<search::draw_width>(); }
+    if (bd.is_trivially_drawn()) { return internal.draw_score<search::draw_width>(); }
 
     move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())));
 
@@ -291,9 +296,9 @@ struct thread_worker {
     const bool is_check = bd.is_check();
 
     if (list.size() == 0 && is_check) { return make_result(ss.effective_mate_score(), move::null()); }
-    if (list.size() == 0) { return make_result(search::draw_score, move::null()); }
-    if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(search::draw_score, move::null()); }
-    if (!is_root && bd.is_trivially_drawn()) { return make_result(search::draw_score, move::null()); }
+    if (list.size() == 0) { return make_result(internal.draw_score<search::draw_width>(), move::null()); }
+    if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(internal.draw_score<search::draw_width>(), move::null()); }
+    if (!is_root && bd.is_trivially_drawn()) { return make_result(internal.draw_score<search::draw_width>(), move::null()); }
 
     const search::score_type original_alpha = alpha;
 
