@@ -2,7 +2,7 @@ EXE = seer
 SRC = ../src/seer.cc ../syzygy/*.c
 CC = g++
 
-EVALFILE = weights/0x42d2845d.bin
+EVALFILE = weights/0xf8175070.bin
 
 OPSLIMIT = 1000000000
 CXXSTANDARD = 17

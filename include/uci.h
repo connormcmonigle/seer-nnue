@@ -50,6 +50,7 @@ struct uci {
   static constexpr size_t default_hash_size = 16;
   static constexpr std::string_view default_weight_path = "EMBEDDED";
   static constexpr bool default_own_book = false;
+  static constexpr bool default_ponder = false;
 
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
@@ -58,6 +59,7 @@ struct uci {
   chess::worker_pool<weight_type> pool_;
   chess::book book_{};
 
+  std::atomic_bool ponder_{false};
   std::atomic_bool own_book_{false};
   std::atomic_bool should_quit_{false};
   std::atomic_bool is_searching_{false};
@@ -101,6 +103,8 @@ struct uci {
       const auto new_count = static_cast<size_t>(count);
       pool_.resize(new_count);
     });
+
+    auto ponder = option_callback(check_option("Ponder", default_ponder), [this](const bool& value) { ponder_.store(value); });
 
     auto own_book = option_callback(check_option("OwnBook", default_own_book), [this](const bool& value) { own_book_.store(value); });
 
@@ -161,7 +165,7 @@ struct uci {
     const size_t elapsed_ms = timer_.elapsed().count();
     const size_t nodes = pool_.nodes();
     const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
-    if (is_searching()) {
+    if (is_searching() && depth < search::max_depth) {
       os << "info depth " << depth << " seldepth " << worker.internal.stack.sel_depth() << " score cp " << score << " nodes " << nodes << " nps "
          << nps << " time " << elapsed_ms << " tbhits " << worker.internal.tb_hits << " pv " << worker.internal.stack.pv_string() << std::endl;
     }
@@ -179,15 +183,20 @@ struct uci {
     }
   }
 
+  void ponder_hit() { manager_.ponder_hit(); }
+
   void stop() {
     is_searching_.store(false);
     pool_.stop();
-    best_move(pool_.primary_worker().best_move());
+    best_move(pool_.primary_worker().best_move(), pool_.primary_worker().ponder_move());
   }
 
-  void best_move(const chess::move& mv) {
+  void best_move(const chess::move& mv, const chess::move& ponder = chess::move::null()) {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    os << "bestmove " << mv.name(position.turn()) << std::endl;
+    os << "bestmove " << mv.name(position.turn()) << [&] {
+      if (!position.forward(mv).generate_moves().has(ponder)) { return std::string{}; }
+      return std::string(" ponder ") + ponder.name(position.forward(mv).turn());
+    }() << std::endl;
   }
 
   void ready() {
@@ -262,6 +271,8 @@ struct uci {
       uci_new_game();
     } else if (is_searching() && line == "stop") {
       stop();
+    } else if (is_searching() && line == "ponderhit") {
+      ponder_hit();
     } else if (line == "_internal_board") {
       os << position << std::endl;
     } else if (!is_searching() && line == "bench") {

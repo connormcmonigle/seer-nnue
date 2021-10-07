@@ -19,9 +19,9 @@
 
 #include <type_traits>
 
-#ifdef __AVX__
+#if defined(__AVX__)
 #include <immintrin.h>
-#elif __SSE__
+#elif defined(__SSE__)
 #include <xmmintrin.h>
 #endif
 
@@ -31,7 +31,7 @@ namespace simd {
 constexpr size_t alignment = 64;
 #elif defined(__AVX__)
 constexpr size_t alignment = 32;
-#elif defined(__SSE__);
+#elif defined(__SSE__)
 constexpr size_t alignment = 16;
 #else
 constexpr size_t alignment = 16;
@@ -112,7 +112,6 @@ inline float dot_product(const float* a, const float* b) {
 template <size_t N>
 inline float dot_product(const float* a, const float* b) {
   constexpr size_t num_units = 4;
-  constexpr size_t per_unit<float> = alignment / sizeof(float);
   constexpr size_t per_iteration = per_unit<float> * num_units;
   static_assert(N % per_iteration == 0, "N must be divisible by per_iteration");
   __m128 sum_0 = _mm_setzero_ps();
