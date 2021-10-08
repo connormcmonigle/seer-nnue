@@ -1,18 +1,21 @@
 EXE = seer
-SRC = ../src/seer.cc
+SRC = ../src/seer.cc ../syzygy/*.c
 CC = g++
 
 EVALFILE = weights/0xf8175070.bin
 
 OPSLIMIT = 1000000000
 CXXSTANDARD = 17
+
 INCLUDE = ../include
+INCBIN = ../incbin
+SYZYGY = ../syzygy
 
 CXXFLAGS += -std=c++$(CXXSTANDARD)
-CXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp
+CXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp -flto
 CXXFLAGS += -Wall -Wextra
 CXXFLAGS += -fconstexpr-ops-limit=$(OPSLIMIT)
-CXXFLAGS += -I$(INCLUDE)
+CXXFLAGS += -I$(INCLUDE) -I$(INCBIN) -I$(SYZYGY)
 CXXFLAGS += -DEVALFILE=\"$(EVALFILE)\"
 
 THREADSANFLAGS += $(CXXFLAGS) -fsanitize=thread
