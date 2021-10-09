@@ -360,6 +360,10 @@ struct thread_worker {
     ss.set_hash(bd.hash()).set_eval(static_value);
     const bool improving = !is_check && ss.improving();
 
+    if (!is_pv && depth == 1 && maybe.has_value() && maybe->bound() == bound_type::lower && maybe->score() >= beta && maybe->best_move().is_capture()) {
+      return make_result(maybe->score(), move::null());
+    }
+
     // step 8. static null move pruning
     const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
                            value > beta + external.constants->snmp_margin(improving, depth) && value > ss.loss_score();
