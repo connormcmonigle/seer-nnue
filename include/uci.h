@@ -115,7 +115,7 @@ struct uci {
 
     auto syzygy_path = option_callback(string_option("SyzygyPath"), [this](const std::string& path) { syzygy::init(path); });
 
-    return uci_options(weight_path, hash_size, thread_count, own_book, book_path, syzygy_path);
+    return uci_options(weight_path, hash_size, thread_count, ponder, own_book, book_path, syzygy_path);
   }
 
   void uci_new_game() {
