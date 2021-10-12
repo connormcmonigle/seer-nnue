@@ -27,9 +27,7 @@
 
 namespace simd {
 
-#if defined(__AVX512DQ__)
-constexpr size_t alignment = 64;
-#elif defined(__AVX__)
+#if defined(__AVX__)
 constexpr size_t alignment = 32;
 #elif defined(__SSE__)
 constexpr size_t alignment = 16;
@@ -48,33 +46,7 @@ inline T dot_product(const T* a, const T* b) {
   return sum;
 }
 
-#if defined(__AVX512DQ__)
-template <size_t N>
-inline float dot_product(const float* a, const float* b) {
-  constexpr size_t num_units = 1;
-  constexpr size_t per_iteration = per_unit<float> * num_units;
-  static_assert(N % per_iteration == 0, "N must be divisible by per_iteration");
-  __m512 sum_ = _mm512_setzero_ps();
-
-  for (size_t i(0); i < N; i += per_iteration, a += per_iteration, b += per_iteration) {
-    const __m512 a_ = _mm512_load_ps(a);
-    const __m512 b_ = _mm512_load_ps(b);
-    sum_ = _mm512_fmadd_ps(a_, b_, sum_);
-  }
-
-  // avoids extra move instruction by casting sum, adds lower 8 float elements to upper 8 float elements
-  const __m256 reduced_8 = _mm256_add_ps(_mm512_castps512_ps256(sum_), _mm512_extractf32x8_ps(sum_, 1));
-  // avoids extra move instruction by casting sum, adds lower 4 float elements to upper 4 float elements
-  const __m128 reduced_4 = _mm_add_ps(_mm256_castps256_ps128(reduced_8), _mm256_extractf128_ps(reduced_8, 1));
-  // adds lower 2 float elements to the upper 2
-  const __m128 reduced_2 = _mm_add_ps(reduced_4, _mm_movehl_ps(reduced_4, reduced_4));
-  // adds 0th float element to 1st float element
-  const __m128 reduced_1 = _mm_add_ss(reduced_2, _mm_shuffle_ps(reduced_2, reduced_2, 1));
-  const float sum = _mm_cvtss_f32(reduced_1);
-  return sum;
-}
-
-#elif defined(__AVX__)
+#if defined(__AVX__)
 template <size_t N>
 inline float dot_product(const float* a, const float* b) {
   constexpr size_t num_units = 2;
