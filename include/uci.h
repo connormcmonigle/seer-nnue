@@ -233,6 +233,7 @@ struct uci {
           case syzygy::wdl_type::loss: return "loss";
           case syzygy::wdl_type::draw: return "draw";
           case syzygy::wdl_type::win: return "win";
+          default: return "unknown";
         }
       }() << std::endl;
     } else {
