@@ -421,6 +421,11 @@ struct thread_worker {
 
         if (futility_prune) { continue; }
 
+        const bool tactical_futility_prune = mv.is_capture() && maybe.has_value() && maybe->bound() == bound_type::upper &&
+                                             maybe->depth() + 3 > depth && maybe->score() + external.constants->futility_margin(depth) < alpha;
+
+        if (tactical_futility_prune) { continue; }
+
         const bool quiet_see_prune =
             mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
 
