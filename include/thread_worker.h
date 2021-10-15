@@ -464,7 +464,7 @@ struct thread_worker {
           if (excluded_score < singular_beta) { return 1; }
         }
 
-        const bool check_ext = maybe.has_value() && mv == maybe->best_move() && bd_.is_check() && depth >= 6;
+        const bool check_ext = idx == 0 && bd_.is_check() && depth >= 6;
         if (check_ext) { return 1; }
 
         return 0;
