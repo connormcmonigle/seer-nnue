@@ -331,9 +331,6 @@ struct thread_worker {
       }
     }
 
-    const bool should_check_ext = maybe.has_value() && is_check && depth >= 6 && maybe->best_move().is_capture();
-    if (should_check_ext) { ++depth; }
-
     // step 4. internal iterative reductions
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
@@ -466,6 +463,9 @@ struct thread_worker {
           }
           if (excluded_score < singular_beta) { return 1; }
         }
+
+        const bool check_ext = maybe.has_value() && mv == maybe->best_move() && bd_.is_check();
+        if (check_ext) { return 1; }
 
         return 0;
       }();
