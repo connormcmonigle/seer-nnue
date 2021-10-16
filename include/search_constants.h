@@ -145,7 +145,7 @@ struct fixed_constants {
   constexpr see_type quiet_see_prune_threshold(const depth_type& depth) const { return -50 * static_cast<see_type>(depth); }
   constexpr see_type noisy_see_prune_threshold(const depth_type& depth) const { return -100 * static_cast<see_type>(depth); }
 
-  constexpr counter_type history_prune_threshold(const depth_type& depth) const { return -1024 * static_cast<counter_type>(depth * depth); }
+  constexpr counter_type history_prune_threshold(const depth_type& depth) const { return -768 * static_cast<counter_type>(depth * depth); }
 
   constexpr depth_type history_reduction(const counter_type& history_value) const {
     constexpr depth_type limit = 2;
