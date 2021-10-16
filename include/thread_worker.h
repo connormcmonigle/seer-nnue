@@ -500,8 +500,10 @@ struct thread_worker {
           if (is_player(reducer, !bd.turn())) { ++reduction; }
 
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
+          if (mv.is_capture()) { reduction = std::min(2, reduction); }
 
           reduction = std::max(0, reduction);
+
 
           lmr_depth = std::max(1, next_depth - reduction);
           zw_score = zero_width(lmr_depth);
