@@ -236,6 +236,9 @@ struct thread_worker {
       const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((value + external.constants->delta_margin()) < alpha);
       if (delta_prune) { continue; }
 
+      const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && see_value >= 300 && value + 256 > beta;
+      if (good_capture_prune) { return beta; }
+
       ss.set_played(mv);
 
       const board bd_ = bd.forward(mv);
