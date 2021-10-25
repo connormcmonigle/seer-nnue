@@ -2,7 +2,7 @@ EXE = seer
 SRC = ../src/seer.cc ../syzygy/tbprobe.c
 CC = g++
 
-EVALFILE = weights/0xb8315f5b.bin
+EVALFILE = weights/0xf3f2be6d.bin
 
 OPSLIMIT = 1000000000
 CXXSTANDARD = 17
