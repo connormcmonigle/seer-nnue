@@ -383,12 +383,17 @@ struct thread_worker {
                          (!maybe.has_value() || (maybe->bound() == bound_type::lower && list.has(maybe->best_move()) &&
                                                  bd.see<search::see_type>(maybe->best_move()) <= external.constants->nmp_see_threshold()));
 
+    bool failed_nmp = false;
     if (try_nmp) {
       ss.set_played(move::null());
       const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth, beta, value));
       const search::score_type nmp_score =
           -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
-      if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
+      if (nmp_score >= beta) {
+        return make_result(nmp_score, move::null());
+      } else {
+        failed_nmp = true;
+      }
     }
 
     // list of attempted quiets for updating histories
@@ -494,6 +499,7 @@ struct thread_worker {
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
           if (improving) { --reduction; }
+          if (mv.is_quiet() && failed_nmp) { --reduction; }
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
