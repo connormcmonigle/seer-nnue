@@ -1,5 +1,5 @@
 EXE = seer
-SRC = ../src/seer.cc ../syzygy/*.c
+SRC = ../src/seer.cc ../syzygy/tbprobe.c
 CC = g++
 
 EVALFILE = weights/0xb8315f5b.bin
