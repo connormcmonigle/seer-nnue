@@ -149,6 +149,32 @@ struct board {
   }
 
   template <color c>
+  square_set threat_mask() const {
+    const square_set occ = man_.white.all() | man_.black.all();
+    
+    square_set threats{};
+    square_set vulnerable = man_.them<c>().all();
+
+    vulnerable &= ~man_.them<c>().pawn();
+    square_set pawn_attacks{};
+    for (const auto sq : man_.us<c>().pawn()) { pawn_attacks |= pawn_attack_tbl<c>.look_up(sq); }
+    threats |= pawn_attacks & vulnerable;
+
+    vulnerable &= ~(man_.them<c>().knight() | man_.them<c>().bishop());
+    square_set minor_attacks{};
+    for (const auto sq : man_.us<c>().knight()) { minor_attacks |= knight_attack_tbl.look_up(sq); }
+    for (const auto sq : man_.us<c>().bishop()) { minor_attacks |= bishop_attack_tbl.look_up(sq, occ); }
+    threats |= minor_attacks & vulnerable;
+
+    vulnerable &= ~man_.them<c>().rook();
+    square_set rook_attacks{};
+    for (const auto sq : man_.us<c>().rook()) { rook_attacks |= rook_attack_tbl.look_up(sq, occ); }
+    threats |= rook_attacks & vulnerable;
+
+    return threats;
+  }
+
+  template <color c>
   square_set king_danger() const {
     const square_set occ = (man_.white.all() | man_.black.all()) & ~man_.us<c>().king();
     square_set k_danger{};
@@ -357,11 +383,14 @@ struct board {
   move_list generate_noisy_moves() const { return turn() ? generate_moves_<color::white, false>() : generate_moves_<color::black, false>(); }
 
   template <color c>
-  bool is_check_() const {
-    return std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).any();
-  }
+  bool is_check_() const { return std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).any(); }
 
   bool is_check() const { return turn() ? is_check_<color::white>() : is_check_<color::black>(); }
+
+  square_set us_threat_mask() const { return turn() ? threat_mask<color::white>() : threat_mask<color::black>(); }
+
+  square_set them_threat_mask() const { return turn() ? threat_mask<color::black>() : threat_mask<color::white>(); }
+
 
   template <color c, typename T>
   T see_(const move& mv) const {
