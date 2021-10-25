@@ -158,6 +158,9 @@ struct fixed_constants {
     return margin;
   }
 
+  constexpr see_type good_capture_prune_see_margin() const { return 300; }
+  constexpr score_type good_capture_prune_score_margin() const { return 256; }
+
   fixed_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {
