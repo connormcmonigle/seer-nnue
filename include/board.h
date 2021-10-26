@@ -150,6 +150,7 @@ struct board {
 
   template <color c>
   square_set threat_mask() const {
+    // idea from koivisto
     const square_set occ = man_.white.all() | man_.black.all();
     
     square_set threats{};
