@@ -133,7 +133,7 @@ struct fixed_constants {
     assert(depth > 0);
     constexpr score_type m = 288;
     constexpr score_type b = 128;
-    return m * static_cast<score_type>(depth - improving) + (threats ? b : 0);
+    return m * static_cast<score_type>(depth - improving) + ((threats || !improving) ? b : 0);
   }
 
   constexpr int lmp_count(const bool& improving, const depth_type& depth) const {
