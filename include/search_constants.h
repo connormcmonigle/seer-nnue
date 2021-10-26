@@ -129,11 +129,11 @@ struct fixed_constants {
     return m * static_cast<score_type>(depth);
   }
 
-  constexpr score_type snmp_margin(const bool& improving, const depth_type& depth) const {
+  constexpr score_type snmp_margin(const bool& improving, const bool& threats, const depth_type& depth) const {
     assert(depth > 0);
     constexpr score_type m = 288;
     constexpr score_type b = 128;
-    return m * static_cast<score_type>(depth - improving) + b;
+    return m * static_cast<score_type>(depth - improving) + (threats ? b : 0);
   }
 
   constexpr int lmp_count(const bool& improving, const depth_type& depth) const {
