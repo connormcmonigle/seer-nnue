@@ -87,6 +87,12 @@ constexpr T material_value(const piece_type& pt) {
   return values[static_cast<size_t>(pt)];
 }
 
+template <typename T>
+constexpr T phase_value(const piece_type& pt) {
+  constexpr std::array<T, 6> values = {0, 1, 1, 2, 4, 0};
+  return values[static_cast<size_t>(pt)];
+}
+
 struct board {
   sided_manifest man_{};
   sided_latent lat_{};
@@ -460,6 +466,15 @@ struct board {
   bool is_trivially_drawn() const {
     return (num_pieces() == 2) ||
            ((num_pieces() == 3) && (man_.white.knight() | man_.white.bishop() | man_.black.knight() | man_.black.bishop()).any());
+  }
+
+  template <typename T>
+  T phase() const {
+    static_assert(std::is_floating_point_v<T>);
+    constexpr T start_pos_value = static_cast<T>(24);
+    T value{};
+    over_types([&](const piece_type& pt) { value += phase_value<T>(pt) * (man_.white.get_plane(pt) | man_.black.get_plane(pt)).count(); });
+    return std::min(value, start_pos_value) / start_pos_value;
   }
 
   template <color c>
