@@ -236,7 +236,8 @@ struct thread_worker {
       const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((value + external.constants->delta_margin()) < alpha);
       if (delta_prune) { continue; }
 
-      const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && see_value >= 300 && value + 256 > beta;
+      const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && see_value >= external.constants->good_capture_prune_see_margin() &&
+                                      value + external.constants->good_capture_prune_score_margin() > beta;
       if (good_capture_prune) { return beta; }
 
       ss.set_played(mv);
@@ -365,7 +366,7 @@ struct thread_worker {
 
     // step 8. static null move pruning
     const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
-                           value > beta + external.constants->snmp_margin(improving, depth) && value > ss.loss_score();
+                           value > beta + external.constants->snmp_margin(improving, bd.them_threat_mask().any(), depth) && value > ss.loss_score();
 
     if (snm_prune) { return make_result(value, move::null()); }
 

@@ -129,11 +129,11 @@ struct fixed_constants {
     return m * static_cast<score_type>(depth);
   }
 
-  constexpr score_type snmp_margin(const bool& improving, const depth_type& depth) const {
+  constexpr score_type snmp_margin(const bool& improving, const bool& threats, const depth_type& depth) const {
     assert(depth > 0);
     constexpr score_type m = 288;
     constexpr score_type b = 128;
-    return m * static_cast<score_type>(depth - improving) + b;
+    return m * static_cast<score_type>(depth - (improving && !threats)) + (threats ? b : 0);
   }
 
   constexpr int lmp_count(const bool& improving, const depth_type& depth) const {
@@ -157,6 +157,9 @@ struct fixed_constants {
     constexpr score_type margin = 512;
     return margin;
   }
+
+  constexpr see_type good_capture_prune_see_margin() const { return 300; }
+  constexpr score_type good_capture_prune_score_margin() const { return 256; }
 
   fixed_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;
