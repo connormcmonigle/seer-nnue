@@ -363,10 +363,11 @@ struct thread_worker {
     // step 7. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_value);
     const bool improving = !is_check && ss.improving();
+    const square_set threatened = bd.them_threat_mask().any();
 
     // step 8. static null move pruning
     const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
-                           value > beta + external.constants->snmp_margin(improving, bd.them_threat_mask().any(), depth) && value > ss.loss_score();
+                           value > beta + external.constants->snmp_margin(improving, threatened.any(), depth) && value > ss.loss_score();
 
     if (snm_prune) { return make_result(value, move::null()); }
 
@@ -412,7 +413,8 @@ struct thread_worker {
 
       const board bd_ = bd.forward(mv);
 
-      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
+      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && (depth <= 3 || !threatened.is_member(mv.from())) &&
+                               best_score > search::max_mate_score;
 
       // step 11. pruning
       if (try_pruning) {
