@@ -314,7 +314,11 @@ struct thread_worker {
     const move follow = ss.follow();
     const move counter = ss.counter();
 
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter));
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
+                             .set_killer(killer)
+                             .set_follow(follow)
+                             .set_counter(counter)
+                             .set_threat_mask(bd.them_threat_mask()));
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();

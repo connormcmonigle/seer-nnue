@@ -41,6 +41,8 @@ struct move_orderer_data {
   move counter{move::null()};
   move first{move::null()};
 
+  square_set threat_mask{};
+
   const board* bd;
   const move_list* list;
   const history_heuristic* hh;
@@ -62,6 +64,11 @@ struct move_orderer_data {
 
   move_orderer_data& set_first(const move& mv) {
     first = mv;
+    return *this;
+  }
+
+  move_orderer_data& set_threat_mask(const square_set& mask) {
+    threat_mask = mask;
     return *this;
   }
 
@@ -128,7 +135,9 @@ struct move_orderer_iterator {
   move_orderer_iterator(const move_orderer_data& data, const int& idx) : move_count_{data.list->size()}, idx_{idx} {
     std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data](const move& mv) {
       const bool quiet = mv.is_quiet();
-      const std::int32_t value = quiet ? data.hh->compute_value(history::context{data.follow, data.counter}, mv) : data.bd->see<std::int32_t>(mv);
+      const std::int32_t value =
+          quiet ? (64 * data.threat_mask.is_member(mv.from()) + data.hh->compute_value(history::context{data.follow, data.counter}, mv)) :
+                  data.bd->see<std::int32_t>(mv);
       return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value);
     });
     update_list_();
