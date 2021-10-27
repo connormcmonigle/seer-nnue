@@ -98,8 +98,8 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>> {
 
   inline search::score_type evaluate(const bool pov, const T& phase) const {
     constexpr T one = static_cast<T>(1.0);
-    constexpr T mg = static_cast<T>(1.2);
-    constexpr T eg = static_cast<T>(1.0);
+    constexpr T mg = static_cast<T>(1.1);
+    constexpr T eg = static_cast<T>(0.9);
 
     const T prediction = propagate(pov);
     const T eval = phase * mg * prediction + (one - phase) * eg * prediction;
