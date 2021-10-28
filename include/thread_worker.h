@@ -421,21 +421,21 @@ struct thread_worker {
         if (lm_prune) { break; }
 
         const bool futility_prune =
-            !is_check && mv.is_quiet() && depth <= external.constants->futility_prune_depth() && value + external.constants->futility_margin(depth) < alpha;
+            mv.is_quiet() && depth <= external.constants->futility_prune_depth() && value + external.constants->futility_margin(depth) < alpha;
 
         if (futility_prune) { continue; }
 
         const bool quiet_see_prune =
-            !is_check && mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
+            mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
 
         if (quiet_see_prune) { continue; }
 
         const bool noisy_see_prune =
-            !is_check && mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() && see_value < external.constants->noisy_see_prune_threshold(depth);
+            mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() && see_value < external.constants->noisy_see_prune_threshold(depth);
 
         if (noisy_see_prune) { continue; }
 
-        const bool history_prune = !is_check && mv.is_quiet() && history_value <= external.constants->history_prune_threshold(depth);
+        const bool history_prune = mv.is_quiet() && history_value <= external.constants->history_prune_threshold(depth);
 
         if (history_prune) { continue; }
       }
@@ -467,6 +467,8 @@ struct thread_worker {
           }
           if (excluded_score < singular_beta) { return 1; }
         }
+
+        if (bd_.is_check() && bd.see<search::see_type>(mv) >= 0) { return 1; }
 
         return 0;
       }();
