@@ -468,8 +468,6 @@ struct thread_worker {
           if (excluded_score < singular_beta) { return 1; }
         }
 
-        if (bd_.is_check() && bd.see<search::see_type>(mv) >= 0) { return 1; }
-
         return 0;
       }();
 
