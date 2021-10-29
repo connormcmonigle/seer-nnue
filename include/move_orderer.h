@@ -126,9 +126,10 @@ struct move_orderer_iterator {
   std::tuple<int, move> operator*() const { return std::tuple(idx_, entries_[idx_].mv); }
 
   move_orderer_iterator(const move_orderer_data& data, const int& idx) : move_count_{data.list->size()}, idx_{idx} {
-    std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data](const move& mv) {
+    const bool is_check = data.bd->is_check();
+    std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data, is_check](const move& mv) {
       const bool quiet = mv.is_quiet();
-      const std::int32_t value = quiet ? data.hh->compute_value(history::context{data.follow, data.counter}, mv) : data.bd->see<std::int32_t>(mv);
+      const std::int32_t value = quiet ? data.hh->compute_value(history::context{is_check, data.follow, data.counter}, mv) : data.bd->see<std::int32_t>(mv);
       return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value);
     });
     update_list_();

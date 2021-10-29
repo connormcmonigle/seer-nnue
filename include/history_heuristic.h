@@ -43,6 +43,7 @@ inline constexpr size_t num_pieces = 6;
 };  // namespace constants
 
 struct context {
+  bool is_check;
   move follow;
   move counter;
 };
@@ -62,6 +63,21 @@ struct butterfly_info {
     const size_t from = static_cast<size_t>(mv.from().index());
     const size_t to = static_cast<size_t>(mv.to().index());
     return from * constants::num_squares + to;
+  }
+};
+
+struct check_counter_info {
+  static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
+
+  static constexpr bool is_applicable(const context& ctxt, const move&) { return !ctxt.counter.is_null() && ctxt.is_check; }
+
+  static constexpr size_t compute_index(const context& ctxt, const move& mv) {
+    const size_t p0 = static_cast<size_t>(ctxt.counter.piece());
+    const size_t to0 = static_cast<size_t>(ctxt.counter.to().index());
+    const size_t p1 = static_cast<size_t>(mv.piece());
+    const size_t to1 = static_cast<size_t>(mv.to().index());
+    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
+           p1 * constants::num_squares + to1;
   }
 };
 
@@ -143,7 +159,7 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic = history::combined<history::butterfly_info, history::counter_info, history::follow_info>;
+using history_heuristic = history::combined<history::butterfly_info, history::counter_info, history::check_counter_info, history::follow_info>;
 
 struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;
