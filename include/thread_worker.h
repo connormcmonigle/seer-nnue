@@ -611,6 +611,7 @@ struct thread_worker {
 
   bool is_stable() const { return internal.is_stable.load(); }
   size_t nodes() const { return internal.nodes.load(); }
+  size_t tb_hits() const { return internal.tb_hits.load(); }
   search::depth_type depth() const { return internal.depth.load(); }
   move best_move() const { return move{internal.best_move.load()}; }
   move ponder_move() const { return move{internal.ponder_move.load()}; }
@@ -678,6 +679,11 @@ struct worker_pool {
   size_t nodes() const {
     return std::accumulate(
         pool_.begin(), pool_.end(), static_cast<size_t>(0), [](const size_t& count, const auto& worker) { return count + worker->nodes(); });
+  }
+
+  size_t tb_hits() const {
+    return std::accumulate(
+        pool_.begin(), pool_.end(), static_cast<size_t>(0), [](const size_t& count, const auto& worker) { return count + worker->tb_hits(); });
   }
 
   thread_worker<T>& primary_worker() { return *pool_[primary_id]; }

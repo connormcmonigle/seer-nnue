@@ -164,10 +164,11 @@ struct uci {
     const int depth = worker.depth();
     const size_t elapsed_ms = timer_.elapsed().count();
     const size_t nodes = pool_.nodes();
+    const size_t tb_hits = pool_.tb_hits();
     const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
     if (is_searching() && depth < search::max_depth) {
       os << "info depth " << depth << " seldepth " << worker.internal.stack.sel_depth() << " score cp " << score << " nodes " << nodes << " nps "
-         << nps << " time " << elapsed_ms << " tbhits " << worker.internal.tb_hits << " pv " << worker.internal.stack.pv_string() << std::endl;
+         << nps << " time " << elapsed_ms << " tbhits " << tb_hits << " pv " << worker.internal.stack.pv_string() << std::endl;
     }
   }
 
@@ -229,7 +230,7 @@ struct uci {
   void probe() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(position); result.success) {
-      std::cout << "success: " << [&]{
+      std::cout << "success: " << [&] {
         switch (result.wdl) {
           case syzygy::wdl_type::loss: return "loss";
           case syzygy::wdl_type::draw: return "draw";
