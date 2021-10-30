@@ -59,6 +59,10 @@ inline constexpr score_type max_mate_score = -2 * big_number;
 
 inline constexpr score_type mate_score = max_mate_score - (max_depth + max_depth_margin);
 
+inline constexpr score_type tb_win_score = big_number + 1;
+
+inline constexpr score_type tb_loss_score = -tb_win_score;
+
 inline constexpr score_type draw_score = 0;
 
 inline constexpr score_type draw_width = 2;
@@ -99,7 +103,9 @@ struct fixed_constants {
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
   }
 
-  constexpr depth_type nmp_reduction(const depth_type& depth, const score_type& beta, const score_type& value) const { return 4 + depth / 6 + std::min(3, (value - beta) / 256); }
+  constexpr depth_type nmp_reduction(const depth_type& depth, const score_type& beta, const score_type& value) const {
+    return 4 + depth / 6 + std::min(3, (value - beta) / 256);
+  }
 
   constexpr see_type nmp_see_threshold() const { return 200; }
 
@@ -125,11 +131,11 @@ struct fixed_constants {
     return m * static_cast<score_type>(depth);
   }
 
-  constexpr score_type snmp_margin(const bool& improving, const depth_type& depth) const {
+  constexpr score_type snmp_margin(const bool& improving, const bool& threats, const depth_type& depth) const {
     assert(depth > 0);
     constexpr score_type m = 288;
     constexpr score_type b = 128;
-    return m * static_cast<score_type>(depth - improving) + b;
+    return m * static_cast<score_type>(depth - (improving && !threats)) + (threats ? b : 0);
   }
 
   constexpr int lmp_count(const bool& improving, const depth_type& depth) const {
@@ -153,6 +159,9 @@ struct fixed_constants {
     constexpr score_type margin = 512;
     return margin;
   }
+
+  constexpr see_type good_capture_prune_see_margin() const { return 300; }
+  constexpr score_type good_capture_prune_score_margin() const { return 256; }
 
   fixed_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;

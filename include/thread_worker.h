@@ -25,6 +25,7 @@
 #include <nnue_model.h>
 #include <search_constants.h>
 #include <search_stack.h>
+#include <syzygy.h>
 #include <transposition_table.h>
 
 #include <atomic>
@@ -61,6 +62,7 @@ struct internal_state {
 
   std::atomic_bool is_stable{false};
   std::atomic_size_t nodes{};
+  std::atomic_size_t tb_hits{};
   std::atomic<search::depth_type> depth{};
 
   std::atomic<search::score_type> score{};
@@ -86,6 +88,7 @@ struct internal_state {
     cache.clear();
     is_stable.store(false);
     nodes.store(0);
+    tb_hits.store(0);
     depth.store(0);
     score.store(0);
     best_move.store(move::null().data);
@@ -187,7 +190,7 @@ struct thread_worker {
     const move_list list = bd.generate_noisy_moves();
     const bool is_check = bd.is_check();
 
-    if (list.size() == 0 && is_check) { return ss.effective_mate_score(); }
+    if (list.size() == 0 && is_check) { return ss.loss_score(); }
     if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
     if (bd.is_trivially_drawn()) { return search::draw_score; }
 
@@ -204,9 +207,9 @@ struct thread_worker {
 
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
+      const search::score_type static_value = is_check                         ? ss.loss_score() :
                                               !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn());
+                                                                                 eval.evaluate(bd.turn(), bd.phase<T>());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -237,6 +240,10 @@ struct thread_worker {
 
       const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((value + external.constants->delta_margin()) < alpha);
       if (delta_prune) { continue; }
+
+      const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && see_value >= external.constants->good_capture_prune_see_margin() &&
+                                      value + external.constants->good_capture_prune_score_margin() > beta;
+      if (good_capture_prune) { return beta; }
 
       ss.set_played(mv);
 
@@ -295,10 +302,14 @@ struct thread_worker {
     const move_list list = bd.generate_moves();
     const bool is_check = bd.is_check();
 
-    if (list.size() == 0 && is_check) { return make_result(ss.effective_mate_score(), move::null()); }
+    if (list.size() == 0 && is_check) { return make_result(ss.loss_score(), move::null()); }
     if (list.size() == 0) { return make_result(search::draw_score, move::null()); }
     if (!is_root && bd.is_trivially_drawn()) { return make_result(search::draw_score, move::null()); }
     if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(internal.random_draw_score<search::draw_width>(), move::null()); }
+
+    if constexpr (is_root) {
+      if (const syzygy::tb_dtz_result result = syzygy::probe_dtz(bd); result.success) { return make_result(result.score, result.move); }
+    }
 
     const search::score_type original_alpha = alpha;
 
@@ -319,6 +330,16 @@ struct thread_worker {
       orderer.set_first(entry.best_move());
     }
 
+    if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(bd); !is_root && result.success) {
+      ++internal.tb_hits;
+
+      switch (result.wdl) {
+        case syzygy::wdl_type::loss: return make_result(ss.loss_score(), move::null());
+        case syzygy::wdl_type::draw: return make_result(search::draw_score, move::null());
+        case syzygy::wdl_type::win: return make_result(ss.win_score(), move::null());
+      }
+    }
+
     // step 4. internal iterative reductions
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
@@ -326,9 +347,9 @@ struct thread_worker {
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value = is_check                         ? ss.effective_mate_score() :
+      const search::score_type static_value = is_check                         ? ss.loss_score() :
                                               !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn());
+                                                                                 eval.evaluate(bd.turn(), bd.phase<T>());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -347,10 +368,11 @@ struct thread_worker {
     // step 7. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_value);
     const bool improving = !is_check && ss.improving();
+    const square_set threatened = bd.them_threat_mask();
 
     // step 8. static null move pruning
     const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
-                           value > beta + external.constants->snmp_margin(improving, depth) && value > ss.effective_mate_score();
+                           value > beta + external.constants->snmp_margin(improving, threatened.any(), depth) && value > ss.loss_score();
 
     if (snm_prune) { return make_result(value, move::null()); }
 
@@ -364,8 +386,8 @@ struct thread_worker {
 
     // step 10. null move pruning
     const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
-                         bd.has_non_pawn_material() &&
-                         (!maybe.has_value() || (maybe->bound() == bound_type::lower &&
+                         bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
+                         (!maybe.has_value() || (maybe->bound() == bound_type::lower && list.has(maybe->best_move()) &&
                                                  bd.see<search::see_type>(maybe->best_move()) <= external.constants->nmp_see_threshold()));
 
     if (try_nmp) {
@@ -380,7 +402,7 @@ struct thread_worker {
     move_list quiets_tried{};
 
     // move loop
-    search::score_type best_score = ss.effective_mate_score();
+    search::score_type best_score = ss.loss_score();
     move best_move = *list.begin();
 
     bool did_double_extend = false;
@@ -396,7 +418,7 @@ struct thread_worker {
 
       const board bd_ = bd.forward(mv);
 
-      const bool try_pruning = !is_root && !is_check && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
+      const bool try_pruning = !is_root && !bd_.is_check() && idx >= 2 && best_score > search::max_mate_score;
 
       // step 11. pruning
       if (try_pruning) {
@@ -544,7 +566,7 @@ struct thread_worker {
     search::score_type alpha = -search::big_number;
     search::score_type beta = search::big_number;
     for (; loop.keep_going(); ++internal.depth) {
-       internal.depth = std::min(search::max_depth, internal.depth.load());
+      internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
         const search::score_type previous_score = internal.score;
@@ -603,6 +625,7 @@ struct thread_worker {
   void go(const position_history& hist, const board& bd, const search::depth_type& start_depth) {
     loop.next([hist, bd, start_depth, this] {
       internal.nodes.store(0);
+      internal.tb_hits.store(0);
       internal.depth.store(start_depth);
       internal.is_stable.store(false);
       internal.best_move.store(bd.generate_moves().begin()->data);
