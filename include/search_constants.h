@@ -65,7 +65,7 @@ inline constexpr score_type tb_loss_score = -tb_win_score;
 
 inline constexpr score_type draw_score = 0;
 
-inline constexpr score_type draw_width = 2;
+inline constexpr score_type draw_width = 4;
 
 inline constexpr score_type aspiration_delta = 20;
 
