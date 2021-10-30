@@ -339,6 +339,9 @@ struct thread_worker {
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
+    const bool should_check_ext = !is_root && is_check && depth >= 6;
+    if (should_check_ext) { ++depth; }
+
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
@@ -488,7 +491,7 @@ struct thread_worker {
         search::score_type zw_score;
 
         // step 13. late move reductions
-        const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
+        const bool try_lmr = (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
