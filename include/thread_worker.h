@@ -79,7 +79,7 @@ struct internal_state {
 
   template <search::score_type width>
   search::score_type random_draw_score() const {
-    return search::draw_score - (nodes % width);
+    return search::draw_score - width + (nodes % (2 * width + 1));
   }
 
   void reset() {
