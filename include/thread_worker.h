@@ -469,6 +469,9 @@ struct thread_worker {
           if (excluded_score < singular_beta) { return 1; }
         }
 
+        const bool check_ext = !is_root && bd_.is_check() && depth >= 6 && std::abs(value) >= 128;
+        if (check_ext) { return 1; }
+
         return 0;
       }();
 
