@@ -319,7 +319,6 @@ struct uci {
             }) {
     nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
     weights_.load(embedded);
-    options().update("setoption name Weights value /home/connor/Develop/seer_selfplay_training/seer-training/scripts/model/save.bin");
     pool_.resize(default_thread_count);
   }
 };
