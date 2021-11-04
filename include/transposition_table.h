@@ -49,7 +49,7 @@ struct transposition_table_entry {
   zobrist::hash_type key_{zobrist::empty_key};
   zobrist::hash_type value_{};
 
-  zobrist::hash_type key() const { return key_; }
+  zobrist::hash_type key() const { return key_ ^ value_;; }
 
   bound_type bound() const { return bound_::get(value_); }
   search::score_type score() const { return static_cast<search::score_type>(score_::get(value_)); }
@@ -62,7 +62,9 @@ struct transposition_table_entry {
   bool is_current(const gen_type& gen) const { return gen == gen_::get(value_); }
 
   transposition_table_entry& set_gen(const gen_type& gen) {
+    key_ ^= value_;
     gen_::set(value_, gen);
+    key_ ^= value_;
     return *this;
   }
 
@@ -73,6 +75,7 @@ struct transposition_table_entry {
     score_::set(value_, static_cast<score_::type>(score));
     best_move_::set(value_, mv.data);
     depth_::set(value_, static_cast<depth_::type>(depth));
+    key_ ^= value_;
   }
 
   transposition_table_entry() {}

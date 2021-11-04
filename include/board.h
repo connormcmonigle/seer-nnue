@@ -87,6 +87,12 @@ constexpr T material_value(const piece_type& pt) {
   return values[static_cast<size_t>(pt)];
 }
 
+template <typename T>
+constexpr T phase_value(const piece_type& pt) {
+  constexpr std::array<T, 6> values = {0, 1, 1, 2, 4, 0};
+  return values[static_cast<size_t>(pt)];
+}
+
 struct board {
   sided_manifest man_{};
   sided_latent lat_{};
@@ -147,6 +153,33 @@ struct board {
                            (n_check_mask & man_.them<c>().knight() & occ) | (p_check_mask & man_.them<c>().pawn() & occ) |
                            (q_check_mask & man_.them<c>().queen() & occ);
     return std::tuple(checkers_, checker_rays_);
+  }
+
+  template <color c>
+  square_set threat_mask() const {
+    // idea from koivisto
+    const square_set occ = man_.white.all() | man_.black.all();
+    
+    square_set threats{};
+    square_set vulnerable = man_.them<c>().all();
+
+    vulnerable &= ~man_.them<c>().pawn();
+    square_set pawn_attacks{};
+    for (const auto sq : man_.us<c>().pawn()) { pawn_attacks |= pawn_attack_tbl<c>.look_up(sq); }
+    threats |= pawn_attacks & vulnerable;
+
+    vulnerable &= ~(man_.them<c>().knight() | man_.them<c>().bishop());
+    square_set minor_attacks{};
+    for (const auto sq : man_.us<c>().knight()) { minor_attacks |= knight_attack_tbl.look_up(sq); }
+    for (const auto sq : man_.us<c>().bishop()) { minor_attacks |= bishop_attack_tbl.look_up(sq, occ); }
+    threats |= minor_attacks & vulnerable;
+
+    vulnerable &= ~man_.them<c>().rook();
+    square_set rook_attacks{};
+    for (const auto sq : man_.us<c>().rook()) { rook_attacks |= rook_attack_tbl.look_up(sq, occ); }
+    threats |= rook_attacks & vulnerable;
+
+    return threats;
   }
 
   template <color c>
@@ -358,11 +391,14 @@ struct board {
   move_list generate_noisy_moves() const { return turn() ? generate_moves_<color::white, false>() : generate_moves_<color::black, false>(); }
 
   template <color c>
-  bool is_check_() const {
-    return std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).any();
-  }
+  bool is_check_() const { return std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).any(); }
 
   bool is_check() const { return turn() ? is_check_<color::white>() : is_check_<color::black>(); }
+
+  square_set us_threat_mask() const { return turn() ? threat_mask<color::white>() : threat_mask<color::black>(); }
+
+  square_set them_threat_mask() const { return turn() ? threat_mask<color::black>() : threat_mask<color::white>(); }
+
 
   template <color c, typename T>
   T see_(const move& mv) const {
@@ -431,6 +467,15 @@ struct board {
   bool is_trivially_drawn() const {
     return (num_pieces() == 2) ||
            ((num_pieces() == 3) && (man_.white.knight() | man_.white.bishop() | man_.black.knight() | man_.black.bishop()).any());
+  }
+
+  template <typename T>
+  T phase() const {
+    static_assert(std::is_floating_point_v<T>);
+    constexpr T start_pos_value = static_cast<T>(24);
+    T value{};
+    over_types([&](const piece_type& pt) { value += phase_value<T>(pt) * (man_.white.get_plane(pt) | man_.black.get_plane(pt)).count(); });
+    return std::min(value, start_pos_value) / start_pos_value;
   }
 
   template <color c>
