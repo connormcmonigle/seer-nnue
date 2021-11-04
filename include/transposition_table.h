@@ -38,7 +38,6 @@ constexpr size_t cache_line_size = 64;
 enum class bound_type { upper, lower, exact };
 
 struct transposition_table_entry {
-  static constexpr zobrist::hash_type empty_key = zobrist::hash_type{};
   using gen_type = std::uint8_t;
 
   using bound_ = bit::range<bound_type, 0, 2>;
@@ -47,7 +46,7 @@ struct transposition_table_entry {
   using best_move_ = bit::next_range<gen_, move::data_type, move::width>;
   using depth_ = bit::next_range<best_move_, std::uint8_t>;
 
-  zobrist::hash_type key_{empty_key};
+  zobrist::hash_type key_{zobrist::empty_key};
   zobrist::hash_type value_{};
 
   zobrist::hash_type key() const { return key_ ^ value_;; }
@@ -58,7 +57,7 @@ struct transposition_table_entry {
   search::depth_type depth() const { return static_cast<search::depth_type>(depth_::get(value_)); }
   move best_move() const { return move{best_move_::get(value_)}; }
 
-  bool is_empty() const { return key_ == empty_key; }
+  bool is_empty() const { return key_ == zobrist::empty_key; }
 
   bool is_current(const gen_type& gen) const { return gen == gen_::get(value_); }
 

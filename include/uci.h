@@ -222,9 +222,10 @@ struct uci {
   void eval() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     auto evaluator = nnue::eval<weight_type>(&weights_);
+    const auto encoding = position.show_pawn_init(nnue::p_eval<weight_type>(&weights_)).propagate(position.turn());
     position.show_init(evaluator);
     os << "phase: " << position.phase<weight_type>() << std::endl;
-    os << "score(phase): " << evaluator.evaluate(position.turn(), position.phase<weight_type>()) << std::endl;
+    os << "score(phase): " << evaluator.evaluate(position.turn(), encoding, position.phase<weight_type>()) << std::endl;
   }
 
   void probe() {

@@ -584,19 +584,21 @@ struct board {
   }
 
   template <typename U>
-  void show_init(U& u) const {
+  auto show_init(U&& u) const {
     u.white.clear();
     u.black.clear();
     show_feature_indices<color::white>(u);
     show_feature_indices<color::black>(u);
+    return u;
   }
 
   template <typename U>
-  void show_pawn_init(U& u) const {
+  auto show_pawn_init(U&& u) const {
     u.white.clear();
     u.black.clear();
     show_pawn_feature_indices<color::white>(u);
     show_pawn_feature_indices<color::black>(u);
+    return u;
   }
 
   template <color c, typename U>
@@ -744,7 +746,7 @@ struct board {
 
 std::ostream& operator<<(std::ostream& ostr, const board& bd) {
   ostr << std::boolalpha;
-  ostr << "board(hash=" << bd.hash();
+  ostr << "board(hash=" << bd.hash() << ", kpt_hash=" << bd.kpt_hash();
   ostr << ", half_clock=" << bd.lat_.half_clock;
   ostr << ", ply_count=" << bd.lat_.ply_count;
   ostr << ", white.oo_=" << bd.lat_.white.oo();
