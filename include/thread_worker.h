@@ -563,13 +563,14 @@ struct thread_worker {
     for (; loop.keep_going(); ++internal.depth) {
       internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
+
+      search::score_type delta = external.constants->init_aspiration_delta(internal.score);
+      
       if (internal.depth >= external.constants->aspiration_depth()) {
-        const search::score_type previous_score = internal.score;
-        alpha = previous_score - search::aspiration_delta;
-        beta = previous_score + search::aspiration_delta;
+        alpha = internal.score - delta;
+        beta = internal.score + delta;
       }
 
-      search::score_type delta = search::aspiration_delta;
       search::depth_type failed_high_count{0};
 
       for (;;) {
@@ -591,7 +592,6 @@ struct thread_worker {
           ++failed_high_count;
         } else {
           // store updated information
-
           internal.is_stable.store(std::abs(score() - search_score) <= search::stability_threshold && internal.best_move.load() == search_move.data);
 
           internal.score.store(search_score);

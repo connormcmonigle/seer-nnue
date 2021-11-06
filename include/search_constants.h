@@ -65,8 +65,6 @@ inline constexpr score_type tb_loss_score = -tb_win_score;
 
 inline constexpr score_type draw_score = 0;
 
-inline constexpr score_type aspiration_delta = 20;
-
 inline constexpr score_type stability_threshold = 50;
 
 using counter_type = std::int32_t;
@@ -99,6 +97,12 @@ struct fixed_constants {
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
+  }
+
+  constexpr score_type init_aspiration_delta(const score_type& previous_score) const {
+    constexpr score_type default_aspiration_delta = 20;
+    constexpr score_type draw_aspiration_delta = 128;
+    return (previous_score == draw_score) ? draw_aspiration_delta : default_aspiration_delta;
   }
 
   constexpr depth_type nmp_reduction(const depth_type& depth, const score_type& beta, const score_type& value) const {
