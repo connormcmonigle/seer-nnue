@@ -31,22 +31,19 @@ namespace nnue {
 
 constexpr size_t half_ka_numel = 768 * 64;
 constexpr size_t max_active_half_features = 32;
-constexpr size_t base_dim = 160;
+constexpr size_t base_dim = 256;
 
 template <typename T>
 struct weights {
   typename weights_streamer<T>::signature_type signature_{0};
   big_affine<T, half_ka_numel, base_dim> w{};
   big_affine<T, half_ka_numel, base_dim> b{};
-  stack_affine<T, 2 * base_dim, 16> fc0{};
-  stack_affine<T, 16, 16> fc1{};
-  stack_affine<T, 32, 16> fc2{};
-  stack_affine<T, 48, 1> fc3{};
+  stack_affine<T, 2 * base_dim, 1> fc0{};
 
   size_t signature() const { return signature_; }
 
   size_t num_parameters() const {
-    return w.num_parameters() + b.num_parameters() + fc0.num_parameters() + fc1.num_parameters() + fc2.num_parameters() + fc3.num_parameters();
+    return w.num_parameters() + b.num_parameters() + fc0.num_parameters();
   }
 
   template <typename streamer_type>
@@ -54,9 +51,6 @@ struct weights {
     w.load_(ws);
     b.load_(ws);
     fc0.load_(ws);
-    fc1.load_(ws);
-    fc2.load_(ws);
-    fc3.load_(ws);
     signature_ = ws.signature();
     return *this;
   }
@@ -90,10 +84,7 @@ struct eval : chess::sided<eval<T>, feature_transformer<T>> {
     const auto w_x = white.active();
     const auto b_x = black.active();
     const auto x0 = pov ? splice(w_x, b_x).apply_(relu<T>) : splice(b_x, w_x).apply_(relu<T>);
-    const auto x1 = weights_->fc0.forward(x0).apply_(relu<T>);
-    const auto x2 = splice(x1, weights_->fc1.forward(x1).apply_(relu<T>));
-    const auto x3 = splice(x2, weights_->fc2.forward(x2).apply_(relu<T>));
-    return weights_->fc3.forward(x3).item();
+    return weights_->fc0.forward(x0).item();
   }
 
   inline search::score_type evaluate(const bool pov, const T& phase) const {
