@@ -147,7 +147,7 @@ struct stack_affine {
 
   template <typename streamer_type>
   stack_affine<T, dim0, dim1>& load_(streamer_type& ws) {
-    ws.stream(W, W_numel).stream(b, b_numel);
+    ws.template stream<T>(W, W_numel).template stream<T>(b, b_numel);
     return *this;
   }
 };
@@ -174,7 +174,7 @@ struct big_affine {
 
   template <typename streamer_type>
   big_affine<T, dim0, dim1>& load_(streamer_type& ws) {
-    ws.stream(W, W_numel).stream(b, b_numel);
+    ws.template stream<T>(W, W_numel).template stream<T>(b, b_numel);
     return *this;
   }
 

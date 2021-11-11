@@ -44,8 +44,6 @@
 namespace engine {
 
 struct uci {
-  using weight_type = float;
-
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 16;
   static constexpr std::string_view default_weight_path = "EMBEDDED";
@@ -55,8 +53,8 @@ struct uci {
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
 
-  nnue::weights<weight_type> weights_{};
-  chess::worker_pool<weight_type> pool_;
+  nnue::weights weights_{};
+  chess::worker_pool pool_;
   chess::book book_{};
 
   std::atomic_bool ponder_{false};
@@ -86,7 +84,7 @@ struct uci {
   auto options() {
     auto weight_path = option_callback(string_option("Weights", std::string(default_weight_path)), [this](const std::string& path) {
       if (path == std::string(default_weight_path)) {
-        nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
+        nnue::embedded_weight_streamer embedded(embed::weights_file_data);
         weights_.load(embedded);
       } else {
         weights_.load(path);
@@ -221,10 +219,10 @@ struct uci {
 
   void eval() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    auto evaluator = nnue::eval<weight_type>(&weights_);
+    auto evaluator = nnue::eval(&weights_);
     position.show_init(evaluator);
-    os << "phase: " << position.phase<weight_type>() << std::endl;
-    os << "score(phase): " << evaluator.evaluate(position.turn(), position.phase<weight_type>()) << std::endl;
+    os << "phase: " << position.phase<nnue::weights::parameter_type>() << std::endl;
+    os << "score(phase): " << evaluator.evaluate(position.turn(), position.phase<nnue::weights::parameter_type>()) << std::endl;
   }
 
   void probe() {
