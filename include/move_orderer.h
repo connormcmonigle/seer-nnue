@@ -75,41 +75,39 @@ struct move_orderer_entry {
   using first_ = bit::next_flag<nonnegative_noisy_>;
 
   move mv;
-  std::uint64_t data{0};
+  std::uint64_t data;
 
-  move_orderer_entry(const move& mv_, bool is_first, bool is_noisy, bool is_killer, std::int32_t value) : mv{mv_} {
+  move_orderer_entry() = default;
+  move_orderer_entry(const move& mv_, bool is_first, bool is_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data{0} {
     first_::set(data, is_first);
     nonnegative_noisy_::set(data, is_noisy);
     killer_::set(data, is_killer);
     value_::set(data, make_positive(value));
   }
-
-  move_orderer_entry(){};
 };
 
+struct move_orderer_iterator_end_tag {};
+
 struct move_orderer_iterator {
-  using difference_type = long;
-  using value_type = std::tuple<int, move>;
-  using pointer = std::tuple<int, move>*;
-  using reference = std::tuple<int, move>&;
+  using difference_type = std::ptrdiff_t;
+  using value_type = std::tuple<std::ptrdiff_t, move>;
+  using pointer = std::tuple<std::ptrdiff_t, move>*;
+  using reference = std::tuple<std::ptrdiff_t, move>&;
   using iterator_category = std::output_iterator_tag;
 
-  size_t move_count_{0};
-  int idx_{0};
-  std::array<move_orderer_entry, move_list::max_branching_factor> entries_{};
+  using entry_array_type = std::array<move_orderer_entry, move_list::max_branching_factor>;
+
+  entry_array_type entries_;
+  entry_array_type::iterator begin_;
+  entry_array_type::iterator end_;
 
   void update_list_() {
-    auto best = [this](const size_t& i0, const size_t& i1) { return (entries_[i0].data >= entries_[i1].data) ? i0 : i1; };
-
-    size_t best_idx = idx_;
-    for (size_t i(idx_); i < move_count_; ++i) { best_idx = best(best_idx, i); }
-
-    std::swap(entries_[best_idx], entries_[idx_]);
+    std::iter_swap(begin_, std::max_element(begin_, end_, [](const move_orderer_entry& a, const move_orderer_entry& b) { return a.data < b.data; }));
   }
 
   move_orderer_iterator& operator++() {
-    ++idx_;
-    if (idx_ < static_cast<int>(move_count_)) { update_list_(); }
+    ++begin_;
+    update_list_();
     return *this;
   }
 
@@ -119,22 +117,25 @@ struct move_orderer_iterator {
     return retval;
   }
 
-  bool operator==(const move_orderer_iterator& other) const { return other.idx_ == idx_; }
+  constexpr bool operator==(const move_orderer_iterator&) const { return false; }
+  constexpr bool operator==(const move_orderer_iterator_end_tag&) const { return begin_ == end_; }
 
-  bool operator!=(const move_orderer_iterator& other) const { return !(*this == other); }
+  template <typename T>
+  constexpr bool operator!=(const T& other) const {
+    return !(*this == other);
+  }
 
-  std::tuple<int, move> operator*() const { return std::tuple(idx_, entries_[idx_].mv); }
+  std::tuple<std::ptrdiff_t, move> operator*() const { return std::tuple(begin_ - entries_.begin(), begin_->mv); }
 
-  move_orderer_iterator(const move_orderer_data& data, const int& idx) : move_count_{data.list->size()}, idx_{idx} {
-    std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data](const move& mv) {
+  move_orderer_iterator(const move_orderer_data& data) : entries_{}, begin_{entries_.begin()} {
+    end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data](const move& mv) {
       const bool quiet = mv.is_quiet();
       const std::int32_t value = quiet ? data.hh->compute_value(history::context{data.follow, data.counter}, mv) : data.bd->see<std::int32_t>(mv);
       return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value);
     });
+
     update_list_();
   }
-
-  move_orderer_iterator(const int& idx) : idx_{idx} {}
 };
 
 struct move_orderer {
@@ -142,8 +143,8 @@ struct move_orderer {
 
   move_orderer_data data_;
 
-  move_orderer_iterator begin() { return move_orderer_iterator(data_, 0); }
-  move_orderer_iterator end() { return move_orderer_iterator(data_.list->size()); }
+  move_orderer_iterator begin() { return move_orderer_iterator(data_); }
+  move_orderer_iterator_end_tag end() { return move_orderer_iterator_end_tag(); }
 
   move_orderer& set_first(const move& mv) {
     data_.set_first(mv);

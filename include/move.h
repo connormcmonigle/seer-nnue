@@ -44,7 +44,7 @@ struct move {
   static constexpr size_t width = promotion_::last;
   using data_type = std::uint32_t;
 
-  data_type data{0};
+  data_type data;
 
   template <typename B>
   constexpr typename B::type get_field_() const {
@@ -110,7 +110,7 @@ struct move {
 
   std::string name(bool pov) const { return pov ? name<color::white>() : name<color::black>(); }
 
-  constexpr move() : data{0} {}
+  move() = default;
 
   constexpr move(const data_type& data) : data{data} {}
 
@@ -122,7 +122,7 @@ struct move {
       piece_type captured = piece_type::pawn,
       bool is_enpassant = false,
       square enpassant_sq = square::from_index(0),
-      piece_type promotion = piece_type::pawn) {
+      piece_type promotion = piece_type::pawn) : data{0} {
     const auto from_idx = static_cast<std::uint8_t>(from.index());
     const auto to_idx = static_cast<std::uint8_t>(to.index());
     const auto ep_sq_idx = static_cast<std::uint8_t>(enpassant_sq.index());
