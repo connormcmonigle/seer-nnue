@@ -92,14 +92,14 @@ struct internal_state {
 
 template <typename T>
 struct external_state {
-  const nnue::weights<typename T::weight_type>* weights;
+  const nnue::weights* weights;
   std::shared_ptr<transposition_table> tt;
   std::shared_ptr<search::constants> constants;
   std::function<void(const T&)> on_iter;
   std::function<void(const T&)> on_update;
 
   external_state(
-      const nnue::weights<typename T::weight_type>* weights_,
+      const nnue::weights* weights_,
       std::shared_ptr<transposition_table> tt_,
       std::shared_ptr<search::constants> constants_,
       std::function<void(const T&)>& on_iter_,
@@ -161,18 +161,16 @@ struct controlled_loop {
   }
 };
 
-template <typename T, bool is_active = true>
+template <bool is_active = true>
 struct thread_worker {
-  using weight_type = T;
-
-  external_state<thread_worker<T, is_active>> external;
+  external_state<thread_worker<is_active>> external;
   internal_state internal{};
   controlled_loop<is_active> loop;
 
   template <bool is_pv, bool use_tt = true>
   search::score_type q_search(
       const search::stack_view& ss,
-      const nnue::eval<T>& eval,
+      const nnue::eval& eval,
       const board& bd,
       search::score_type alpha,
       const search::score_type& beta,
@@ -204,7 +202,7 @@ struct thread_worker {
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type static_value = is_check                         ? ss.loss_score() :
                                               !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn(), bd.phase<T>());
+                                                                                 eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -245,7 +243,7 @@ struct thread_worker {
       const board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
 
-      const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
+      const nnue::eval eval_ = bd.apply_update(mv, eval);
 
       const search::score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
 
@@ -271,7 +269,7 @@ struct thread_worker {
   template <bool is_pv, bool is_root = false>
   auto pv_search(
       const search::stack_view& ss,
-      const nnue::eval<T>& eval,
+      const nnue::eval& eval,
       const board& bd,
       search::score_type alpha,
       const search::score_type& beta,
@@ -344,7 +342,7 @@ struct thread_worker {
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type static_value = is_check                         ? ss.loss_score() :
                                               !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn(), bd.phase<T>());
+                                                                                 eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -442,7 +440,7 @@ struct thread_worker {
       }
 
       external.tt->prefetch(bd_.hash());
-      const nnue::eval<T> eval_ = bd.apply_update(mv, eval);
+      const nnue::eval eval_ = bd.apply_update(mv, eval);
 
       // step 12. extensions
       const search::depth_type extension = [&, mv = mv] {
@@ -553,7 +551,7 @@ struct thread_worker {
 
   void iterative_deepening_loop_() {
     const auto evaluator = [this] {
-      nnue::eval<T> result(external.weights);
+      nnue::eval result(external.weights);
       internal.stack.root_pos().show_init(result);
       return result;
     }();
@@ -633,23 +631,22 @@ struct thread_worker {
   void stop() { loop.complete_iter(); }
 
   thread_worker(
-      const nnue::weights<T>* weights,
+      const nnue::weights* weights,
       std::shared_ptr<transposition_table> tt,
       std::shared_ptr<search::constants> constants,
-      std::function<void(const thread_worker<T, is_active>&)> on_iter = [](auto&&...) {},
-      std::function<void(const thread_worker<T, is_active>&)> on_update = [](auto&&...) {})
+      std::function<void(const thread_worker<is_active>&)> on_iter = [](auto&&...) {},
+      std::function<void(const thread_worker<is_active>&)> on_update = [](auto&&...) {})
       : external(weights, tt, constants, on_iter, on_update), loop([this] { iterative_deepening_loop_(); }) {}
 };
 
-template <typename T>
 struct worker_pool {
   static constexpr size_t primary_id = 0;
 
-  const nnue::weights<T>* weights_;
+  const nnue::weights* weights_;
   std::shared_ptr<transposition_table> tt_{nullptr};
   std::shared_ptr<search::constants> constants_{nullptr};
 
-  std::vector<std::unique_ptr<thread_worker<T>>> pool_{};
+  std::vector<std::unique_ptr<thread_worker<>>> pool_{};
 
   void reset() {
     tt_->clear();
@@ -660,7 +657,7 @@ struct worker_pool {
     constants_->update_(new_size);
     const size_t old_size = pool_.size();
     pool_.resize(new_size);
-    for (size_t i(old_size); i < new_size; ++i) { pool_[i] = std::make_unique<thread_worker<T>>(weights_, tt_, constants_); }
+    for (size_t i(old_size); i < new_size; ++i) { pool_[i] = std::make_unique<thread_worker<>>(weights_, tt_, constants_); }
   }
 
   void go(const position_history& hist, const board& bd) {
@@ -686,17 +683,17 @@ struct worker_pool {
         pool_.begin(), pool_.end(), static_cast<size_t>(0), [](const size_t& count, const auto& worker) { return count + worker->tb_hits(); });
   }
 
-  thread_worker<T>& primary_worker() { return *pool_[primary_id]; }
+  thread_worker<>& primary_worker() { return *pool_[primary_id]; }
 
   worker_pool(
-      const nnue::weights<T>* weights,
+      const nnue::weights* weights,
       size_t hash_table_size,
-      std::function<void(const thread_worker<T, true>&)> on_iter = [](auto&&...) {},
-      std::function<void(const thread_worker<T, true>&)> on_update = [](auto&&...) {})
+      std::function<void(const thread_worker<>&)> on_iter = [](auto&&...) {},
+      std::function<void(const thread_worker<>&)> on_update = [](auto&&...) {})
       : weights_{weights} {
     tt_ = std::make_shared<transposition_table>(hash_table_size);
     constants_ = std::make_shared<search::constants>();
-    pool_.push_back(std::make_unique<thread_worker<T>>(weights, tt_, constants_, on_iter, on_update));
+    pool_.push_back(std::make_unique<thread_worker<>>(weights, tt_, constants_, on_iter, on_update));
   }
 };
 

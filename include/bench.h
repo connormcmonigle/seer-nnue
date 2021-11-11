@@ -84,9 +84,8 @@ struct bench_info {
 
 std::ostream& operator<<(std::ostream& os, const bench_info& info) { return os << info.total_nodes << " nodes " << info.nodes_per_second << " nps"; }
 
-template <typename T>
-bench_info get_bench_info(const nnue::weights<T>& weights) {
-  using worker_type = chess::thread_worker<T, false>;
+bench_info get_bench_info(const nnue::weights& weights) {
+  using worker_type = chess::thread_worker<false>;
   std::shared_ptr<search::constants> constants = std::make_shared<search::constants>(1);
   std::shared_ptr<chess::transposition_table> tt = std::make_shared<chess::transposition_table>(bench_config::tt_mb_size);
 
