@@ -314,7 +314,8 @@ struct uci {
             [this](const auto& worker) {
               if (manager_.should_stop(search_info{worker.depth(), worker.is_stable()})) { stop(); }
             }) {
-    options().update("setoption name Weights value ../../../seer-training/scripts/model/save.bin");
+    nnue::embedded_weight_streamer embedded(embed::weights_file_data);
+    weights_.load(embedded);
     pool_.resize(default_thread_count);
   }
 };
