@@ -113,7 +113,7 @@ struct uci {
       book_info_string();
     });
 
-    auto syzygy_path = option_callback(string_option("SyzygyPath"), [this](const std::string& path) { syzygy::init(path); });
+    auto syzygy_path = option_callback(string_option("SyzygyPath"), [](const std::string& path) { syzygy::init(path); });
 
     return uci_options(weight_path, hash_size, thread_count, ponder, own_book, book_path, syzygy_path);
   }
@@ -316,8 +316,7 @@ struct uci {
             [this](const auto& worker) {
               if (manager_.should_stop(search_info{worker.depth(), worker.is_stable()})) { stop(); }
             }) {
-    nnue::embedded_weight_streamer<weight_type> embedded(embed::weights_file_data);
-    weights_.load(embedded);
+    options().update("setoption name Weights value ../../../seer-training/scripts/model/save.bin");
     pool_.resize(default_thread_count);
   }
 };

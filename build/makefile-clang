@@ -1,0 +1,48 @@
+EXE = seer
+SRC = ../src/seer.cc ../syzygy/tbprobe.c
+CC = clang++
+
+EVALFILE = weights/0x4b6630fc.bin
+
+OPSLIMIT = 1000000000
+CXXSTANDARD = 17
+
+INCLUDE = ../include
+INCBIN = ../incbin
+SYZYGY = ../syzygy
+
+CXXFLAGS += -std=c++$(CXXSTANDARD)
+CXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp
+CXXFLAGS += -Wall -Wextra -Wpedantic
+CXXFLAGS += -fconstexpr-steps=$(OPSLIMIT)
+CXXFLAGS += -I$(INCLUDE) -I$(INCBIN) -I$(SYZYGY)
+CXXFLAGS += -DEVALFILE=\"$(EVALFILE)\"
+
+THREADSANFLAGS += $(CXXFLAGS) -fsanitize=thread
+ADDRESSSANFLAGS += $(CXXFLAGS) -fsanitize=address
+UBSANFLAGS += $(CXXFLAGS) -fsanitize=undefined
+
+LIBS = -lpthread
+
+PROFRAW = data.profraw
+PROFDATA = data.profdata
+
+default:
+	$(CC) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
+
+pgo:
+	rm -f $(PROFRAW) $(PROFDATA)
+	$(CC) -fprofile-instr-generate=$(PROFRAW) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
+	./$(EXE) bench
+	llvm-profdata merge -output=$(PROFDATA) $(PROFRAW) 
+	$(CC) -fprofile-instr-use=$(PROFDATA) $(SRC) $(CXXFLAGS) $(LIBS) -o $(EXE)
+	rm -f $(PROFRAW) $(PROFDATA)
+
+threadsan:
+	$(CC) $(SRC) $(THREADSANFLAGS) $(LIBS) -o $(EXE)
+
+addresssan:
+	$(CC) $(SRC) $(ADDRESSSANFLAGS) $(LIBS) -o $(EXE)
+
+ubsan:
+	$(CC) $(SRC) $(UBSANFLAGS) $(LIBS) -o $(EXE)
