@@ -424,6 +424,10 @@ struct thread_worker {
 
         if (futility_prune) { continue; }
 
+        const bool threatened_prune = mv.is_quiet() && threatened.any() && !threatened.is_member(mv.from()) && depth <= 6 && value + 512 < alpha;
+
+        if (threatened_prune) { continue; }
+
         const bool quiet_see_prune =
             mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
 
