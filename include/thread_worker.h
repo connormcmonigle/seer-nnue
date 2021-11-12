@@ -495,6 +495,7 @@ struct thread_worker {
           if (bd.is_passed_push(mv)) { --reduction; }
           if (improving) { --reduction; }
           if (!is_pv) { ++reduction; }
+          if (threatened.any() && mv.is_quiet() && !threatened.is_member(mv.from())) { ++reduction; }
           if (did_double_extend) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
 
