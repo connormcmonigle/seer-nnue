@@ -493,6 +493,7 @@ struct thread_worker {
           // adjust reduction
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
+          if (maybe.has_value() && depth <= 6) { --reduction; }
           if (improving) { --reduction; }
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
