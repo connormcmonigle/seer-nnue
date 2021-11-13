@@ -424,7 +424,8 @@ struct thread_worker {
 
         if (futility_prune) { continue; }
 
-        const bool threatened_prune = mv.is_quiet() && threatened.any() && !threatened.is_member(mv.from()) && depth <= 6 && value + 512 < alpha;
+        const bool threatened_prune =
+            !is_check && mv.is_quiet() && threatened.any() && !threatened.is_member(mv.from()) && depth <= 3;
 
         if (threatened_prune) { continue; }
 
