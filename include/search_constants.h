@@ -123,10 +123,11 @@ struct fixed_constants {
 
   constexpr score_type prob_prune_margin() const { return 768; }
 
-  constexpr score_type futility_margin(const depth_type& depth) const {
+  constexpr score_type futility_margin(const depth_type& depth, const bool& not_evasion) const {
     assert(depth > 0);
-    constexpr score_type m = 1536;
-    return m * static_cast<score_type>(depth);
+    constexpr score_type m0 = 1536;
+    constexpr score_type m1 = -768;
+    return m0 * static_cast<score_type>(depth) + m1 * static_cast<score_type>(not_evasion);
   }
 
   constexpr score_type snmp_margin(const bool& improving, const bool& threats, const depth_type& depth) const {
