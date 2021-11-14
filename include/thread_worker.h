@@ -443,6 +443,7 @@ struct thread_worker {
       const nnue::eval eval_ = bd.apply_update(mv, eval);
 
       // step 12. extensions
+      bool multicut = false;
       const search::depth_type extension = [&, mv = mv] {
         const bool history_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && mv.is_quiet() &&
                                  depth >= external.constants->history_extension_depth() &&
@@ -460,15 +461,20 @@ struct thread_worker {
           ss.set_excluded(mv);
           const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
           ss.set_excluded(move::null());
+
           if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) {
             did_double_extend = true;
             return 2;
           }
           if (excluded_score < singular_beta) { return 1; }
+
+          if (excluded_score >= beta) { multicut = true; }
         }
 
         return 0;
       }();
+
+      if (!is_root && multicut) { return make_result(beta, move::null()); }
 
       const search::score_type score = [&, this, idx = idx, mv = mv] {
         const search::depth_type next_depth = depth + extension - 1;
