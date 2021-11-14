@@ -377,6 +377,11 @@ struct thread_worker {
 
     if (prob_prune) { return make_result(beta, move::null()); }
 
+    const bool mobility_prune =
+        !is_pv && !ss.has_excluded() && !is_check && list.size() >= 48 && improving && depth == 1 && value > beta && value > ss.loss_score();
+
+    if (mobility_prune) { return make_result(beta, move::null()); }
+
     // step 10. null move pruning
     const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
                          bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
