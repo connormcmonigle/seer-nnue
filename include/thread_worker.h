@@ -337,6 +337,9 @@ struct thread_worker {
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
+    if (!maybe.has_value() && !ss.has_excluded() && list.size() >= 48 && depth >= 4) { --depth; }
+
+
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
