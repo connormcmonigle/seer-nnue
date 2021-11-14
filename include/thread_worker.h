@@ -377,8 +377,8 @@ struct thread_worker {
 
     if (prob_prune) { return make_result(beta, move::null()); }
 
-    const bool mobility_prune =
-        !is_pv && !ss.has_excluded() && !is_check && list.size() >= 48 && improving && depth == 1 && value > beta && value > ss.loss_score();
+    const bool mobility_prune = !is_pv && !ss.has_excluded() && !is_check && list.size() >= 48 && !threatened.any() && improving && depth <= 3 &&
+                                value > beta && value > ss.loss_score();
 
     if (mobility_prune) { return make_result(beta, move::null()); }
 
