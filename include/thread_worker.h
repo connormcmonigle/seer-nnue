@@ -364,7 +364,7 @@ struct thread_worker {
     const square_set threatened = bd.them_threat_mask();
 
     // step 8. static null move pruning
-    const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
+    const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && list.size() >= 24 && depth <= external.constants->snmp_depth() &&
                            value > beta + external.constants->snmp_margin(improving, threatened.any(), depth) && value > ss.loss_score();
 
     if (snm_prune) { return make_result(value, move::null()); }
