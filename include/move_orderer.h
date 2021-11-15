@@ -107,7 +107,7 @@ struct move_orderer_iterator {
 
   move_orderer_iterator& operator++() {
     ++begin_;
-    update_list_();
+    if (begin_ != end_){ update_list_(); }
     return *this;
   }
 
