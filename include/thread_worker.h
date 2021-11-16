@@ -65,6 +65,7 @@ struct internal_state {
   std::atomic_size_t tb_hits{};
   std::atomic<search::depth_type> depth{};
 
+  std::atomic<search::score_type> previous_turn_score{};
   std::atomic<search::score_type> score{};
 
   std::atomic<move::data_type> best_move{};
@@ -85,6 +86,7 @@ struct internal_state {
     nodes.store(0);
     tb_hits.store(0);
     depth.store(0);
+    previous_turn_score.store(0);
     score.store(0);
     best_move.store(move::null().data);
   }
@@ -568,9 +570,9 @@ struct thread_worker {
       internal.depth = std::min(search::max_depth, internal.depth.load());
       // update aspiration window once reasonable evaluation is obtained
       if (internal.depth >= external.constants->aspiration_depth()) {
-        const search::score_type previous_score = internal.score;
-        alpha = previous_score - search::aspiration_delta;
-        beta = previous_score + search::aspiration_delta;
+        const search::score_type previous_iteration_score = internal.score;
+        alpha = previous_iteration_score - search::aspiration_delta;
+        beta = previous_iteration_score + search::aspiration_delta;
       }
 
       search::score_type delta = search::aspiration_delta;
@@ -596,7 +598,10 @@ struct thread_worker {
         } else {
           // store updated information
 
-          internal.is_stable.store(std::abs(score() - search_score) <= search::stability_threshold && internal.best_move.load() == search_move.data);
+          const bool iteration_stability = std::abs(internal.score - search_score) <= search::stability_threshold;
+          const bool turn_stability = std::abs(internal.previous_turn_score - search_score) <= search::stability_threshold;
+
+          internal.is_stable.store(iteration_stability && turn_stability && internal.best_move.load() == search_move.data);
 
           internal.score.store(search_score);
           internal.best_move.store(search_move.data);
@@ -624,6 +629,7 @@ struct thread_worker {
 
   void go(const position_history& hist, const board& bd, const search::depth_type& start_depth) {
     loop.next([hist, bd, start_depth, this] {
+      internal.previous_turn_score.store(internal.score.load());
       internal.nodes.store(0);
       internal.tb_hits.store(0);
       internal.depth.store(start_depth);
