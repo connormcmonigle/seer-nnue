@@ -333,10 +333,6 @@ struct thread_worker {
       }
     }
 
-    // step 4. internal iterative reductions
-    const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
-    if (should_iir) { --depth; }
-
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
@@ -503,7 +499,7 @@ struct thread_worker {
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
-
+          if (!maybe.has_value() && depth >= external.constants->iir_depth()) { ++reduction; }
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
           // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
           if (is_player(reducer, !bd.turn())) { ++reduction; }
