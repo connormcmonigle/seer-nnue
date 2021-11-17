@@ -370,18 +370,7 @@ struct thread_worker {
     if (snm_prune) { return make_result(value, move::null()); }
 
     if (!is_pv && depth <= 3 && value >= beta && !threatened.any()){
-      constexpr search::counter_type history_threshold = 1024;
-      constexpr size_t count_threshold = 4;
-
-      const history::context ctxt{ss.follow(), ss.counter()};
-      size_t likely_cut_count = 0;
-      for (const auto& mv : list) {
-        if (mv.is_quiet() && internal.hh.us(bd.turn()).compute_value(ctxt, mv) >= history_threshold) {
-          if (++likely_cut_count >= count_threshold) {
-            return make_result(beta, move::null());
-          }
-        }
-      }
+      return make_result(beta, move::null());
     }
 
     // step 9. prob pruning
