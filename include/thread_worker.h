@@ -370,8 +370,8 @@ struct thread_worker {
     if (snm_prune) { return make_result(value, move::null()); }
 
     if (!is_pv && depth <= 3 && value >= beta && !threatened.any()){
-      constexpr search::counter_type history_threshold = 1024;
-      constexpr size_t count_threshold = 4;
+      constexpr search::counter_type history_threshold = 8192;
+      constexpr size_t count_threshold = 3;
 
       const history::context ctxt{ss.follow(), ss.counter()};
       size_t likely_cut_count = 0;
