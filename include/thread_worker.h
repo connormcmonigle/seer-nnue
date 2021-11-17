@@ -419,8 +419,8 @@ struct thread_worker {
 
         if (lm_prune) { break; }
 
-        const bool futility_prune =
-            mv.is_quiet() && depth <= external.constants->futility_prune_depth() && value + external.constants->futility_margin(depth) < alpha;
+        const bool futility_prune = mv.is_quiet() && !threatened.is_member(mv.from()) && depth <= external.constants->futility_prune_depth() &&
+                                    value + external.constants->futility_margin(depth) < alpha;
 
         if (futility_prune) { continue; }
 
