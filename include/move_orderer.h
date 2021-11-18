@@ -71,18 +71,31 @@ struct move_orderer_data {
 struct move_orderer_entry {
   using value_ = bit::range<std::uint32_t, 0, 32>;
   using killer_ = bit::next_flag<value_>;
-  using nonnegative_noisy_ = bit::next_flag<killer_>;
-  using first_ = bit::next_flag<nonnegative_noisy_>;
+  using positive_noisy_ = bit::next_flag<killer_>;
+  using first_ = bit::next_flag<positive_noisy_>;
 
   move mv;
-  std::uint64_t data;
+  std::uint64_t data_;
+
+  std::uint64_t sort_key() const { return data_; }
 
   move_orderer_entry() = default;
-  move_orderer_entry(const move& mv_, bool is_first, bool is_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data{0} {
-    first_::set(data, is_first);
-    nonnegative_noisy_::set(data, is_noisy);
-    killer_::set(data, is_killer);
-    value_::set(data, make_positive(value));
+  move_orderer_entry(const move& mv_, bool is_first, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
+    first_::set(data_, is_first);
+    positive_noisy_::set(data_, is_positive_noisy);
+    killer_::set(data_, is_killer);
+    value_::set(data_, make_positive(value));
+  }
+
+  static inline move_orderer_entry make_first(const move& mv) { return move_orderer_entry(mv, true, false, false, 0); }
+
+  static inline move_orderer_entry make_noisy(const move& mv, const std::int32_t& see_value, const std::int32_t& history_value) {
+    const bool positive_noisy = see_value > 0;
+    return move_orderer_entry(mv, false, positive_noisy, false, positive_noisy ? see_value : history_value);
+  }
+
+  static inline move_orderer_entry make_quiet(const move& mv, const move& killer, const std::int32_t& history_value) {
+    return move_orderer_entry(mv, false, false, mv == killer, history_value);
   }
 };
 
@@ -102,7 +115,8 @@ struct move_orderer_iterator {
   entry_array_type::iterator end_;
 
   void update_list_() {
-    std::iter_swap(begin_, std::max_element(begin_, end_, [](const move_orderer_entry& a, const move_orderer_entry& b) { return a.data < b.data; }));
+    auto comparator = [](const move_orderer_entry& a, const move_orderer_entry& b) { return a.sort_key() < b.sort_key(); };
+    std::iter_swap(begin_, std::max_element(begin_, end_, comparator));
   }
 
   move_orderer_iterator& operator++() {
@@ -129,13 +143,11 @@ struct move_orderer_iterator {
 
   move_orderer_iterator(const move_orderer_data& data) : entries_{}, begin_{entries_.begin()} {
     end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data](const move& mv) {
-      const bool quiet = mv.is_quiet();
-      
-      const std::int32_t capture_see_value = mv.is_capture() ? data.bd->see<std::int32_t>(mv) : 0;
-      const std::int32_t value =
-          (quiet || capture_see_value <= 0) ? data.hh->compute_value(history::context{data.follow, data.counter}, mv) : capture_see_value;
+      if (mv == data.first) { return move_orderer_entry::make_first(mv); }
 
-      return move_orderer_entry(mv, mv == data.first, !quiet && capture_see_value > 0, quiet && mv == data.killer, value);
+      const auto ctxt = history::context{data.follow, data.counter};
+      if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see<std::int32_t>(mv), data.hh->compute_value(ctxt, mv)); }
+      return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
     });
 
     update_list_();
