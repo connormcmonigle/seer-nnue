@@ -391,8 +391,8 @@ struct thread_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
     }
 
-    // list of attempted quiets for updating histories
-    move_list quiets_tried{};
+    // list of attempted moves for updating histories
+    move_list moves_tried{};
 
     // move loop
     search::score_type best_score = ss.loss_score();
@@ -523,7 +523,7 @@ struct thread_worker {
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
       }();
 
-      if (score < beta && mv.is_quiet()) { quiets_tried.add_(mv); }
+      if (score < beta && (mv.is_quiet() || see_value <= 0)) { moves_tried.add_(mv); }
 
       if (score > best_score) {
         best_score = score;
@@ -543,8 +543,8 @@ struct thread_worker {
         return bound_type::upper;
       }();
 
-      if (bound == bound_type::lower && best_move.is_quiet()) {
-        internal.hh.us(bd.turn()).update(history::context{follow, counter}, best_move, quiets_tried, depth);
+      if (bound == bound_type::lower && (best_move.is_quiet() || bd.see<search::see_type>(best_move) <= 0)) {
+        internal.hh.us(bd.turn()).update(history::context{follow, counter}, best_move, moves_tried, depth);
         ss.set_killer(best_move);
       }
 
