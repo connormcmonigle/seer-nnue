@@ -107,7 +107,7 @@ struct move_orderer_iterator {
 
   move_orderer_iterator& operator++() {
     ++begin_;
-    if (begin_ != end_){ update_list_(); }
+    if (begin_ != end_) { update_list_(); }
     return *this;
   }
 
@@ -130,8 +130,12 @@ struct move_orderer_iterator {
   move_orderer_iterator(const move_orderer_data& data) : entries_{}, begin_{entries_.begin()} {
     end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data](const move& mv) {
       const bool quiet = mv.is_quiet();
-      const std::int32_t value = quiet ? data.hh->compute_value(history::context{data.follow, data.counter}, mv) : data.bd->see<std::int32_t>(mv);
-      return move_orderer_entry(mv, mv == data.first, !quiet && value >= 0, quiet && mv == data.killer, value);
+      
+      const std::int32_t capture_see_value = mv.is_capture() ? data.bd->see<std::int32_t>(mv) : 0;
+      const std::int32_t value =
+          (quiet || capture_see_value <= 0) ? data.hh->compute_value(history::context{data.follow, data.counter}, mv) : capture_see_value;
+
+      return move_orderer_entry(mv, mv == data.first, !quiet && capture_see_value > 0, quiet && mv == data.killer, value);
     });
 
     update_list_();

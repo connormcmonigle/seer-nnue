@@ -56,7 +56,7 @@ value_type formula(const value_type& x, const value_type& gain) {
 struct butterfly_info {
   static constexpr size_t N = constants::num_squares * constants::num_squares;
 
-  static constexpr bool is_applicable(const context&, const move&) { return true; }
+  static constexpr bool is_applicable(const context&, const move& mv) { return mv.is_quiet(); }
 
   static constexpr size_t compute_index(const context&, const move& mv) {
     const size_t from = static_cast<size_t>(mv.from().index());
@@ -68,7 +68,7 @@ struct butterfly_info {
 struct counter_info {
   static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
 
-  static constexpr bool is_applicable(const context& ctxt, const move&) { return !ctxt.counter.is_null(); }
+  static constexpr bool is_applicable(const context& ctxt, const move& mv) { return !ctxt.counter.is_null() && mv.is_quiet(); }
 
   static constexpr size_t compute_index(const context& ctxt, const move& mv) {
     const size_t p0 = static_cast<size_t>(ctxt.counter.piece());
@@ -83,7 +83,7 @@ struct counter_info {
 struct follow_info {
   static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
 
-  static constexpr bool is_applicable(const context& ctxt, const move&) { return !ctxt.follow.is_null(); }
+  static constexpr bool is_applicable(const context& ctxt, const move& mv) { return !ctxt.follow.is_null() && mv.is_quiet(); }
 
   static constexpr size_t compute_index(const context& ctxt, const move& mv) {
     const size_t p0 = static_cast<size_t>(ctxt.follow.piece());
@@ -92,6 +92,19 @@ struct follow_info {
     const size_t to1 = static_cast<size_t>(mv.to().index());
     return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
            p1 * constants::num_squares + to1;
+  }
+};
+
+struct capture_info {
+  static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_pieces;
+
+  static constexpr bool is_applicable(const context&, const move& mv) { return mv.is_capture(); }
+
+  static constexpr size_t compute_index(const context&, const move& mv) {
+    const size_t piece = static_cast<size_t>(mv.piece());
+    const size_t to = static_cast<size_t>(mv.to().index());
+    const size_t capture = static_cast<size_t>(mv.captured());
+    return piece * constants::num_squares * constants::num_pieces + to * constants::num_pieces + capture;
   }
 };
 
@@ -143,7 +156,7 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic = history::combined<history::butterfly_info, history::counter_info, history::follow_info>;
+using history_heuristic = history::combined<history::butterfly_info, history::counter_info, history::follow_info, history::capture_info>;
 
 struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;
