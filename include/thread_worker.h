@@ -508,7 +508,7 @@ struct thread_worker {
           // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
           if (is_player(reducer, !bd.turn())) { ++reduction; }
 
-          if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
+          reduction += external.constants->history_reduction(history_value);
 
           reduction = std::max(0, reduction);
 
