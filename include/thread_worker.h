@@ -391,6 +391,19 @@ struct thread_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
     }
 
+    const bool try_shallow_multicut = !is_pv && !ss.has_excluded() && depth < external.constants->singular_extension_depth() && maybe.has_value() &&
+                                      maybe->bound() == bound_type::lower && list.has(maybe->best_move()) &&
+                                      maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
+
+    if (try_shallow_multicut) {
+      const search::depth_type multicut_depth = std::max(1, depth / 2);  
+      ss.set_excluded(maybe->best_move());
+      const search::score_type excluded_score = pv_search<false>(ss, eval, bd, beta - 1, beta, multicut_depth, reducer);
+      ss.set_excluded(move::null());
+
+      if (excluded_score >= beta) { return make_result(excluded_score, move::null()); }
+    }
+
     // list of attempted moves for updating histories
     move_list moves_tried{};
 
