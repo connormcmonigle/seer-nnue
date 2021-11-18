@@ -77,7 +77,7 @@ struct move_orderer_entry {
   move mv;
   std::uint64_t data_;
 
-  std::uint64_t sort_key() const { return data_; }
+  const std::uint64_t& sort_key() const { return data_; }
 
   move_orderer_entry() = default;
   move_orderer_entry(const move& mv_, bool is_first, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
