@@ -90,7 +90,7 @@ struct stack_view {
   stack* view_;
   depth_type height_{};
 
-  constexpr score_type loss_score() const {  return mate_score + height_; }
+  constexpr score_type loss_score() const { return mate_score + height_; }
 
   constexpr score_type win_score() const { return -mate_score - height_; }
 
@@ -110,6 +110,11 @@ struct stack_view {
   chess::move follow() const {
     if (height_ <= 1) { return chess::move::null(); }
     return view_->at(height_ - 2).played_;
+  }
+
+  chess::move next_killer() const {
+    if (height_ >= (safe_depth_ - 1)) { return chess::move::null(); }
+    return view_->at(height_ + 1).killer_;
   }
 
   chess::move killer() const { return view_->at(height_).killer_; }

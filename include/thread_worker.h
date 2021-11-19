@@ -308,11 +308,17 @@ struct thread_worker {
 
     // step 3. initialize move orderer (setting tt move first if applicable)
     // and check for tt entry + tt induced cutoff on nonpv nodes
+    const move next_killer = ss.next_killer();
     const move killer = ss.killer();
     const move follow = ss.follow();
     const move counter = ss.counter();
 
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter));
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
+                             .set_next_killer(next_killer)
+                             .set_killer(killer)
+                             .set_follow(follow)
+                             .set_counter(counter));
+
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
