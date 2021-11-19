@@ -343,6 +343,8 @@ struct thread_worker {
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
+    if (list.size() <= 2 && depth >= 4) { ++depth; }
+
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
@@ -456,8 +458,8 @@ struct thread_worker {
 
         if (history_ext) { return 1; }
 
-        const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
-                                  mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
+        const bool try_singular = !is_root && !ss.has_excluded() && list.size() > 2 && depth >= external.constants->singular_extension_depth() &&
+                                  maybe.has_value() && mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
                                   maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
 
         if (try_singular) {
