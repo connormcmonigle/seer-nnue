@@ -396,7 +396,7 @@ struct thread_worker {
                                       maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
 
     if (try_shallow_multicut) {
-      const search::depth_type multicut_depth = std::max(1, depth / 2);  
+      const search::depth_type multicut_depth = std::max(1, depth - 2);  
       ss.set_excluded(maybe->best_move());
       const search::score_type excluded_score = pv_search<false>(ss, eval, bd, beta - 1, beta, multicut_depth, reducer);
       ss.set_excluded(move::null());
