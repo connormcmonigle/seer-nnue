@@ -113,8 +113,8 @@ struct stack_view {
   }
 
   chess::move next_killer() const {
-    if (height_ >= (safe_depth_ - 1)) { return chess::move::null(); }
-    return view_->at(height_ + 1).killer_;
+    if (height_ >= (safe_depth_ - 2)) { return chess::move::null(); }
+    return view_->at(height_ + 2).killer_;
   }
 
   chess::move killer() const { return view_->at(height_).killer_; }
