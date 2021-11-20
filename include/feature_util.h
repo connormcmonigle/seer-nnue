@@ -4,6 +4,10 @@
 #include <square.h>
 
 namespace feature {
+namespace half_ka {
+
+constexpr size_t numel = 64 * 12 * 64;
+constexpr size_t max_active_half_features = 32;
 
 constexpr size_t major = 64 * 12;
 constexpr size_t minor = 64;
@@ -55,4 +59,5 @@ constexpr size_t index(const chess::square& ks, const chess::piece_type& pt, con
   }
 }
 
+}  // namespace half_ka
 }  // namespace feature

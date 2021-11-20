@@ -510,10 +510,11 @@ struct board {
 
   template <color c, typename T>
   void feature_half_refresh(T& sided_set, const square& our_king) const {
+    namespace h_ka = feature::half_ka;
     sided_set.template us<c>().clear();
     over_types([&](const piece_type& pt) {
-      for (const auto sq : man_.white.get_plane(pt)) { sided_set.template us<c>().insert(feature::index<c, color::white>(our_king, pt, sq)); }
-      for (const auto sq : man_.black.get_plane(pt)) { sided_set.template us<c>().insert(feature::index<c, color::black>(our_king, pt, sq)); }
+      for (const auto sq : man_.white.get_plane(pt)) { sided_set.template us<c>().insert(h_ka::index<c, color::white>(our_king, pt, sq)); }
+      for (const auto sq : man_.black.get_plane(pt)) { sided_set.template us<c>().insert(h_ka::index<c, color::black>(our_king, pt, sq)); }
     });
   }
 
@@ -525,6 +526,7 @@ struct board {
 
   template <color c, typename T>
   void feature_move_delta(const move& mv, T& sided_set) const {
+    namespace h_ka = feature::half_ka;
     if (mv.is_castle_oo<c>() || mv.is_castle_ooo<c>()) {
       forward_<c>(mv).feature_full_refresh(sided_set);
       return;
@@ -535,25 +537,25 @@ struct board {
 
     if (!man_.us<c>().king().is_member(our_king)) { feature_half_refresh<c>(sided_set, our_king); }
 
-    sided_set.template us<c>().erase(feature::index<c, c>(our_king, mv.piece(), mv.from()));
-    sided_set.template them<c>().erase(feature::index<opponent<c>, c>(their_king, mv.piece(), mv.from()));
+    sided_set.template us<c>().erase(h_ka::index<c, c>(our_king, mv.piece(), mv.from()));
+    sided_set.template them<c>().erase(h_ka::index<opponent<c>, c>(their_king, mv.piece(), mv.from()));
 
     if (mv.is_promotion<c>()) {
-      sided_set.template us<c>().insert(feature::index<c, c>(our_king, mv.promotion(), mv.to()));
-      sided_set.template them<c>().insert(feature::index<opponent<c>, c>(their_king, mv.promotion(), mv.to()));
+      sided_set.template us<c>().insert(h_ka::index<c, c>(our_king, mv.promotion(), mv.to()));
+      sided_set.template them<c>().insert(h_ka::index<opponent<c>, c>(their_king, mv.promotion(), mv.to()));
     } else {
-      sided_set.template us<c>().insert(feature::index<c, c>(our_king, mv.piece(), mv.to()));
-      sided_set.template them<c>().insert(feature::index<opponent<c>, c>(their_king, mv.piece(), mv.to()));
+      sided_set.template us<c>().insert(h_ka::index<c, c>(our_king, mv.piece(), mv.to()));
+      sided_set.template them<c>().insert(h_ka::index<opponent<c>, c>(their_king, mv.piece(), mv.to()));
     }
 
     if (mv.is_enpassant()) {
-      sided_set.template them<c>().erase(feature::index<opponent<c>, opponent<c>>(their_king, piece_type::pawn, mv.enpassant_sq()));
-      sided_set.template us<c>().erase(feature::index<c, opponent<c>>(our_king, piece_type::pawn, mv.enpassant_sq()));
+      sided_set.template them<c>().erase(h_ka::index<opponent<c>, opponent<c>>(their_king, piece_type::pawn, mv.enpassant_sq()));
+      sided_set.template us<c>().erase(h_ka::index<c, opponent<c>>(our_king, piece_type::pawn, mv.enpassant_sq()));
     }
 
     if (mv.is_capture()) {
-      sided_set.template them<c>().erase(feature::index<opponent<c>, opponent<c>>(their_king, mv.captured(), mv.to()));
-      sided_set.template us<c>().erase(feature::index<c, opponent<c>>(our_king, mv.captured(), mv.to()));
+      sided_set.template them<c>().erase(h_ka::index<opponent<c>, opponent<c>>(their_king, mv.captured(), mv.to()));
+      sided_set.template us<c>().erase(h_ka::index<c, opponent<c>>(our_king, mv.captured(), mv.to()));
     }
   }
 
