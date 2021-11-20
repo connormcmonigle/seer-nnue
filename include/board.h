@@ -18,7 +18,8 @@
 #pragma once
 
 #include <board_state.h>
-#include <enum_util.h>
+#include <chess_types.h>
+#include <feature_util.h>
 #include <position_history.h>
 #include <square.h>
 #include <table_generation.h>
@@ -35,51 +36,6 @@
 #include <vector>
 
 namespace chess {
-
-namespace feature_idx {
-
-constexpr size_t major = 64 * 12;
-constexpr size_t minor = 64;
-
-constexpr size_t us_pawn_offset = 0;
-constexpr size_t us_knight_offset = us_pawn_offset + minor;
-constexpr size_t us_bishop_offset = us_knight_offset + minor;
-constexpr size_t us_rook_offset = us_bishop_offset + minor;
-constexpr size_t us_queen_offset = us_rook_offset + minor;
-constexpr size_t us_king_offset = us_queen_offset + minor;
-
-constexpr size_t them_pawn_offset = us_king_offset + minor;
-constexpr size_t them_knight_offset = them_pawn_offset + minor;
-constexpr size_t them_bishop_offset = them_knight_offset + minor;
-constexpr size_t them_rook_offset = them_bishop_offset + minor;
-constexpr size_t them_queen_offset = them_rook_offset + minor;
-constexpr size_t them_king_offset = them_queen_offset + minor;
-
-constexpr size_t us_offset(piece_type pt) {
-  switch (pt) {
-    case piece_type::pawn: return us_pawn_offset;
-    case piece_type::knight: return us_knight_offset;
-    case piece_type::bishop: return us_bishop_offset;
-    case piece_type::rook: return us_rook_offset;
-    case piece_type::queen: return us_queen_offset;
-    case piece_type::king: return us_king_offset;
-    default: return us_pawn_offset;
-  }
-}
-
-constexpr size_t them_offset(piece_type pt) {
-  switch (pt) {
-    case piece_type::pawn: return them_pawn_offset;
-    case piece_type::knight: return them_knight_offset;
-    case piece_type::bishop: return them_bishop_offset;
-    case piece_type::rook: return them_rook_offset;
-    case piece_type::queen: return them_queen_offset;
-    case piece_type::king: return them_king_offset;
-    default: return them_pawn_offset;
-  }
-}
-
-}  // namespace feature_idx
 
 template <typename T>
 constexpr T material_value(const piece_type& pt) {
@@ -104,7 +60,7 @@ struct board {
 
   template <color c>
   std::tuple<piece_type, square> least_valuable_attacker(const square& tgt, const square_set& ignore) const {
-    const auto p_mask = pawn_attack_tbl<them_<c>::value>.look_up(tgt);
+    const auto p_mask = pawn_attack_tbl<opponent<c>>.look_up(tgt);
     const auto p_attackers = p_mask & man_.us<c>().pawn() & ~ignore;
     if (p_attackers.any()) { return std::tuple(piece_type::pawn, *p_attackers.begin()); }
 
@@ -158,7 +114,7 @@ struct board {
   square_set threat_mask() const {
     // idea from koivisto
     const square_set occ = man_.white.all() | man_.black.all();
-    
+
     square_set threats{};
     square_set vulnerable = man_.them<c>().all();
 
@@ -185,7 +141,7 @@ struct board {
   square_set king_danger() const {
     const square_set occ = (man_.white.all() | man_.black.all()) & ~man_.us<c>().king();
     square_set k_danger{};
-    for (const auto sq : man_.them<c>().pawn()) { k_danger |= pawn_attack_tbl<them_<c>::value>.look_up(sq); }
+    for (const auto sq : man_.them<c>().pawn()) { k_danger |= pawn_attack_tbl<opponent<c>>.look_up(sq); }
     for (const auto sq : man_.them<c>().knight()) { k_danger |= knight_attack_tbl.look_up(sq); }
     for (const auto sq : man_.them<c>().king()) { k_danger |= king_attack_tbl.look_up(sq); }
     for (const auto sq : man_.them<c>().rook()) { k_danger |= rook_attack_tbl.look_up(sq, occ); }
@@ -219,8 +175,8 @@ struct board {
     if (lat_.them<c>().ep_mask().any()) {
       const square_set occ = man_.white.all() | man_.black.all();
       const square ep_square = lat_.them<c>().ep_mask().item();
-      const square_set enemy_pawn_mask = pawn_push_tbl<them_<c>::value>.look_up(ep_square, square_set{});
-      const square_set from_mask = pawn_attack_tbl<them_<c>::value>.look_up(ep_square) & man_.us<c>().pawn();
+      const square_set enemy_pawn_mask = pawn_push_tbl<opponent<c>>.look_up(ep_square, square_set{});
+      const square_set from_mask = pawn_attack_tbl<opponent<c>>.look_up(ep_square) & man_.us<c>().pawn();
       for (const auto from : from_mask) {
         const square_set occ_ = (occ & ~square_set{from.bit_board()} & ~enemy_pawn_mask) | lat_.them<c>().ep_mask();
         if (!std::get<0>(checkers<c>(occ_)).any()) {
@@ -390,14 +346,15 @@ struct board {
   move_list generate_noisy_moves() const { return turn() ? generate_moves_<color::white, false>() : generate_moves_<color::black, false>(); }
 
   template <color c>
-  bool is_check_() const { return std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).any(); }
+  bool is_check_() const {
+    return std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).any();
+  }
 
   bool is_check() const { return turn() ? is_check_<color::white>() : is_check_<color::black>(); }
 
   square_set us_threat_mask() const { return turn() ? threat_mask<color::white>() : threat_mask<color::black>(); }
 
   square_set them_threat_mask() const { return turn() ? threat_mask<color::black>() : threat_mask<color::white>(); }
-
 
   template <color c, typename T>
   T see_(const move& mv) const {
@@ -410,7 +367,7 @@ struct board {
 
     for (;;) {
       {
-        const auto [p, sq] = least_valuable_attacker<them_<c>::value>(tgt_sq, used_mask);
+        const auto [p, sq] = least_valuable_attacker<opponent<c>>(tgt_sq, used_mask);
         if (sq == tgt_sq) { break; }
 
         material_deltas[last_idx++] = material_value<T>(on_sq);
@@ -479,54 +436,54 @@ struct board {
 
   template <color c>
   board forward_(const move& mv) const {
-    board cpy = *this;
+    board copy = *this;
     if (mv.is_null()) {
       assert(!is_check_<c>());
     } else if (mv.is_castle_ooo<c>()) {
-      cpy.lat_.us<c>().set_ooo(false).set_oo(false);
-      cpy.man_.us<c>().remove_piece(piece_type::king, castle_info<c>.start_king);
-      cpy.man_.us<c>().remove_piece(piece_type::rook, castle_info<c>.ooo_rook);
-      cpy.man_.us<c>().add_piece(piece_type::king, castle_info<c>.after_ooo_king);
-      cpy.man_.us<c>().add_piece(piece_type::rook, castle_info<c>.after_ooo_rook);
+      copy.lat_.us<c>().set_ooo(false).set_oo(false);
+      copy.man_.us<c>().remove_piece(piece_type::king, castle_info<c>.start_king);
+      copy.man_.us<c>().remove_piece(piece_type::rook, castle_info<c>.ooo_rook);
+      copy.man_.us<c>().add_piece(piece_type::king, castle_info<c>.after_ooo_king);
+      copy.man_.us<c>().add_piece(piece_type::rook, castle_info<c>.after_ooo_rook);
     } else if (mv.is_castle_oo<c>()) {
-      cpy.lat_.us<c>().set_ooo(false).set_oo(false);
-      cpy.man_.us<c>().remove_piece(piece_type::king, castle_info<c>.start_king);
-      cpy.man_.us<c>().remove_piece(piece_type::rook, castle_info<c>.oo_rook);
-      cpy.man_.us<c>().add_piece(piece_type::king, castle_info<c>.after_oo_king);
-      cpy.man_.us<c>().add_piece(piece_type::rook, castle_info<c>.after_oo_rook);
+      copy.lat_.us<c>().set_ooo(false).set_oo(false);
+      copy.man_.us<c>().remove_piece(piece_type::king, castle_info<c>.start_king);
+      copy.man_.us<c>().remove_piece(piece_type::rook, castle_info<c>.oo_rook);
+      copy.man_.us<c>().add_piece(piece_type::king, castle_info<c>.after_oo_king);
+      copy.man_.us<c>().add_piece(piece_type::rook, castle_info<c>.after_oo_rook);
     } else {
-      cpy.man_.us<c>().remove_piece(mv.piece(), mv.from());
+      copy.man_.us<c>().remove_piece(mv.piece(), mv.from());
       if (mv.is_promotion<c>()) {
-        cpy.man_.us<c>().add_piece(mv.promotion(), mv.to());
+        copy.man_.us<c>().add_piece(mv.promotion(), mv.to());
       } else {
-        cpy.man_.us<c>().add_piece(mv.piece(), mv.to());
+        copy.man_.us<c>().add_piece(mv.piece(), mv.to());
       }
       if (mv.is_capture()) {
-        cpy.man_.them<c>().remove_piece(mv.captured(), mv.to());
+        copy.man_.them<c>().remove_piece(mv.captured(), mv.to());
       } else if (mv.is_enpassant()) {
-        cpy.man_.them<c>().remove_piece(piece_type::pawn, mv.enpassant_sq());
+        copy.man_.them<c>().remove_piece(piece_type::pawn, mv.enpassant_sq());
       } else if (mv.is_pawn_double<c>()) {
-        const square ep = pawn_push_tbl<them_<c>::value>.look_up(mv.to(), square_set{}).item();
-        if ((man_.them<c>().pawn() & pawn_attack_tbl<c>.look_up(ep)).any()) { cpy.lat_.us<c>().set_ep_mask(ep); }
+        const square ep = pawn_push_tbl<opponent<c>>.look_up(mv.to(), square_set{}).item();
+        if ((man_.them<c>().pawn() & pawn_attack_tbl<c>.look_up(ep)).any()) { copy.lat_.us<c>().set_ep_mask(ep); }
       }
       if (mv.from() == castle_info<c>.start_king) {
-        cpy.lat_.us<c>().set_ooo(false).set_oo(false);
+        copy.lat_.us<c>().set_ooo(false).set_oo(false);
       } else if (mv.from() == castle_info<c>.oo_rook) {
-        cpy.lat_.us<c>().set_oo(false);
+        copy.lat_.us<c>().set_oo(false);
       } else if (mv.from() == castle_info<c>.ooo_rook) {
-        cpy.lat_.us<c>().set_ooo(false);
+        copy.lat_.us<c>().set_ooo(false);
       }
-      if (mv.to() == castle_info<them_<c>::value>.oo_rook) {
-        cpy.lat_.them<c>().set_oo(false);
-      } else if (mv.to() == castle_info<them_<c>::value>.ooo_rook) {
-        cpy.lat_.them<c>().set_ooo(false);
+      if (mv.to() == castle_info<opponent<c>>.oo_rook) {
+        copy.lat_.them<c>().set_oo(false);
+      } else if (mv.to() == castle_info<opponent<c>>.ooo_rook) {
+        copy.lat_.them<c>().set_ooo(false);
       }
     }
-    cpy.lat_.them<c>().clear_ep_mask();
-    ++cpy.lat_.ply_count;
-    ++cpy.lat_.half_clock;
-    if (mv.is_capture() || mv.piece() == piece_type::pawn) { cpy.lat_.half_clock = 0; }
-    return cpy;
+    copy.lat_.them<c>().clear_ep_mask();
+    ++copy.lat_.ply_count;
+    ++copy.lat_.half_clock;
+    if (mv.is_capture() || mv.piece() == piece_type::pawn) { copy.lat_.half_clock = 0; }
+    return copy;
   }
 
   board forward(const move& mv) const { return turn() ? forward_<color::white>(mv) : forward_<color::black>(mv); }
@@ -551,71 +508,64 @@ struct board {
     return mirror;
   }
 
-  template <color c, typename U>
-  void show_feature_indices(U& updatable) const {
-    using namespace feature_idx;
-    const size_t king_idx = man_.us<c>().king().item().index();
-    // us
-    for (const auto sq : man_.us<c>().pawn()) { updatable.template us<c>().insert(major * king_idx + us_pawn_offset + sq.index()); }
-    for (const auto sq : man_.us<c>().knight()) { updatable.template us<c>().insert(major * king_idx + us_knight_offset + sq.index()); }
-    for (const auto sq : man_.us<c>().bishop()) { updatable.template us<c>().insert(major * king_idx + us_bishop_offset + sq.index()); }
-    for (const auto sq : man_.us<c>().rook()) { updatable.template us<c>().insert(major * king_idx + us_rook_offset + sq.index()); }
-    for (const auto sq : man_.us<c>().queen()) { updatable.template us<c>().insert(major * king_idx + us_queen_offset + sq.index()); }
-    for (const auto sq : man_.us<c>().king()) { updatable.template us<c>().insert(major * king_idx + us_king_offset + sq.index()); }
-    // them
-    for (const auto sq : man_.them<c>().pawn()) { updatable.template us<c>().insert(major * king_idx + them_pawn_offset + sq.index()); }
-    for (const auto sq : man_.them<c>().knight()) { updatable.template us<c>().insert(major * king_idx + them_knight_offset + sq.index()); }
-    for (const auto sq : man_.them<c>().bishop()) { updatable.template us<c>().insert(major * king_idx + them_bishop_offset + sq.index()); }
-    for (const auto sq : man_.them<c>().rook()) { updatable.template us<c>().insert(major * king_idx + them_rook_offset + sq.index()); }
-    for (const auto sq : man_.them<c>().queen()) { updatable.template us<c>().insert(major * king_idx + them_queen_offset + sq.index()); }
-    for (const auto sq : man_.them<c>().king()) { updatable.template us<c>().insert(major * king_idx + them_king_offset + sq.index()); }
+  template <color c, typename T>
+  void feature_half_refresh(T& sided_set, const square& our_king) const {
+    sided_set.template us<c>().clear();
+    over_types([&](const piece_type& pt) {
+      for (const auto sq : man_.white.get_plane(pt)) { sided_set.template us<c>().insert(feature::index<c, color::white>(our_king, pt, sq)); }
+      for (const auto sq : man_.black.get_plane(pt)) { sided_set.template us<c>().insert(feature::index<c, color::black>(our_king, pt, sq)); }
+    });
   }
 
-  template <typename U>
-  void show_init(U& u) const {
-    u.white.clear();
-    u.black.clear();
-    show_feature_indices<color::white>(u);
-    show_feature_indices<color::black>(u);
+  template <typename T>
+  void feature_full_refresh(T& sided_set) const {
+    feature_half_refresh<color::white>(sided_set, man_.white.king().item());
+    feature_half_refresh<color::black>(sided_set, man_.black.king().item());
   }
 
-  template <color c, typename U>
-  void show_delta(const move& mv, U& updatable) const {
-    using namespace feature_idx;
-    const size_t their_king_idx = man_.them<c>().king().item().index();
-    const size_t our_king_idx = man_.us<c>().king().item().index();
-    if (mv.piece() == piece_type::king) {
-      forward_<c>(mv).show_init(updatable);
+  template <color c, typename T>
+  void feature_move_delta(const move& mv, T& sided_set) const {
+    if (mv.is_castle_oo<c>() || mv.is_castle_ooo<c>()) {
+      forward_<c>(mv).feature_full_refresh(sided_set);
+      return;
+    }
+
+    const square their_king = man_.them<c>().king().item();
+    const square our_king = (mv.piece() == piece_type::king) ? mv.to() : man_.us<c>().king().item();
+
+    if (mv.piece() == piece_type::king) { feature_half_refresh<c>(sided_set, our_king); }
+
+    sided_set.template us<c>().erase(feature::index<c, c>(our_king, mv.piece(), mv.from()));
+    sided_set.template them<c>().erase(feature::index<opponent<c>, c>(their_king, mv.piece(), mv.from()));
+
+    if (mv.is_promotion<c>()) {
+      sided_set.template us<c>().insert(feature::index<c, c>(our_king, mv.promotion(), mv.to()));
+      sided_set.template them<c>().insert(feature::index<opponent<c>, c>(their_king, mv.promotion(), mv.to()));
     } else {
-      updatable.template us<c>().erase(major * our_king_idx + mv.from().index() + us_offset(mv.piece()));
-      updatable.template them<c>().erase(major * their_king_idx + mv.from().index() + them_offset(mv.piece()));
-      if (mv.is_promotion<c>()) {
-        updatable.template us<c>().insert(major * our_king_idx + mv.to().index() + us_offset(mv.promotion()));
-        updatable.template them<c>().insert(major * their_king_idx + mv.to().index() + them_offset(mv.promotion()));
-      } else {
-        updatable.template us<c>().insert(major * our_king_idx + mv.to().index() + us_offset(mv.piece()));
-        updatable.template them<c>().insert(major * their_king_idx + mv.to().index() + them_offset(mv.piece()));
-      }
-      if (mv.is_enpassant()) {
-        updatable.template them<c>().erase(major * their_king_idx + mv.enpassant_sq().index() + us_pawn_offset);
-        updatable.template us<c>().erase(major * our_king_idx + mv.enpassant_sq().index() + them_pawn_offset);
-      }
-      if (mv.is_capture()) {
-        updatable.template them<c>().erase(major * their_king_idx + mv.to().index() + us_offset(mv.captured()));
-        updatable.template us<c>().erase(major * our_king_idx + mv.to().index() + them_offset(mv.captured()));
-      }
+      sided_set.template us<c>().insert(feature::index<c, c>(our_king, mv.piece(), mv.to()));
+      sided_set.template them<c>().insert(feature::index<opponent<c>, c>(their_king, mv.piece(), mv.to()));
+    }
+
+    if (mv.is_enpassant()) {
+      sided_set.template them<c>().erase(feature::index<opponent<c>, opponent<c>>(their_king, piece_type::pawn, mv.enpassant_sq()));
+      sided_set.template us<c>().erase(feature::index<c, opponent<c>>(our_king, piece_type::pawn, mv.enpassant_sq()));
+    }
+
+    if (mv.is_capture()) {
+      sided_set.template them<c>().erase(feature::index<opponent<c>, opponent<c>>(their_king, mv.captured(), mv.to()));
+      sided_set.template us<c>().erase(feature::index<c, opponent<c>>(our_king, mv.captured(), mv.to()));
     }
   }
 
-  template <typename U>
-  U apply_update(const move& mv, const U& updatable) const {
-    U u = updatable;
+  template <typename T>
+  T apply_update(const move& mv, const T& sided_set) const {
+    T copy = sided_set;
     if (turn()) {
-      show_delta<color::white, U>(mv, u);
+      feature_move_delta<color::white>(mv, copy);
     } else {
-      show_delta<color::black, U>(mv, u);
+      feature_move_delta<color::black>(mv, copy);
     }
-    return u;
+    return copy;
   }
 
   std::tuple<position_history, board> after_uci_moves(const std::string& moves) const {

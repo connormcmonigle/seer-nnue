@@ -563,7 +563,7 @@ struct thread_worker {
   void iterative_deepening_loop_() {
     const auto evaluator = [this] {
       nnue::eval result(external.weights);
-      internal.stack.root_pos().show_init(result);
+      internal.stack.root_pos().feature_full_refresh(result);
       return result;
     }();
 
