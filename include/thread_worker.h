@@ -476,6 +476,8 @@ struct thread_worker {
           if (excluded_score >= beta) { multicut = true; }
         }
 
+        if (is_check && depth <= 6) { return 1; }
+
         return 0;
       }();
 
