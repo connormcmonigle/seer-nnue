@@ -456,8 +456,8 @@ struct thread_worker {
 
         if (history_ext) { return 1; }
 
-        const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
-                                  mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
+        const bool try_singular = !is_root && !is_check && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() &&
+                                  maybe.has_value() && mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
                                   maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
 
         if (try_singular) {
@@ -475,6 +475,8 @@ struct thread_worker {
 
           if (excluded_score >= beta) { multicut = true; }
         }
+
+        if (bd_.is_check() && depth >= 7) { return 1; }
 
         return 0;
       }();
