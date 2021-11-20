@@ -533,7 +533,7 @@ struct board {
     const square their_king = man_.them<c>().king().item();
     const square our_king = (mv.piece() == piece_type::king) ? mv.to() : man_.us<c>().king().item();
 
-    if (mv.piece() == piece_type::king) { feature_half_refresh<c>(sided_set, our_king); }
+    if (!man_.us<c>().king().is_member(our_king)) { feature_half_refresh<c>(sided_set, our_king); }
 
     sided_set.template us<c>().erase(feature::index<c, c>(our_king, mv.piece(), mv.from()));
     sided_set.template them<c>().erase(feature::index<opponent<c>, c>(their_king, mv.piece(), mv.from()));
