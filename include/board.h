@@ -509,18 +509,19 @@ struct board {
   }
 
   template <color c, typename T>
-  void feature_half_refresh(T& sided_set, const square& our_king) const {
-    sided_set.template us<c>().clear();
+  void raw_half_refresh(const T& mapper) const {
+    mapper.template clear<c>();
     over_types([&](const piece_type& pt) {
-      for (const auto sq : man_.white.get_plane(pt)) { sided_set.template us<c>().insert(feature::index<c, color::white>(our_king, pt, sq)); }
-      for (const auto sq : man_.black.get_plane(pt)) { sided_set.template us<c>().insert(feature::index<c, color::black>(our_king, pt, sq)); }
+      for (const auto sq : man_.white.get_plane(pt)) { mapper.template insert<c, color::white>(pt, sq); }
+      for (const auto sq : man_.black.get_plane(pt)) { mapper.template insert<c, color::black>(pt, sq); }
     });
   }
 
   template <typename T>
   void feature_full_refresh(T& sided_set) const {
-    feature_half_refresh<color::white>(sided_set, man_.white.king().item());
-    feature_half_refresh<color::black>(sided_set, man_.black.king().item());
+    const feature::half_ka::mapper<color::white, T> mapper{&sided_set, man_.black.king().item(), man_.white.king().item()};
+    raw_half_refresh<color::white>(mapper);
+    raw_half_refresh<color::black>(mapper);
   }
 
   template <color c, typename T>
@@ -531,29 +532,30 @@ struct board {
     }
 
     const square their_king = man_.them<c>().king().item();
-    const square our_king = (mv.piece() == piece_type::king) ? mv.to() : man_.us<c>().king().item();
+    const square our_king = mv.piece() == piece_type::king ? mv.to() : man_.us<c>().king().item();
 
-    if (mv.piece() == piece_type::king) { feature_half_refresh<c>(sided_set, our_king); }
+    const feature::half_ka::mapper<c, T> mapper{&sided_set, their_king, our_king};
+    if (!man_.us<c>().king().is_member(our_king)) { raw_half_refresh<c>(mapper); }
 
-    sided_set.template us<c>().erase(feature::index<c, c>(our_king, mv.piece(), mv.from()));
-    sided_set.template them<c>().erase(feature::index<opponent<c>, c>(their_king, mv.piece(), mv.from()));
+    mapper.template erase<c, c>(mv.piece(), mv.from());
+    mapper.template erase<opponent<c>, c>(mv.piece(), mv.from());
 
     if (mv.is_promotion<c>()) {
-      sided_set.template us<c>().insert(feature::index<c, c>(our_king, mv.promotion(), mv.to()));
-      sided_set.template them<c>().insert(feature::index<opponent<c>, c>(their_king, mv.promotion(), mv.to()));
+      mapper.template insert<c, c>(mv.promotion(), mv.to());
+      mapper.template insert<opponent<c>, c>(mv.promotion(), mv.to());
     } else {
-      sided_set.template us<c>().insert(feature::index<c, c>(our_king, mv.piece(), mv.to()));
-      sided_set.template them<c>().insert(feature::index<opponent<c>, c>(their_king, mv.piece(), mv.to()));
+      mapper.template insert<c, c>(mv.piece(), mv.to());
+      mapper.template insert<opponent<c>, c>(mv.piece(), mv.to());
     }
 
     if (mv.is_enpassant()) {
-      sided_set.template them<c>().erase(feature::index<opponent<c>, opponent<c>>(their_king, piece_type::pawn, mv.enpassant_sq()));
-      sided_set.template us<c>().erase(feature::index<c, opponent<c>>(our_king, piece_type::pawn, mv.enpassant_sq()));
+      mapper.template erase<opponent<c>, opponent<c>>(piece_type::pawn, mv.enpassant_sq());
+      mapper.template erase<c, opponent<c>>(piece_type::pawn, mv.enpassant_sq());
     }
 
     if (mv.is_capture()) {
-      sided_set.template them<c>().erase(feature::index<opponent<c>, opponent<c>>(their_king, mv.captured(), mv.to()));
-      sided_set.template us<c>().erase(feature::index<c, opponent<c>>(our_king, mv.captured(), mv.to()));
+      mapper.template erase<opponent<c>, opponent<c>>(mv.captured(), mv.to());
+      mapper.template erase<c, opponent<c>>(mv.captured(), mv.to());
     }
   }
 

@@ -5,6 +5,10 @@
 
 namespace feature {
 
+namespace half_ka {
+constexpr size_t numel = 768 * 64;
+constexpr size_t max_active_half_features = 32;
+
 constexpr size_t major = 64 * 12;
 constexpr size_t minor = 64;
 
@@ -46,13 +50,46 @@ constexpr size_t them_offset(const chess::piece_type& pt) {
   }
 }
 
-template <chess::color us, chess::color p>
-constexpr size_t index(const chess::square& ks, const chess::piece_type& pt, const chess::square& sq) {
-  if constexpr (us == p) {
-    return major * ks.index() + us_offset(pt) + sq.index();
-  } else {
-    return major * ks.index() + them_offset(pt) + sq.index();
+template <chess::color us, typename T>
+struct mapper {
+  T* sided_set;
+  chess::square their_king;
+  chess::square our_king;
+
+  template <chess::color point_of_view>
+  constexpr chess::square king() const {
+    if constexpr (us == point_of_view) {
+      return our_king;
+    } else {
+      return their_king;
+    }
   }
-}
+
+  template <chess::color point_of_view, chess::color piece_color>
+  constexpr size_t index_(const chess::piece_type& type, const chess::square& sq) const {
+    if constexpr (point_of_view == piece_color) {
+      return major * king<point_of_view>().index() + us_offset(type) + sq.index();
+    } else {
+      return major * king<point_of_view>().index() + them_offset(type) + sq.index();
+    }
+  }
+
+  template <chess::color point_of_view>
+  void clear() const {
+    sided_set->template us<point_of_view>().clear();
+  }
+
+  template <chess::color point_of_view, chess::color piece_color>
+  void insert(const chess::piece_type& type, const chess::square& sq) const {
+    sided_set->template us<point_of_view>().insert(index_<point_of_view, piece_color>(type, sq));
+  }
+
+  template <chess::color point_of_view, chess::color piece_color>
+  void erase(const chess::piece_type& type, const chess::square& sq) const {
+    sided_set->template us<point_of_view>().erase(index_<point_of_view, piece_color>(type, sq));
+  }
+};
+
+}  // namespace half_ka
 
 }  // namespace feature

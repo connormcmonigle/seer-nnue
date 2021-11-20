@@ -18,6 +18,7 @@
 
 #include <chess_types.h>
 #include <nnue_util.h>
+#include <feature_util.h>
 #include <search_constants.h>
 #include <weights_streamer.h>
 
@@ -28,16 +29,14 @@
 
 namespace nnue {
 
-constexpr size_t half_ka_numel = 768 * 64;
-constexpr size_t max_active_half_features = 32;
 constexpr size_t base_dim = 160;
 
 struct weights {
   using parameter_type = float;
 
   weights_streamer::signature_type signature_{0};
-  big_affine<parameter_type, half_ka_numel, base_dim> w{};
-  big_affine<parameter_type, half_ka_numel, base_dim> b{};
+  big_affine<parameter_type, feature::half_ka::numel, base_dim> w{};
+  big_affine<parameter_type, feature::half_ka::numel, base_dim> b{};
   stack_affine<parameter_type, 2 * base_dim, 16> fc0{};
   stack_affine<parameter_type, 16, 16> fc1{};
   stack_affine<parameter_type, 32, 16> fc2{};
@@ -69,7 +68,7 @@ struct weights {
 
 template <typename T>
 struct feature_transformer {
-  const big_affine<T, half_ka_numel, base_dim>* weights_;
+  const big_affine<T, feature::half_ka::numel, base_dim>* weights_;
   stack_vector<T, base_dim> active_;
   constexpr stack_vector<T, base_dim> active() const { return active_; }
 
@@ -77,7 +76,7 @@ struct feature_transformer {
   void insert(const size_t idx) { weights_->insert_idx(idx, active_); }
   void erase(const size_t idx) { weights_->erase_idx(idx, active_); }
 
-  feature_transformer(const big_affine<T, half_ka_numel, base_dim>* src) : weights_{src} { clear(); }
+  feature_transformer(const big_affine<T, feature::half_ka::numel, base_dim>* src) : weights_{src} { clear(); }
 };
 
 struct eval : chess::sided<eval, feature_transformer<weights::parameter_type>> {
