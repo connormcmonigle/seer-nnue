@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include <enum_util.h>
+#include <chess_types.h>
 #include <move.h>
 #include <square.h>
 #include <table_generation.h>

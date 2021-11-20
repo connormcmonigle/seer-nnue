@@ -18,7 +18,7 @@
 #pragma once
 
 #include <apply.h>
-#include <enum_util.h>
+#include <chess_types.h>
 #include <move.h>
 #include <position_history.h>
 #include <search_constants.h>
@@ -77,7 +77,6 @@ struct threatened_info {
     return from * constants::num_squares + to;
   }
 };
-
 
 struct counter_info {
   static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
@@ -170,7 +169,8 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic = history::combined<history::butterfly_info, history::threatened_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic =
+    history::combined<history::butterfly_info, history::threatened_info, history::counter_info, history::follow_info, history::capture_info>;
 
 struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;

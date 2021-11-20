@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <enum_util.h>
+#include <chess_types.h>
 #include <nnue_util.h>
 #include <search_constants.h>
 #include <weights_streamer.h>
