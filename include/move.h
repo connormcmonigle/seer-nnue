@@ -18,7 +18,7 @@
 #pragma once
 
 #include <bit_range.h>
-#include <enum_util.h>
+#include <chess_types.h>
 #include <square.h>
 #include <table_generation.h>
 

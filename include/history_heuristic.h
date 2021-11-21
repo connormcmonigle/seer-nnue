@@ -18,7 +18,7 @@
 #pragma once
 
 #include <apply.h>
-#include <enum_util.h>
+#include <chess_types.h>
 #include <move.h>
 #include <position_history.h>
 #include <search_constants.h>
@@ -45,6 +45,7 @@ inline constexpr size_t num_pieces = 6;
 struct context {
   move follow;
   move counter;
+  square_set threatened;
 };
 
 value_type formula(const value_type& x, const value_type& gain) {
@@ -57,6 +58,18 @@ struct butterfly_info {
   static constexpr size_t N = constants::num_squares * constants::num_squares;
 
   static constexpr bool is_applicable(const context&, const move& mv) { return mv.is_quiet(); }
+
+  static constexpr size_t compute_index(const context&, const move& mv) {
+    const size_t from = static_cast<size_t>(mv.from().index());
+    const size_t to = static_cast<size_t>(mv.to().index());
+    return from * constants::num_squares + to;
+  }
+};
+
+struct threatened_info {
+  static constexpr size_t N = constants::num_squares * constants::num_squares;
+
+  static constexpr bool is_applicable(const context& ctxt, const move& mv) { return ctxt.threatened.is_member(mv.from()) && mv.is_quiet(); }
 
   static constexpr size_t compute_index(const context&, const move& mv) {
     const size_t from = static_cast<size_t>(mv.from().index());
@@ -173,8 +186,13 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic =
-    history::combined<history::butterfly_info, history::counter_info, history::follow_info, history::capture_info, history::counter_capture_info>;
+using history_heuristic = history::combined<
+    history::butterfly_info,
+    history::threatened_info,
+    history::counter_info,
+    history::follow_info,
+    history::capture_info,
+    history::counter_capture_info>;
 
 struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;

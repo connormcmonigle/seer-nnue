@@ -220,7 +220,7 @@ struct uci {
   void eval() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     auto evaluator = nnue::eval(&weights_);
-    position.show_init(evaluator);
+    position.feature_full_refresh(evaluator);
     os << "phase: " << position.phase<nnue::weights::parameter_type>() << std::endl;
     os << "score(phase): " << evaluator.evaluate(position.turn(), position.phase<nnue::weights::parameter_type>()) << std::endl;
   }

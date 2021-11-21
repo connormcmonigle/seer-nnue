@@ -26,17 +26,20 @@ namespace chess {
 enum class color : std::uint8_t { white, black };
 
 template <color>
-struct them_ {};
+struct opponent_impl {};
 
 template <>
-struct them_<color::white> {
+struct opponent_impl<color::white> {
   static constexpr color value = color::black;
 };
 
 template <>
-struct them_<color::black> {
+struct opponent_impl<color::black> {
   static constexpr color value = color::white;
 };
+
+template <color c>
+constexpr color opponent = opponent_impl<c>::value;
 
 template <typename T, typename U>
 struct sided {
@@ -65,12 +68,12 @@ struct sided {
 
   template <color c>
   return_type& them() {
-    return us<them_<c>::value>();
+    return us<opponent<c>>();
   }
 
   template <color c>
   const return_type& them() const {
-    return us<them_<c>::value>();
+    return us<opponent<c>>();
   }
 
   return_type& us(bool side) { return side ? us<color::white>() : us<color::black>(); }

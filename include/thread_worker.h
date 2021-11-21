@@ -187,7 +187,11 @@ struct thread_worker {
     if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
     if (bd.is_trivially_drawn()) { return search::draw_score; }
 
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())));
+    const move killer = ss.killer();
+    const move follow = ss.follow();
+    const move counter = ss.counter();
+
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter));
 
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
@@ -311,8 +315,14 @@ struct thread_worker {
     const move killer = ss.killer();
     const move follow = ss.follow();
     const move counter = ss.counter();
+    const square_set threatened = bd.them_threat_mask();
 
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter));
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
+                             .set_killer(killer)
+                             .set_follow(follow)
+                             .set_counter(counter)
+                             .set_threatened(threatened));
+
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
@@ -361,7 +371,6 @@ struct thread_worker {
     // step 7. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_value);
     const bool improving = !is_check && ss.improving();
-    const square_set threatened = bd.them_threat_mask();
 
     // step 8. static null move pruning
     const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
@@ -406,7 +415,7 @@ struct thread_worker {
       if (mv == ss.excluded()) { continue; }
       ss.set_played(mv);
 
-      const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter}, mv);
+      const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
       const board bd_ = bd.forward(mv);
@@ -544,7 +553,7 @@ struct thread_worker {
       }();
 
       if (bound == bound_type::lower && (best_move.is_quiet() || bd.see<search::see_type>(best_move) <= 0)) {
-        internal.hh.us(bd.turn()).update(history::context{follow, counter}, best_move, moves_tried, depth);
+        internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
         ss.set_killer(best_move);
       }
 
@@ -558,7 +567,7 @@ struct thread_worker {
   void iterative_deepening_loop_() {
     const auto evaluator = [this] {
       nnue::eval result(external.weights);
-      internal.stack.root_pos().show_init(result);
+      internal.stack.root_pos().feature_full_refresh(result);
       return result;
     }();
 
