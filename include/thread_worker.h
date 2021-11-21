@@ -318,7 +318,8 @@ struct thread_worker {
                              .set_killer(killer)
                              .set_follow(follow)
                              .set_counter(counter)
-                             .set_threatened(threatened));
+                             .set_threatened(threatened)
+                             .set_defended(defended));
 
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
