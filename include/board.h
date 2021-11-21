@@ -110,31 +110,31 @@ struct board {
     return std::tuple(checkers_, checker_rays_);
   }
 
-  template <color c>
-  square_set threat_mask() const {
+  template <color attack, color target>
+  square_set attack_mask() const {
     // idea from koivisto
     const square_set occ = man_.white.all() | man_.black.all();
 
-    square_set threats{};
-    square_set vulnerable = man_.them<c>().all();
+    square_set targets{};
+    square_set potential_targets = man_.us<target>().all();
 
-    vulnerable &= ~man_.them<c>().pawn();
+    potential_targets &= ~man_.us<target>().pawn();
     square_set pawn_attacks{};
-    for (const auto sq : man_.us<c>().pawn()) { pawn_attacks |= pawn_attack_tbl<c>.look_up(sq); }
-    threats |= pawn_attacks & vulnerable;
+    for (const auto sq : man_.us<attack>().pawn()) { pawn_attacks |= pawn_attack_tbl<attack>.look_up(sq); }
+    targets |= pawn_attacks & potential_targets;
 
-    vulnerable &= ~(man_.them<c>().knight() | man_.them<c>().bishop());
+    potential_targets &= ~(man_.us<target>().knight() | man_.us<target>().bishop());
     square_set minor_attacks{};
-    for (const auto sq : man_.us<c>().knight()) { minor_attacks |= knight_attack_tbl.look_up(sq); }
-    for (const auto sq : man_.us<c>().bishop()) { minor_attacks |= bishop_attack_tbl.look_up(sq, occ); }
-    threats |= minor_attacks & vulnerable;
+    for (const auto sq : man_.us<attack>().knight()) { minor_attacks |= knight_attack_tbl.look_up(sq); }
+    for (const auto sq : man_.us<attack>().bishop()) { minor_attacks |= bishop_attack_tbl.look_up(sq, occ); }
+    targets |= minor_attacks & potential_targets;
 
-    vulnerable &= ~man_.them<c>().rook();
+    potential_targets &= ~man_.us<target>().rook();
     square_set rook_attacks{};
-    for (const auto sq : man_.us<c>().rook()) { rook_attacks |= rook_attack_tbl.look_up(sq, occ); }
-    threats |= rook_attacks & vulnerable;
+    for (const auto sq : man_.us<attack>().rook()) { rook_attacks |= rook_attack_tbl.look_up(sq, occ); }
+    targets |= rook_attacks & potential_targets;
 
-    return threats;
+    return targets;
   }
 
   template <color c>
@@ -352,9 +352,13 @@ struct board {
 
   bool is_check() const { return turn() ? is_check_<color::white>() : is_check_<color::black>(); }
 
-  square_set us_threat_mask() const { return turn() ? threat_mask<color::white>() : threat_mask<color::black>(); }
+  square_set us_threat_mask() const { return turn() ? attack_mask<color::white, color::black>() : attack_mask<color::black, color::white>(); }
 
-  square_set them_threat_mask() const { return turn() ? threat_mask<color::black>() : threat_mask<color::white>(); }
+  square_set them_threat_mask() const { return turn() ? attack_mask<color::black, color::white>() : attack_mask<color::white, color::black>(); }
+
+  square_set us_defense_mask() const { return turn() ? attack_mask<color::white, color::white>() : attack_mask<color::black, color::black>(); }
+
+  square_set them_defense_mask() const { return turn() ? attack_mask<color::black, color::black>() : attack_mask<color::white, color::white>(); }
 
   template <color c, typename T>
   T see_(const move& mv) const {

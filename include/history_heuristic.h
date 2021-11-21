@@ -46,6 +46,7 @@ struct context {
   move follow;
   move counter;
   square_set threatened;
+  square_set defended;
 };
 
 value_type formula(const value_type& x, const value_type& gain) {
@@ -121,6 +122,19 @@ struct capture_info {
   }
 };
 
+struct defended_info {
+  static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_pieces;
+
+  static constexpr bool is_applicable(const context& ctxt, const move& mv) { return ctxt.defended.is_member(mv.to()) && mv.is_capture(); }
+
+  static constexpr size_t compute_index(const context&, const move& mv) {
+    const size_t piece = static_cast<size_t>(mv.piece());
+    const size_t to = static_cast<size_t>(mv.to().index());
+    const size_t capture = static_cast<size_t>(mv.captured());
+    return piece * constants::num_squares * constants::num_pieces + to * constants::num_pieces + capture;
+  }
+};
+
 template <typename T>
 struct table {
   std::array<value_type, T::N> data_{};
@@ -169,8 +183,13 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic =
-    history::combined<history::butterfly_info, history::threatened_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic = history::combined<
+    history::butterfly_info,
+    history::threatened_info,
+    history::counter_info,
+    history::follow_info,
+    history::capture_info,
+    history::defended_info>;
 
 struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;

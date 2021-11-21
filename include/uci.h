@@ -254,6 +254,12 @@ struct uci {
     os << "them:\n" << position.them_threat_mask() << std::endl;
   }
 
+  void defense() {
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    os << "us:\n" << position.us_defense_mask() << std::endl;
+    os << "them:\n" << position.them_defense_mask() << std::endl;
+  }
+
   void perft(const std::string& line) {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     const std::regex perft_with_depth("perft ([0-9]+)");
@@ -290,6 +296,8 @@ struct uci {
       see();
     } else if (!is_searching() && line == "threats") {
       threats();
+    } else if (!is_searching() && line == "defense") {
+      defense();
     } else if (!is_searching() && line == "probe") {
       probe();
     } else if (!is_searching() && std::regex_match(line, perft_rgx)) {

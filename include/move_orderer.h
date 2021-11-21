@@ -42,6 +42,7 @@ struct move_orderer_data {
   move first{move::null()};
 
   square_set threatened{};
+  square_set defended{};
 
   const board* bd;
   const move_list* list;
@@ -69,6 +70,11 @@ struct move_orderer_data {
 
   move_orderer_data& set_threatened(const square_set& mask) {
     threatened = mask;
+    return *this;
+  }
+
+  move_orderer_data& set_defended(const square_set& mask) {
+    defended = mask;
     return *this;
   }
 
@@ -149,7 +155,7 @@ struct move_orderer_iterator {
   std::tuple<std::ptrdiff_t, move> operator*() const { return std::tuple(begin_ - entries_.begin(), begin_->mv); }
 
   move_orderer_iterator(const move_orderer_data& data) : entries_{}, begin_{entries_.begin()} {
-    const history::context ctxt{data.follow, data.counter, data.threatened};
+    const history::context ctxt{data.follow, data.counter, data.threatened, data.defended};
     end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data, &ctxt](const move& mv) {
       if (mv == data.first) { return move_orderer_entry::make_first(mv); }
       if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see<std::int32_t>(mv), data.hh->compute_value(ctxt, mv)); }
