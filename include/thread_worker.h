@@ -515,7 +515,7 @@ struct thread_worker {
 
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
-          if (mv.is_capture()) { reduction += std::clamp(-history_value / 4096, -1, 1); }
+          if (mv.is_capture()) { reduction -= std::clamp(history_value / 4096, -1, 1); }
 
           reduction = std::max(0, reduction);
 
