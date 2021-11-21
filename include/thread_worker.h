@@ -479,7 +479,7 @@ struct thread_worker {
         return 0;
       }();
 
-      if (!is_root && multicut) { return make_result(beta, move::null()); }
+      if (!is_pv && multicut) { return make_result(beta, move::null()); }
 
       const search::score_type score = [&, this, idx = idx, mv = mv] {
         const search::depth_type next_depth = depth + extension - 1;
