@@ -187,7 +187,16 @@ struct thread_worker {
     if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
     if (bd.is_trivially_drawn()) { return search::draw_score; }
 
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())));
+    const move killer = ss.killer();
+    const move follow = ss.follow();
+    const move counter = ss.counter();
+    const square_set threatened = bd.them_threat_mask();
+
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
+                             .set_killer(killer)
+                             .set_follow(follow)
+                             .set_counter(counter)
+                             .set_threatened(threatened));
 
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
