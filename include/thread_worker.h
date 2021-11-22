@@ -525,6 +525,7 @@ struct thread_worker {
         if (!try_lmr || (zw_score > alpha && lmr_depth < next_depth)) { zw_score = zero_width(next_depth); }
 
         // search again with full window on pv nodes
+        if (is_root && zw_score > alpha) { return full_width(); }
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
       }();
 
