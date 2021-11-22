@@ -484,14 +484,14 @@ struct thread_worker {
       const search::score_type score = [&, this, idx = idx, mv = mv] {
         const search::depth_type next_depth = depth + extension - 1;
 
-        auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth, reducer); };
+        auto full_width = [&](const search::depth_type& fw_depth) { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, fw_depth, reducer); };
 
         auto zero_width = [&](const search::depth_type& zw_depth) {
           const player_type next_reducer = (is_pv || zw_depth < next_depth) ? player_from(bd.turn()) : reducer;
           return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, next_reducer);
         };
 
-        if (is_pv && idx == 0) { return full_width(); }
+        if (is_pv && idx == 0) { return full_width(next_depth); }
 
         search::depth_type lmr_depth;
         search::score_type zw_score;
@@ -525,7 +525,18 @@ struct thread_worker {
         if (!try_lmr || (zw_score > alpha && lmr_depth < next_depth)) { zw_score = zero_width(next_depth); }
 
         // search again with full window on pv nodes
-        return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
+
+        if (is_root && next_depth >= 8 && zw_score > alpha) {
+          search::score_type branch_score{zw_score};
+          for (search::depth_type branch_depth(next_depth / 2); branch_depth <= next_depth; ++branch_depth) {
+            branch_score = full_width(branch_depth);
+            if (branch_score <= alpha) { return branch_score; }
+          }
+          return branch_score;
+        }
+
+        return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width(next_depth) : zw_score;
+      
       }();
 
       if (score < beta && (mv.is_quiet() || see_value <= 0)) { moves_tried.add_(mv); }
