@@ -227,6 +227,9 @@ struct thread_worker {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
 
+      const search::counter_type history_value =
+          internal.hh.us(bd.turn()).compute_value(history::context{move::null(), move::null(), square_set{}}, mv);
+
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
       if (!is_check && see_value < 0) { continue; }
@@ -234,8 +237,12 @@ struct thread_worker {
       const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((value + external.constants->delta_margin()) < alpha);
       if (delta_prune) { continue; }
 
+      const bool history_prune = !is_pv && !is_check && see_value == 0 && history_value <= -4096;
+      if (history_prune) { continue; }
+
       const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && see_value >= external.constants->good_capture_prune_see_margin() &&
                                       value + external.constants->good_capture_prune_score_margin() > beta;
+
       if (good_capture_prune) { return beta; }
 
       ss.set_played(mv);
