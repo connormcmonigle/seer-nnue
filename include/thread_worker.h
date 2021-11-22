@@ -525,7 +525,7 @@ struct thread_worker {
         if (!try_lmr || (zw_score > alpha && lmr_depth < next_depth)) { zw_score = zero_width(next_depth); }
 
         // search again with full window on pv nodes
-        return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
+        return (is_pv && zw_score > alpha) ? full_width() : zw_score;
       }();
 
       if (score < beta && (mv.is_quiet() || see_value <= 0)) { moves_tried.add_(mv); }
