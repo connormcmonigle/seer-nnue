@@ -237,7 +237,7 @@ struct thread_worker {
       const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((value + external.constants->delta_margin()) < alpha);
       if (delta_prune) { continue; }
 
-      const bool history_prune = !is_pv && !is_check && see_value == 0 && history_value <= -4096;
+      const bool history_prune = !is_pv && !is_check && see_value == 0 && history_value <= -8192;
       if (history_prune) { continue; }
 
       const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && see_value >= external.constants->good_capture_prune_see_margin() &&
