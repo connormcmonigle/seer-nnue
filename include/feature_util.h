@@ -50,13 +50,20 @@ constexpr size_t them_offset(const chess::piece_type& pt) {
   }
 }
 
+template <chess::color a, chess::color b>
+constexpr size_t offset(const chess::piece_type& pt){
+  if constexpr (a == b) {
+    return us_offset(pt);
+  } else {
+    return them_offset(pt);
+  }
+}
+
+
 template <chess::color us, chess::color p>
 constexpr size_t index(const chess::square& ks, const chess::piece_type& pt, const chess::square& sq) {
-  if constexpr (us == p) {
-    return major * ks.index() + us_offset(pt) + sq.index();
-  } else {
-    return major * ks.index() + them_offset(pt) + sq.index();
-  }
+  constexpr int mirror_constant = (chess::color::white == us) ? 0 : 56;
+  return major * (ks.index() ^ mirror_constant) + offset<us, p>(pt) + (sq.index() ^ mirror_constant);
 }
 
 }  // namespace half_ka

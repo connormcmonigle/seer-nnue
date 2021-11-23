@@ -34,8 +34,7 @@ struct weights {
   static constexpr size_t base_dim = 160;
 
   weights_streamer::signature_type signature_{0};
-  big_affine<parameter_type, feature::half_ka::numel, base_dim> w{};
-  big_affine<parameter_type, feature::half_ka::numel, base_dim> b{};
+  big_affine<parameter_type, feature::half_ka::numel, base_dim> shared{};
   stack_affine<parameter_type, 2 * base_dim, 16> fc0{};
   stack_affine<parameter_type, 16, 16> fc1{};
   stack_affine<parameter_type, 32, 16> fc2{};
@@ -44,13 +43,12 @@ struct weights {
   size_t signature() const { return signature_; }
 
   size_t num_parameters() const {
-    return w.num_parameters() + b.num_parameters() + fc0.num_parameters() + fc1.num_parameters() + fc2.num_parameters() + fc3.num_parameters();
+    return shared.num_parameters() + fc0.num_parameters() + fc1.num_parameters() + fc2.num_parameters() + fc3.num_parameters();
   }
 
   template <typename streamer_type>
   weights& load(streamer_type& ws) {
-    w.load_(ws);
-    b.load_(ws);
+    shared.load_(ws);
     fc0.load_(ws);
     fc1.load_(ws);
     fc2.load_(ws);
@@ -108,7 +106,7 @@ struct eval : chess::sided<eval, feature_transformer<weights::parameter_type>> {
     return static_cast<search::score_type>(value);
   }
 
-  eval(const weights* src) : weights_{src}, white{&src->w}, black{&src->b} {}
+  eval(const weights* src) : weights_{src}, white{&src->shared}, black{&src->shared} {}
 };
 
 }  // namespace nnue
