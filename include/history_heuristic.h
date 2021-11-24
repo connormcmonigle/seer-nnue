@@ -78,6 +78,20 @@ struct threatened_info {
   }
 };
 
+struct not_threatened_info {
+  static constexpr size_t N = constants::num_squares * constants::num_squares;
+
+  static constexpr bool is_applicable(const context& ctxt, const move& mv) {
+    return ctxt.threatened.any() && !ctxt.threatened.is_member(mv.from()) && mv.is_quiet();
+  }
+
+  static constexpr size_t compute_index(const context&, const move& mv) {
+    const size_t from = static_cast<size_t>(mv.from().index());
+    const size_t to = static_cast<size_t>(mv.to().index());
+    return from * constants::num_squares + to;
+  }
+};
+
 struct counter_info {
   static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
 
@@ -169,8 +183,13 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic =
-    history::combined<history::butterfly_info, history::threatened_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic = history::combined<
+    history::butterfly_info,
+    history::threatened_info,
+    history::not_threatened_info,
+    history::counter_info,
+    history::follow_info,
+    history::capture_info>;
 
 struct sided_history_heuristic : sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;
