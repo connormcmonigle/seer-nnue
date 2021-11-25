@@ -26,6 +26,9 @@ constexpr size_t them_rook_offset = them_bishop_offset + minor;
 constexpr size_t them_queen_offset = them_rook_offset + minor;
 constexpr size_t them_king_offset = them_queen_offset + minor;
 
+template <chess::color us>
+constexpr int mirror_constant = (chess::color::white == us) ? 0 : 56;
+
 constexpr size_t us_offset(const chess::piece_type& pt) {
   switch (pt) {
     case chess::piece_type::pawn: return us_pawn_offset;
@@ -51,19 +54,13 @@ constexpr size_t them_offset(const chess::piece_type& pt) {
 }
 
 template <chess::color a, chess::color b>
-constexpr size_t offset(const chess::piece_type& pt){
-  if constexpr (a == b) {
-    return us_offset(pt);
-  } else {
-    return them_offset(pt);
-  }
+constexpr size_t offset(const chess::piece_type& pt) {
+  return (a == b) ? us_offset(pt) : them_offset(pt);
 }
-
 
 template <chess::color us, chess::color p>
 constexpr size_t index(const chess::square& ks, const chess::piece_type& pt, const chess::square& sq) {
-  constexpr int mirror_constant = (chess::color::white == us) ? 0 : 56;
-  return major * (ks.index() ^ mirror_constant) + offset<us, p>(pt) + (sq.index() ^ mirror_constant);
+  return major * (ks.index() ^ mirror_constant<us>) + offset<us, p>(pt) + (sq.index() ^ mirror_constant<us>);
 }
 
 }  // namespace half_ka
