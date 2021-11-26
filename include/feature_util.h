@@ -60,7 +60,7 @@ constexpr size_t offset(const chess::piece_type& pt) {
 
 template <chess::color us, chess::color p>
 constexpr size_t index(const chess::square& ks, const chess::piece_type& pt, const chess::square& sq) {
-  return major * (ks.index() ^ mirror_constant<us>) + offset<us, p>(pt) + (sq.index() ^ mirror_constant<us>);
+  return major * (ks.index() ^ 7) + offset<us, p>(pt) + (sq.index() ^ 7);
 }
 
 }  // namespace half_ka

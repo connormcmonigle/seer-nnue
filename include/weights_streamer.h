@@ -77,7 +77,7 @@ struct embedded_weight_streamer {
 
   signature_type signature() const { return signature_; }
 
-  embedded_weight_streamer(const unsigned char* data) : back_ptr{data} {}
+  embedded_weight_streamer(const unsigned char* data) : back_ptr{data+4} {}
 };
 
 }  // namespace nnue

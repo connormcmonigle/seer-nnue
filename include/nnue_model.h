@@ -31,24 +31,28 @@ namespace nnue {
 
 struct weights {
   using parameter_type = float;
-  static constexpr size_t base_dim = 160;
+  static constexpr size_t base_dim = 128;
 
   weights_streamer::signature_type signature_{0};
-  big_affine<parameter_type, feature::half_ka::numel, base_dim> shared{};
-  stack_affine<parameter_type, 2 * base_dim, 16> fc0{};
-  stack_affine<parameter_type, 16, 16> fc1{};
-  stack_affine<parameter_type, 32, 16> fc2{};
-  stack_affine<parameter_type, 48, 1> fc3{};
+
+  big_affine<parameter_type, feature::half_ka::numel, base_dim> w{};
+  big_affine<parameter_type, feature::half_ka::numel, base_dim> b{};
+
+  stack_affine<parameter_type, 2 * base_dim, 32> fc0{};
+  stack_affine<parameter_type, 32, 32> fc1{};
+  stack_affine<parameter_type, 64, 32> fc2{};
+  stack_affine<parameter_type, 96, 1> fc3{};
 
   size_t signature() const { return signature_; }
 
   size_t num_parameters() const {
-    return shared.num_parameters() + fc0.num_parameters() + fc1.num_parameters() + fc2.num_parameters() + fc3.num_parameters();
+    return w.num_parameters() + b.num_parameters() + fc0.num_parameters() + fc1.num_parameters() + fc2.num_parameters() + fc3.num_parameters();
   }
 
   template <typename streamer_type>
   weights& load(streamer_type& ws) {
-    shared.load_(ws);
+    w.load_(ws);
+    b.load_(ws);
     fc0.load_(ws);
     fc1.load_(ws);
     fc2.load_(ws);
@@ -86,6 +90,11 @@ struct eval : chess::sided<eval, feature_transformer<weights::parameter_type>> {
   inline parameter_type propagate(const bool pov) const {
     const auto w_x = white.active();
     const auto b_x = black.active();
+
+    // std::cout << b_x << std::endl;
+    // std::cout << w_x << std::endl;
+
+
     const auto x0 = pov ? splice(w_x, b_x).apply_(relu<weights::parameter_type>) : splice(b_x, w_x).apply_(relu<weights::parameter_type>);
     const auto x1 = weights_->fc0.forward(x0).apply_(relu<weights::parameter_type>);
     const auto x2 = splice(x1, weights_->fc1.forward(x1).apply_(relu<weights::parameter_type>));
@@ -102,11 +111,11 @@ struct eval : chess::sided<eval, feature_transformer<weights::parameter_type>> {
     const parameter_type eval = phase * mg * prediction + (one - phase) * eg * prediction;
 
     const parameter_type value =
-        search::logit_scale<parameter_type> * std::clamp(eval, search::min_logit<parameter_type>, search::max_logit<parameter_type>);
+        search::logit_scale<parameter_type> * std::clamp(eval * 1.5F, search::min_logit<parameter_type>, search::max_logit<parameter_type>);
     return static_cast<search::score_type>(value);
   }
 
-  eval(const weights* src) : weights_{src}, white{&src->shared}, black{&src->shared} {}
+  eval(const weights* src) : weights_{src}, white{&src->w}, black{&src->b} {}
 };
 
 }  // namespace nnue

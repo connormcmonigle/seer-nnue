@@ -315,6 +315,10 @@ struct uci {
               if (manager_.should_stop(search_info{worker.depth(), worker.is_stable()})) { stop(); }
             }) {
     nnue::embedded_weight_streamer embedded(embed::weights_file_data);
+
+    std::cout << embed::weights_file_size << std::endl;
+    std::cout << weights_.num_parameters() << std::endl;
+
     weights_.load(embedded);
     pool_.resize(default_thread_count);
   }
