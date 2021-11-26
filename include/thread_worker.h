@@ -424,6 +424,12 @@ struct thread_worker {
 
         if (lm_prune) { break; }
 
+        // if a depth 1 node was already searched by a q search, all of the available captures with see >= 0 have already been q searched.
+        const bool qs_capture_pruning = !is_pv && depth == 1 && mv.is_capture() && see_value >= 0 && maybe.has_value() &&
+                                        maybe->bound() == bound_type::upper && maybe->score() <= alpha;
+
+        if (qs_capture_pruning) { continue; }
+
         const bool futility_prune =
             mv.is_quiet() && depth <= external.constants->futility_prune_depth() && value + external.constants->futility_margin(depth) < alpha;
 
