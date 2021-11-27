@@ -446,6 +446,7 @@ struct thread_worker {
       }
 
       external.tt->prefetch(bd_.hash());
+      internal.cache.prefetch(bd_.hash());
       const nnue::eval eval_ = bd.apply_update(mv, eval);
 
       // step 12. extensions
