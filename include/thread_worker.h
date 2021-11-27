@@ -242,6 +242,7 @@ struct thread_worker {
 
       const board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
+      internal.cache.prefetch(bd_.hash());
 
       const nnue::eval eval_ = bd.apply_update(mv, eval);
 
