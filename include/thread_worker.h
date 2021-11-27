@@ -549,7 +549,8 @@ struct thread_worker {
       }();
 
       if (bound == bound_type::lower && (best_move.is_quiet() || bd.see<search::see_type>(best_move) <= 0)) {
-        internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
+        const bool trivial_best_move = moves_tried.empty() && depth <= 3;
+        if (!trivial_best_move) { internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth); }
         ss.set_killer(best_move);
       }
 
