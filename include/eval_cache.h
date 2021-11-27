@@ -36,12 +36,16 @@ struct eval_cache {
 
   std::array<eval_cache_entry, N> data{};
 
+  constexpr size_t hash_function(const zobrist::hash_type& hash) const { return hash % data.size(); }
+
+  void prefetch(const zobrist::hash_type& hash) const { __builtin_prefetch(data.data() + hash_function(hash)); }
+
   std::optional<search::score_type> find(const zobrist::hash_type& hash) const {
-    if (data[hash % N].hash == hash) { return data[hash % N].eval; }
+    if (data[hash_function(hash)].hash == hash) { return data[hash_function(hash)].eval; }
     return std::nullopt;
   }
 
-  void insert(const zobrist::hash_type& hash, const search::score_type& eval) { data[hash % N] = eval_cache_entry{hash, eval}; }
+  void insert(const zobrist::hash_type& hash, const search::score_type& eval) { data[hash_function(hash)] = eval_cache_entry{hash, eval}; }
 
   void clear() { return data.fill(eval_cache_entry{}); }
 };
