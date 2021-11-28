@@ -586,7 +586,7 @@ struct thread_worker {
       for (;;) {
         internal.stack.clear_future();
 
-        const search::depth_type adjusted_depth = std::max(1, internal.depth - failed_high_count);
+        const search::depth_type adjusted_depth = std::max(1, internal.depth - (2 * failed_high_count));
         const auto [search_score, search_move] = pv_search<true, true>(
             search::stack_view::root(internal.stack), evaluator, internal.stack.root_pos(), alpha, beta, adjusted_depth, player_type::none);
 
