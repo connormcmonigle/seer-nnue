@@ -550,7 +550,7 @@ struct thread_worker {
         return bound_type::upper;
       }();
 
-      if (bound == bound_type::lower && (best_move.is_quiet() || bd.see<search::see_type>(best_move) <= 0)) {
+      if (bound != bound_type::upper && (best_move.is_quiet() || bd.see<search::see_type>(best_move) <= 0)) {
         internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
         ss.set_killer(best_move);
       }
