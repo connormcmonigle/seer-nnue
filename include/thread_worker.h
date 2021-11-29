@@ -452,12 +452,6 @@ struct thread_worker {
       // step 12. extensions
       bool multicut = false;
       const search::depth_type extension = [&, mv = mv] {
-        /*const bool history_ext = !is_root && maybe.has_value() && mv == maybe->best_move() && mv.is_quiet() &&
-                                 depth >= external.constants->history_extension_depth() &&
-                                 history_value >= external.constants->history_extension_threshold();
-
-        if (history_ext) { return 1; }*/
-
         const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
                                   mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
                                   maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
