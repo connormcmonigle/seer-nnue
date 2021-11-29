@@ -218,6 +218,7 @@ struct thread_worker {
     if (list.size() == 0 || value >= beta) { return value; }
     if (ss.reached_max_height()) { return value; }
 
+    constexpr history::context qs_ctxt{move::null(), move::null(), square_set{}};
     alpha = std::max(alpha, value);
     search::score_type best_score = value;
     move best_move = move::null();
@@ -228,15 +229,23 @@ struct thread_worker {
       if (!loop.keep_going() || best_score >= beta) { break; }
 
       const search::see_type see_value = bd.see<search::see_type>(mv);
+      const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(qs_ctxt, mv);
 
-      if (!is_check && see_value < 0) { continue; }
+      {
+        const bool see_prune = !is_check && see_value < 0;
+        if (see_prune) { continue; }
 
-      const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((value + external.constants->delta_margin()) < alpha);
-      if (delta_prune) { continue; }
+        const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((value + external.constants->delta_margin()) < alpha);
+        if (delta_prune) { continue; }
 
-      const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && see_value >= external.constants->good_capture_prune_see_margin() &&
-                                      value + external.constants->good_capture_prune_score_margin() > beta;
-      if (good_capture_prune) { return beta; }
+        const bool hh_prune = !is_pv && !is_check && mv.is_capture() && (see_value <= 0) && history_value <= -8192;
+        if (hh_prune) { continue; }
+
+        const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() &&
+                                        see_value >= external.constants->good_capture_prune_see_margin() &&
+                                        value + external.constants->good_capture_prune_score_margin() > beta;
+        if (good_capture_prune) { return beta; }
+      }
 
       ss.set_played(mv);
 
