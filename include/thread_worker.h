@@ -438,6 +438,10 @@ struct thread_worker {
         const bool noisy_see_prune =
             mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() && see_value < external.constants->noisy_see_prune_threshold(depth);
 
+        const bool evasion_prune = !is_check && mv.is_quiet() && threatened.is_member(best_move.from()) && !threatened.is_member(mv.from()) && depth <= 3;
+
+        if (evasion_prune) { continue; }
+
         if (noisy_see_prune) { continue; }
 
         const bool history_prune = mv.is_quiet() && history_value <= external.constants->history_prune_threshold(depth);
