@@ -376,9 +376,9 @@ struct thread_worker {
     if (snm_prune) { return make_result(value, move::null()); }
 
     // step 9. prob pruning
-    const bool prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
-                            maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
-                            maybe->score() > beta + external.constants->prob_prune_margin() &&
+    const bool prob_prune = !is_pv && !ss.has_excluded() && !threatened.any() && maybe.has_value() &&
+                            depth >= external.constants->prob_prune_depth() && maybe->best_move().is_capture() &&
+                            maybe->bound() == bound_type::lower && maybe->score() > beta + external.constants->prob_prune_margin() &&
                             maybe->depth() + external.constants->prob_prune_depth_margin(improving) >= depth;
 
     if (prob_prune) { return make_result(beta, move::null()); }
