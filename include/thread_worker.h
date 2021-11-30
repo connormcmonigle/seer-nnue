@@ -430,13 +430,15 @@ struct thread_worker {
 
         if (futility_prune) { continue; }
 
-        const bool quiet_see_prune =
-            mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
+        const search::depth_type move_depth = std::max(1, depth - external.constants->reduction(depth, idx));
+
+        const bool quiet_see_prune = mv.is_quiet() && move_depth <= external.constants->quiet_see_prune_depth() &&
+                                     see_value < external.constants->quiet_see_prune_threshold(move_depth);
 
         if (quiet_see_prune) { continue; }
 
-        const bool noisy_see_prune =
-            mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() && see_value < external.constants->noisy_see_prune_threshold(depth);
+        const bool noisy_see_prune = mv.is_noisy() && move_depth <= external.constants->noisy_see_prune_depth() &&
+                                     see_value < external.constants->noisy_see_prune_threshold(move_depth);
 
         if (noisy_see_prune) { continue; }
 
