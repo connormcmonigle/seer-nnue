@@ -114,7 +114,7 @@ struct fixed_constants {
     return tt_score - 2 * static_cast<score_type>(depth);
   }
 
-  constexpr score_type singular_double_extension_margin() const { return 160; }
+  constexpr score_type singular_double_extension_margin() const { return 256; }
 
   constexpr depth_type prob_prune_depth_margin(const bool& improving) const { return improving ? 3 : 2; }
 
