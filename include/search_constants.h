@@ -139,8 +139,8 @@ struct fixed_constants {
     return improving ? improving_counts[depth] : worsening_counts[depth];
   }
 
-  constexpr see_type quiet_see_prune_threshold(const depth_type& depth) const { return -50 * static_cast<see_type>(depth); }
-  constexpr see_type noisy_see_prune_threshold(const depth_type& depth) const { return -100 * static_cast<see_type>(depth); }
+  constexpr see_type quiet_see_prune_threshold(const depth_type& depth) const { return -75 * static_cast<see_type>(depth); }
+  constexpr see_type noisy_see_prune_threshold(const depth_type& depth) const { return -150 * static_cast<see_type>(depth); }
 
   constexpr counter_type history_prune_threshold(const depth_type& depth) const { return -1024 * static_cast<counter_type>(depth * depth); }
 
