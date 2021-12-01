@@ -430,7 +430,7 @@ struct thread_worker {
 
         if (futility_prune) { continue; }
 
-        const search::depth_type move_depth = std::max(1, depth - external.constants->reduction(depth, idx));
+        const search::depth_type move_depth = std::max(1, depth + improving - external.constants->reduction(depth, idx));
 
         const bool quiet_see_prune = mv.is_quiet() && move_depth <= external.constants->quiet_see_prune_depth() &&
                                      see_value < external.constants->quiet_see_prune_threshold(move_depth);
