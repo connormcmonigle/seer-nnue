@@ -59,6 +59,7 @@ struct internal_state {
   search::stack stack{position_history{}, board::start_pos()};
   sided_history_heuristic hh{};
   eval_cache cache{};
+  search::score_type root_optimism{};
 
   std::atomic_bool is_stable{false};
   std::atomic_size_t nodes{};
@@ -81,6 +82,7 @@ struct internal_state {
     stack = search::stack{position_history{}, board::start_pos()};
     hh.clear();
     cache.clear();
+    root_optimism = 0;
     is_stable.store(false);
     nodes.store(0);
     tb_hits.store(0);
@@ -174,7 +176,8 @@ struct thread_worker {
       const board& bd,
       search::score_type alpha,
       const search::score_type& beta,
-      const search::depth_type& elevation) {
+      const search::depth_type& elevation,
+      const search::score_type& optimism) {
     // callback on entering search function
     const bool should_update = loop.keep_going() && internal.one_of<search::nodes_per_update>();
     if (should_update) { external.on_update(*this); }
@@ -200,9 +203,10 @@ struct thread_worker {
 
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value = is_check                         ? ss.loss_score() :
-                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+      const search::score_type static_value =
+          optimism + (is_check                         ? ss.loss_score() :
+                      !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+                                                         eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>()));
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -246,7 +250,7 @@ struct thread_worker {
 
       const nnue::eval eval_ = bd.apply_update(mv, eval);
 
-      const search::score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1);
+      const search::score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_, bd_, -beta, -alpha, elevation + 1, -optimism);
 
       if (score > best_score) {
         best_score = score;
@@ -275,6 +279,7 @@ struct thread_worker {
       search::score_type alpha,
       const search::score_type& beta,
       search::depth_type depth,
+      const search::score_type& optimism,
       const player_type& reducer) -> pv_search_result_t<is_root> {
     auto make_result = [](const search::score_type& score, const move& mv) {
       if constexpr (is_root) { return pv_search_result_t<is_root>{score, mv}; }
@@ -289,7 +294,7 @@ struct thread_worker {
     if (should_update) { external.on_update(*this); }
 
     // step 1. drop into qsearch if depth reaches zero
-    if (depth <= 0) { return make_result(q_search<is_pv>(ss, eval, bd, alpha, beta, 0), move::null()); }
+    if (depth <= 0) { return make_result(q_search<is_pv>(ss, eval, bd, alpha, beta, 0, optimism), move::null()); }
     ++internal.nodes;
 
     // step 2. check if node is terminal
@@ -347,9 +352,10 @@ struct thread_worker {
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value = is_check                         ? ss.loss_score() :
-                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+      const search::score_type static_value =
+          optimism + (is_check                         ? ss.loss_score() :
+                      !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+                                                         eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>()));
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -393,7 +399,7 @@ struct thread_worker {
       ss.set_played(move::null());
       const search::depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth, beta, value));
       const search::score_type nmp_score =
-          -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
+          -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, -optimism, player_from(!bd.turn()));
       if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
     }
 
@@ -460,7 +466,8 @@ struct thread_worker {
           const search::depth_type singular_depth = external.constants->singular_search_depth(depth);
           const search::score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
           ss.set_excluded(mv);
-          const search::score_type excluded_score = pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
+          const search::score_type excluded_score =
+              pv_search<false>(ss, eval, bd, singular_beta - 1, singular_beta, singular_depth, optimism, reducer);
           ss.set_excluded(move::null());
 
           if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) {
@@ -480,11 +487,11 @@ struct thread_worker {
       const search::score_type score = [&, this, idx = idx, mv = mv] {
         const search::depth_type next_depth = depth + extension - 1;
 
-        auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth, reducer); };
+        auto full_width = [&] { return -pv_search<is_pv>(ss.next(), eval_, bd_, -beta, -alpha, next_depth, -optimism, reducer); };
 
         auto zero_width = [&](const search::depth_type& zw_depth) {
           const player_type next_reducer = (is_pv || zw_depth < next_depth) ? player_from(bd.turn()) : reducer;
-          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, next_reducer);
+          return -pv_search<false>(ss.next(), eval_, bd_, -alpha - 1, -alpha, zw_depth, -optimism, next_reducer);
         };
 
         if (is_pv && idx == 0) { return full_width(); }
@@ -582,7 +589,8 @@ struct thread_worker {
 
         const search::depth_type adjusted_depth = std::max(1, internal.depth - failed_high_count);
         const auto [search_score, search_move] = pv_search<true, true>(
-            search::stack_view::root(internal.stack), evaluator, internal.stack.root_pos(), alpha, beta, adjusted_depth, player_type::none);
+            search::stack_view::root(internal.stack), evaluator, internal.stack.root_pos(), alpha, beta, adjusted_depth, internal.root_optimism,
+            player_type::none);
 
         if (!loop.keep_going()) { break; }
 
@@ -602,6 +610,7 @@ struct thread_worker {
           internal.score.store(search_score);
           internal.best_move.store(search_move.data);
           internal.ponder_move.store(internal.stack.ponder_move().data);
+          internal.root_optimism = std::clamp(search_score / 128, -2, 2);
           break;
         }
 
