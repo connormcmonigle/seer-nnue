@@ -443,6 +443,10 @@ struct thread_worker {
         const bool history_prune = mv.is_quiet() && history_value <= external.constants->history_prune_threshold(depth);
 
         if (history_prune) { continue; }
+
+        const bool capture_history_prune = mv.is_capture() && history_value <= -1024 * depth * depth;
+
+        if (capture_history_prune) { continue; }
       }
 
       external.tt->prefetch(bd_.hash());
