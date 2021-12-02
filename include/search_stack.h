@@ -55,7 +55,7 @@ struct stack {
     return future_[height];
   }
 
-  chess::board root_pos() const { return present_; }
+  const chess::board& root_pos() const { return present_; }
   depth_type sel_depth() const { return sel_depth_; }
 
   size_t occurrences(const size_t& height, const zobrist::hash_type& hash) const {
@@ -90,7 +90,7 @@ struct stack_view {
   stack* view_;
   depth_type height_{};
 
-  constexpr score_type loss_score() const {  return mate_score + height_; }
+  constexpr score_type loss_score() const { return mate_score + height_; }
 
   constexpr score_type win_score() const { return -mate_score - height_; }
 
@@ -98,7 +98,7 @@ struct stack_view {
 
   depth_type height() const { return height_; }
 
-  chess::board root_pos() const { return view_->root_pos(); }
+  const chess::board& root_pos() const { return view_->root_pos(); }
 
   bool is_two_fold(const zobrist::hash_type& hash) const { return view_->occurrences(height_, hash) >= 1; }
 

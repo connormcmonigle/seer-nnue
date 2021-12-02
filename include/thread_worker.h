@@ -59,6 +59,7 @@ struct internal_state {
   search::stack stack{position_history{}, board::start_pos()};
   sided_history_heuristic hh{};
   eval_cache cache{};
+  search::score_type root_optimism{};
 
   std::atomic_bool is_stable{false};
   std::atomic_size_t nodes{};
@@ -199,10 +200,12 @@ struct thread_worker {
     }
 
     const auto [static_value, value] = [&] {
+      const search::score_type optimism = (bd.turn() == ss.root_pos().turn()) ? internal.root_optimism : 0;
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value = is_check                         ? ss.loss_score() :
-                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+      const search::score_type static_value =
+          optimism + (is_check                         ? ss.loss_score() :
+                      !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+                                                         eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>()));
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -346,10 +349,12 @@ struct thread_worker {
 
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
+      const search::score_type optimism = (bd.turn() == ss.root_pos().turn()) ? internal.root_optimism : 0;
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value = is_check                         ? ss.loss_score() :
-                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+      const search::score_type static_value =
+          optimism + (is_check                         ? ss.loss_score() :
+                      !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
+                                                         eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>()));
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -602,6 +607,7 @@ struct thread_worker {
           internal.score.store(search_score);
           internal.best_move.store(search_move.data);
           internal.ponder_move.store(internal.stack.ponder_move().data);
+          internal.root_optimism = std::clamp(search_score / 64, -8, 8);
           break;
         }
 
