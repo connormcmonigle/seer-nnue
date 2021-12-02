@@ -139,7 +139,7 @@ struct transposition_table {
   size_t hash_function(const zobrist::hash_type& hash) const { return hash % data.size(); }
 
   __attribute__((no_sanitize("thread"))) transposition_table& insert(const transposition_table_entry& entry) {
-    constexpr search::depth_type offset = 2;
+    constexpr search::depth_type offset = 4;
     const transposition_table_entry::gen_type gen = current_gen.load(std::memory_order_relaxed);
 
     transposition_table_entry* to_replace = data[hash_function(entry.key())].to_replace(gen, entry.key());
