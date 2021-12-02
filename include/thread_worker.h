@@ -472,6 +472,8 @@ struct thread_worker {
           if (excluded_score >= beta) { multicut = true; }
         }
 
+        if (bd_.is_check() && idx >= 4) { return 1; }
+
         return 0;
       }();
 
