@@ -470,6 +470,8 @@ struct thread_worker {
           if (excluded_score < singular_beta) { return 1; }
 
           if (excluded_score >= beta) { multicut = true; }
+        } else if (is_check) {
+          return 1;
         }
 
         return 0;
