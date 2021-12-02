@@ -470,9 +470,9 @@ struct thread_worker {
           if (excluded_score < singular_beta) { return 1; }
 
           if (excluded_score >= beta) { multicut = true; }
-        } else if (is_check) {
-          return 1;
         }
+
+        if (depth >= 4 && bd_.is_check() && idx == 0) { return 1; }
 
         return 0;
       }();
