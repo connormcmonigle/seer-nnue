@@ -472,7 +472,7 @@ struct thread_worker {
           if (excluded_score >= beta) { multicut = true; }
         }
 
-        if (bd_.is_check() && idx >= 4) { return 1; }
+        if (bd_.is_check()) { return 1; }
 
         return 0;
       }();
@@ -500,7 +500,6 @@ struct thread_worker {
           search::depth_type reduction = external.constants->reduction(depth, idx);
 
           // adjust reduction
-          if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
           if (improving) { --reduction; }
           if (!is_pv) { ++reduction; }
