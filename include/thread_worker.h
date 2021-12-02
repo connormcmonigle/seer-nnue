@@ -610,7 +610,7 @@ struct thread_worker {
           internal.score.store(search_score);
           internal.best_move.store(search_move.data);
           internal.ponder_move.store(internal.stack.ponder_move().data);
-          internal.root_optimism = std::clamp(search_score / 128, -2, 2);
+          internal.root_optimism = std::clamp(search_score / 8, -32, 32);
           break;
         }
 
