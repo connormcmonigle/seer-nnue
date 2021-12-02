@@ -444,7 +444,7 @@ struct thread_worker {
 
         if (history_prune) { continue; }
 
-        const bool capture_history_prune = mv.is_capture() && see_value <= 0 && history_value <= -1024 * depth * depth;
+        const bool capture_history_prune = mv.is_capture() && see_value < 0 && history_value <= -1024 * depth * depth;
 
         if (capture_history_prune) { continue; }
       }
