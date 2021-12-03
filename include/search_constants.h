@@ -106,7 +106,7 @@ struct fixed_constants {
 
   constexpr see_type nmp_see_threshold() const { return 200; }
 
-  constexpr depth_type singular_extension_depth_margin() const { return 2; }
+  constexpr depth_type singular_extension_depth_margin() const { return 3; }
 
   constexpr depth_type singular_search_depth(const depth_type& depth) const { return depth / 2 - 1; }
 
