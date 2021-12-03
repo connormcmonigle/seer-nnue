@@ -501,6 +501,7 @@ struct thread_worker {
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
           if (improving) { --reduction; }
+          if (!is_pv && maybe.has_value() && maybe->bound() == bound_type::exact) { --reduction; }
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
           if (see_value < 0 && mv.is_quiet()) { ++reduction; }
