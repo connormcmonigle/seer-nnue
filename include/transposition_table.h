@@ -145,7 +145,7 @@ struct transposition_table {
     transposition_table_entry* to_replace = data[hash_function(entry.key())].to_replace(gen, entry.key());
 
     const bool should_replace =
-        (entry.bound() == bound_type::exact) || (entry.key() != to_replace->key()) || ((entry.depth() + offset) >= to_replace->depth());
+        (entry.bound() == bound_type::exact) || (entry.key() != to_replace->key()) || ((entry.depth() * offset) >= to_replace->depth());
 
     if (should_replace) {
       *to_replace = entry;
