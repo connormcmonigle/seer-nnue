@@ -185,11 +185,7 @@ struct move_list {
   template <bool gen_quiet, typename... Ts>
   move_list& add_promotion_(const Ts&... ts) {
     assert((move(ts...).piece() == piece_type::pawn));
-    if constexpr (gen_quiet) {
-      for (const auto& pt : promotion_types) { add_(move(ts...).set_field_<move::promotion_>(pt)); }
-    } else {
-      add_(move(ts...).set_field_<move::promotion_>(piece_type::queen));
-    }
+    add_(move(ts...).set_field_<move::promotion_>(piece_type::queen));
     return *this;
   }
 };
