@@ -148,7 +148,9 @@ struct combined {
     };
 
     const value_type gain = std::min(history_max, depth * depth);
-    std::for_each(tried.begin(), tried.end(), [single_update, gain](const move& mv) { single_update(mv, -gain); });
+    std::for_each(tried.begin(), tried.end(), [single_update, gain, best_move](const move& mv) {
+      if (mv != best_move) { single_update(mv, -gain); }
+    });
     single_update(best_move, gain);
 
     return *this;

@@ -545,7 +545,8 @@ struct thread_worker {
       }();
 
       if (bound == bound_type::lower && (best_move.is_quiet() || bd.see<search::see_type>(best_move) <= 0)) {
-        internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
+        const bool singular = did_double_extend && moves_tried.empty();
+        internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, singular ? list : moves_tried, depth + singular);
         ss.set_killer(best_move);
       }
 
