@@ -365,6 +365,10 @@ struct thread_worker {
     // step 6. return static eval if max depth was reached
     if (ss.reached_max_height()) { return make_result(value, move::null()); }
 
+    const bool cycle_extension =
+        maybe.has_value() && list.has(maybe->best_move()) && ss.next().is_two_fold(bd.forward(maybe->best_move()).hash());
+    if (cycle_extension) { ++depth; }
+
     // step 7. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_value);
     const bool improving = !is_check && ss.improving();
