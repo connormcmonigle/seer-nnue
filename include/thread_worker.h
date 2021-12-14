@@ -369,8 +369,8 @@ struct thread_worker {
     ss.set_hash(bd.hash()).set_eval(static_value);
     const bool improving = !is_check && ss.improving();
 
-    const bool cycle_extension =
-        !is_root && is_pv && maybe.has_value() && list.has(maybe->best_move()) && ss.next().is_two_fold(bd.forward(maybe->best_move()).hash());
+    const bool cycle_extension = !is_root && is_pv && static_value >= 128 && maybe.has_value() && list.has(maybe->best_move()) &&
+                                 ss.next().is_two_fold(bd.forward(maybe->best_move()).hash());
     if (cycle_extension) { ++depth; }
 
     // step 8. static null move pruning
