@@ -151,7 +151,7 @@ struct combined {
         if (tbl.is_applicable(ctxt, mv)) {
           value_type* const predictor = &tbl.at(ctxt, mv);
           *predictor += formula(value, gain);
-          *predictor = std::clamp(*predictor, -history_limit, history_limit);
+          //*predictor = std::clamp(*predictor, -history_limit, history_limit);
         }
       });
     };
