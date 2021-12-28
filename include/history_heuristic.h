@@ -139,11 +139,20 @@ struct combined {
 
   constexpr combined<Ts...>& update(const context& ctxt, const move& best_move, const move_list& tried, const search::depth_type& depth) {
     constexpr value_type history_max = 400;
+    constexpr value_type history_limit = 16384;
 
     auto single_update = [&, this](const auto& mv, const value_type& gain) {
       const value_type value = compute_value(ctxt, mv);
+      
+      const bool already_optimal = (gain > 0) ? (value >= history_limit) : (value <= -history_limit);
+      if (already_optimal) { return; }
+
       util::apply(tables_, [=](auto& tbl) {
-        if (tbl.is_applicable(ctxt, mv)) { tbl.at(ctxt, mv) += formula(value, gain); }
+        if (tbl.is_applicable(ctxt, mv)) {
+          value_type* const predictor = &tbl.at(ctxt, mv);
+          *predictor += formula(value, gain);
+          *predictor = std::clamp(*predictor, -history_limit, history_limit);
+        }
       });
     };
 
