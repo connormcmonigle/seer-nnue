@@ -143,15 +143,12 @@ struct combined {
 
     auto single_update = [&, this](const auto& mv, const value_type& gain) {
       const value_type value = compute_value(ctxt, mv);
-      
-      const bool already_optimal = (gain > 0) ? (value >= history_limit) : (value <= -history_limit);
-      if (already_optimal) { return; }
 
       util::apply(tables_, [=](auto& tbl) {
         if (tbl.is_applicable(ctxt, mv)) {
           value_type* const predictor = &tbl.at(ctxt, mv);
           *predictor += formula(value, gain);
-          //*predictor = std::clamp(*predictor, -history_limit, history_limit);
+          *predictor = std::clamp(*predictor, -history_limit, history_limit);
         }
       });
     };
