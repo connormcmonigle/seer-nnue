@@ -383,6 +383,13 @@ struct thread_worker {
 
     if (prob_prune) { return make_result(beta, move::null()); }
 
+    const bool try_razor = !is_root && !ss.has_excluded() && depth <= 3 && static_value + 512 * depth < alpha;
+
+    if (try_razor) {
+      const search::score_type razor_score = q_search<is_pv>(ss, eval, bd, alpha, beta, 0);
+      if (razor_score < alpha) { return make_result(razor_score, move::null()); }
+    }
+
     // step 10. null move pruning
     const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
                          bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
