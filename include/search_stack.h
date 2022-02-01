@@ -120,7 +120,7 @@ struct stack_view {
 
   const std::array<chess::move, safe_depth_>& pv() const { return view_->at(height_).pv_; }
 
-  bool nmp_valid() const { return !counter().is_null() && !follow().is_null(); }
+  bool nmp_valid() const { return !counter().is_null(); }
 
   bool improving() const { return (height_ >= 2) && view_->at(height_ - 2).eval_ < view_->at(height_).eval_; }
 
