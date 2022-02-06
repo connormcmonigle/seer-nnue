@@ -216,8 +216,7 @@ struct thread_worker {
     }();
 
     const square_set threatened = bd.them_threat_mask();
-    const search::score_type stand_pat_threshold = beta + (threatened.any() ? 96 : 0);
-    if (list.size() == 0 || value >= stand_pat_threshold) { return value; }
+    if (list.size() == 0 || ((elevation != 0 || !threatened.any()) && value >= beta)) { return value; }
     if (ss.reached_max_height()) { return value; }
 
     alpha = std::max(alpha, value);
