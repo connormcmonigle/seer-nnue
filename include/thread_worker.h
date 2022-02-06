@@ -215,8 +215,8 @@ struct thread_worker {
       return std::tuple(static_value, value);
     }();
 
-    const square_set threatened = bd.them_threat_mask();
-    if (list.size() == 0 || ((elevation != 0 || !threatened.any()) && value >= beta)) { return value; }
+    const search::score_type bonus = (bd.us_threat_mask().any() && !bd.them_threat_mask().any()) ? 24 : 0;
+    if (list.size() == 0 || (value + bonus) >= beta) { return (value + bonus); }
     if (ss.reached_max_height()) { return value; }
 
     alpha = std::max(alpha, value);
