@@ -437,7 +437,7 @@ struct board {
   template <typename T>
   T decay() const {
     static_assert(std::is_floating_point_v<T>);
-    constexpr T scale_factor = static_cast<T>(-0.013862943611);
+    constexpr T scale_factor = static_cast<T>(-0.0069314718056);
     return std::exp(scale_factor * static_cast<T>(lat_.half_clock));
   }
 
