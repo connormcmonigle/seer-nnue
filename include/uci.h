@@ -222,7 +222,10 @@ struct uci {
     auto evaluator = nnue::eval(&weights_);
     position.feature_full_refresh(evaluator);
     os << "phase: " << position.phase<nnue::weights::parameter_type>() << std::endl;
-    os << "score(phase): " << evaluator.evaluate(position.turn(), position.phase<nnue::weights::parameter_type>()) << std::endl;
+    os << "decay: " << position.decay<nnue::weights::parameter_type>() << std::endl;
+    os << "score(phase, decay): "
+       << evaluator.evaluate(position.turn(), position.phase<nnue::weights::parameter_type>(), position.decay<nnue::weights::parameter_type>())
+       << std::endl;
   }
 
   void probe() {

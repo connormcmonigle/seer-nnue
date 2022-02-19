@@ -200,9 +200,11 @@ struct thread_worker {
 
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value = is_check                         ? ss.loss_score() :
-                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+      const search::score_type static_value =
+          is_check ? ss.loss_score() :
+          !is_pv && maybe_eval.has_value() ?
+                     maybe_eval.value() :
+                     eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>(), bd.decay<nnue::weights::parameter_type>());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -347,9 +349,11 @@ struct thread_worker {
     // step 5. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const search::score_type static_value = is_check                         ? ss.loss_score() :
-                                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                                 eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+      const search::score_type static_value =
+          is_check ? ss.loss_score() :
+          !is_pv && maybe_eval.has_value() ?
+                     maybe_eval.value() :
+                     eval.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>(), bd.decay<nnue::weights::parameter_type>());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 

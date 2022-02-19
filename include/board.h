@@ -434,6 +434,13 @@ struct board {
     return std::min(value, start_pos_value) / start_pos_value;
   }
 
+  template <typename T>
+  T decay() const {
+    static_assert(std::is_floating_point_v<T>);
+    constexpr T scale_factor = static_cast<T>(-0.013862943611);
+    return std::exp(scale_factor * static_cast<T>(lat_.half_clock));
+  }
+
   template <color c>
   board forward_(const move& mv) const {
     board copy = *this;
