@@ -227,7 +227,9 @@ struct uci {
 
   void probe() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(position); result.success) {
+    if (position.is_rule50_draw()) {
+        std::cout << "rule 50 draw" << std::endl;
+    } else if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(position); result.success) {
       std::cout << "success: " << [&] {
         switch (result.wdl) {
           case syzygy::wdl_type::loss: return "loss";
