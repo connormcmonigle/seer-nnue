@@ -31,7 +31,7 @@ namespace nnue {
 
 struct weights {
   using parameter_type = float;
-  static constexpr size_t base_dim = 160;
+  static constexpr size_t base_dim = 256;
 
   weights_streamer::signature_type signature_{0};
   big_affine<parameter_type, feature::half_ka::numel, base_dim> shared{};
