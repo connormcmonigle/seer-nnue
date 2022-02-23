@@ -300,6 +300,7 @@ struct thread_worker {
     if (list.size() == 0) { return make_result(search::draw_score, move::null()); }
     if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(search::draw_score, move::null()); }
     if (!is_root && bd.is_trivially_drawn()) { return make_result(search::draw_score, move::null()); }
+    if (!is_root && bd.is_rule50_draw()) { return make_result(search::draw_score, move::null()); }
 
     if constexpr (is_root) {
       if (const syzygy::tb_dtz_result result = syzygy::probe_dtz(bd); result.success) { return make_result(result.score, result.move); }
