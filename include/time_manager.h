@@ -207,7 +207,7 @@ struct time_manager {
       max_budget = 10 * (remaining - over_head) / (3 * moves_to_go) + inc;
     } else {
       // handle incremental time controls (x + z)
-      min_budget = (remaining - over_head + 25 * inc) / 30;
+      min_budget = (remaining - over_head + 25 * inc) / 40;
       max_budget = (remaining - over_head + 25 * inc) / 10;
     }
 
