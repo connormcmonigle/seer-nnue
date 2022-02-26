@@ -149,7 +149,7 @@ struct uci {
 
   template <typename T>
   void info_string(const T& worker) {
-    constexpr search::score_type raw_multiplier = 400;
+    constexpr search::score_type raw_multiplier = 288;
     constexpr search::score_type raw_divisor = 1024;
     constexpr search::score_type eval_limit = 256 * 100;
 
