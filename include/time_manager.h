@@ -122,6 +122,10 @@ struct named_condition {
 struct search_info {
   search::depth_type depth;
   bool is_stable;
+  bool is_iter;
+
+  static constexpr search_info on_iter(const search::depth_type& depth, const bool& is_stable) { return search_info{depth, is_stable, true}; }
+  static constexpr search_info on_update(const search::depth_type& depth, const bool& is_stable) { return search_info{depth, is_stable, false}; }
 };
 
 struct time_manager {
@@ -203,7 +207,7 @@ struct time_manager {
       max_budget = 10 * (remaining - over_head) / (3 * moves_to_go) + inc;
     } else {
       // handle incremental time controls (x + z)
-      min_budget = (remaining - over_head + 25 * inc) / 30;
+      min_budget = (remaining - over_head + 25 * inc) / 40;
       max_budget = (remaining - over_head + 25 * inc) / 10;
     }
 
@@ -225,7 +229,7 @@ struct time_manager {
     // stopping conditions
     if (get<go::depth>().data().has_value()) { return get<go::depth>().data().value() < info.depth; }
     if (elapsed() >= max_budget) { return true; }
-    if (elapsed() >= min_budget && info.is_stable) { return true; }
+    if (elapsed() >= min_budget && info.is_stable && info.is_iter) { return true; }
     return false;
   }
 };
