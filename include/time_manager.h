@@ -122,6 +122,10 @@ struct named_condition {
 struct search_info {
   search::depth_type depth;
   bool is_stable;
+  bool is_iter;
+
+  static constexpr search_info on_iter(const search::depth_type& depth, const bool& is_stable) { return search_info{depth, is_stable, true}; }
+  static constexpr search_info on_update(const search::depth_type& depth, const bool& is_stable) { return search_info{depth, is_stable, false}; }
 };
 
 struct time_manager {
@@ -225,7 +229,7 @@ struct time_manager {
     // stopping conditions
     if (get<go::depth>().data().has_value()) { return get<go::depth>().data().value() < info.depth; }
     if (elapsed() >= max_budget) { return true; }
-    if (elapsed() >= min_budget && info.is_stable) { return true; }
+    if (elapsed() >= min_budget && info.is_stable && info.is_iter) { return true; }
     return false;
   }
 };
