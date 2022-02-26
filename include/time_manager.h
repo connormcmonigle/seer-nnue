@@ -216,12 +216,16 @@ struct time_manager {
     return *this;
   }
 
-  bool should_stop() {
+  bool should_stop_on_update() {
     std::lock_guard<std::mutex> access_lk(access_mutex_);
-    return max_budget.has_value() && elapsed() >= *max_budget;
+    if (get<go::infinite>().data()) { return false; }
+    if (get<go::ponder>().data()) { return false; }
+    
+    if (max_budget.has_value() && elapsed() >= *max_budget) { return true; };
+    return false;
   }
 
-  bool should_stop(const search_info& info) {
+  bool should_stop_on_iter(const search_info& info) {
     std::lock_guard<std::mutex> access_lk(access_mutex_);
     if (get<go::infinite>().data()) { return false; }
     if (get<go::ponder>().data()) { return false; }
