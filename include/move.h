@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <iostream>
 #include <utility>
 
@@ -122,7 +123,8 @@ struct move {
       piece_type captured = piece_type::pawn,
       bool is_enpassant = false,
       square enpassant_sq = square::from_index(0),
-      piece_type promotion = piece_type::pawn) : data{0} {
+      piece_type promotion = piece_type::pawn)
+      : data{0} {
     const auto from_idx = static_cast<std::uint8_t>(from.index());
     const auto to_idx = static_cast<std::uint8_t>(to.index());
     const auto ep_sq_idx = static_cast<std::uint8_t>(enpassant_sq.index());
@@ -200,3 +202,8 @@ std::ostream& operator<<(std::ostream& ostr, const move_list& mv_ls) {
 }
 
 }  // namespace chess
+
+template <>
+struct std::hash<chess::move> {
+  size_t operator()(const chess::move& mv) const noexcept { return static_cast<size_t>(mv.data); }
+};

@@ -35,6 +35,7 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 namespace chess {
@@ -59,8 +60,8 @@ struct internal_state {
   search::stack stack{position_history{}, board::start_pos()};
   sided_history_heuristic hh{};
   eval_cache cache{};
+  std::unordered_map<move, size_t> node_distribution{};
 
-  std::atomic_bool is_stable{false};
   std::atomic_size_t nodes{};
   std::atomic_size_t tb_hits{};
   std::atomic<search::depth_type> depth{};
@@ -81,7 +82,7 @@ struct internal_state {
     stack = search::stack{position_history{}, board::start_pos()};
     hh.clear();
     cache.clear();
-    is_stable.store(false);
+    node_distribution.clear();
     nodes.store(0);
     tb_hits.store(0);
     depth.store(0);
@@ -411,6 +412,7 @@ struct thread_worker {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
       if (mv == ss.excluded()) { continue; }
+      const size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
       ss.set_played(mv);
 
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
@@ -535,6 +537,8 @@ struct thread_worker {
           if constexpr (is_pv) { ss.prepend_to_pv(mv); }
         }
       }
+
+      if constexpr (is_root) { internal.node_distribution[mv] += (internal.nodes.load(std::memory_order_relaxed) - nodes_before); }
     }
 
     // step 14. update histories if appropriate and maybe insert a new transposition_table_entry
@@ -597,9 +601,6 @@ struct thread_worker {
           ++failed_high_count;
         } else {
           // store updated information
-
-          internal.is_stable.store(std::abs(score() - search_score) <= search::stability_threshold && internal.best_move.load() == search_move.data);
-
           internal.score.store(search_score);
           internal.best_move.store(search_move.data);
           internal.ponder_move.store(internal.stack.ponder_move().data);
@@ -615,7 +616,7 @@ struct thread_worker {
     }
   }
 
-  bool is_stable() const { return internal.is_stable.load(); }
+  size_t best_move_percent_() const { return 100 * internal.node_distribution.at(move{internal.best_move}) / internal.nodes.load(); }
   size_t nodes() const { return internal.nodes.load(); }
   size_t tb_hits() const { return internal.tb_hits.load(); }
   search::depth_type depth() const { return internal.depth.load(); }
@@ -626,10 +627,10 @@ struct thread_worker {
 
   void go(const position_history& hist, const board& bd, const search::depth_type& start_depth) {
     loop.next([hist, bd, start_depth, this] {
+      internal.node_distribution.clear();
       internal.nodes.store(0);
       internal.tb_hits.store(0);
       internal.depth.store(start_depth);
-      internal.is_stable.store(false);
       internal.best_move.store(bd.generate_moves().begin()->data);
       internal.ponder_move.store(move::null().data);
       internal.stack = search::stack(hist, bd);

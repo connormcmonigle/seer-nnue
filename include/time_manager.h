@@ -121,7 +121,7 @@ struct named_condition {
 
 struct search_info {
   search::depth_type depth;
-  bool is_stable;
+  size_t best_move_percent;
 };
 
 struct time_manager {
@@ -204,7 +204,7 @@ struct time_manager {
         max_budget = 10 * (remaining - over_head) / (3 * moves_to_go) + inc;
       } else {
         // handle incremental time controls (x + z)
-        min_budget = (remaining - over_head + 25 * inc) / 40;
+        min_budget = (remaining - over_head + 25 * inc) / 25;
         max_budget = (remaining - over_head + 25 * inc) / 10;
       }
 
@@ -220,19 +220,22 @@ struct time_manager {
     std::lock_guard<std::mutex> access_lk(access_mutex_);
     if (get<go::infinite>().data()) { return false; }
     if (get<go::ponder>().data()) { return false; }
-    
+
     if (max_budget.has_value() && elapsed() >= *max_budget) { return true; };
     return false;
   }
 
   bool should_stop_on_iter(const search_info& info) {
+    constexpr size_t numerator = 50;
+    constexpr size_t min_percent = 20;
+    
     std::lock_guard<std::mutex> access_lk(access_mutex_);
     if (get<go::infinite>().data()) { return false; }
     if (get<go::ponder>().data()) { return false; }
 
     if (info.depth >= search::max_depth) { return true; }
     if (max_budget.has_value() && elapsed() >= *max_budget) { return true; }
-    if (min_budget.has_value() && info.is_stable && elapsed() >= *min_budget) { return true; }
+    if (min_budget.has_value() && elapsed() >= (*min_budget * numerator / std::max(info.best_move_percent, min_percent))) { return true; }
     if (get<go::depth>().data().has_value() && info.depth >= *get<go::depth>().data()) { return true; }
     return false;
   }
