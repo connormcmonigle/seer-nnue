@@ -228,7 +228,7 @@ struct uci {
   void probe() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     if (position.is_rule50_draw()) {
-        std::cout << "rule 50 draw" << std::endl;
+      std::cout << "rule 50 draw" << std::endl;
     } else if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(position); result.success) {
       std::cout << "success: " << [&] {
         switch (result.wdl) {
@@ -314,10 +314,10 @@ struct uci {
             default_hash_size,
             [this](const auto& worker) {
               info_string(worker);
-              if (manager_.should_stop(search_info::on_iter(worker.depth(), worker.is_stable()))) { stop(); }
+              if (manager_.should_stop_on_iter(search_info{worker.depth(), worker.is_stable()})) { stop(); }
             },
-            [this](const auto& worker) {
-              if (manager_.should_stop(search_info::on_update(worker.depth(), worker.is_stable()))) { stop(); }
+            [this](const auto&) {
+              if (manager_.should_stop_on_update()) { stop(); }
             }) {
     nnue::embedded_weight_streamer embedded(embed::weights_file_data);
     weights_.load(embedded);

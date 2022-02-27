@@ -122,10 +122,6 @@ struct named_condition {
 struct search_info {
   search::depth_type depth;
   bool is_stable;
-  bool is_iter;
-
-  static constexpr search_info on_iter(const search::depth_type& depth, const bool& is_stable) { return search_info{depth, is_stable, true}; }
-  static constexpr search_info on_update(const search::depth_type& depth, const bool& is_stable) { return search_info{depth, is_stable, false}; }
 };
 
 struct time_manager {
@@ -144,8 +140,8 @@ struct time_manager {
       params_{};
 
   std::chrono::steady_clock::time_point search_start{};
-  std::chrono::milliseconds min_budget{};
-  std::chrono::milliseconds max_budget{};
+  std::optional<std::chrono::milliseconds> min_budget{};
+  std::optional<std::chrono::milliseconds> max_budget{};
 
   std::chrono::milliseconds elapsed() const {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - search_start);
@@ -185,51 +181,59 @@ struct time_manager {
   }
 
   time_manager& init(const bool& pov, const std::string& line) {
+    constexpr auto over_head = std::chrono::milliseconds(5);
+
     std::lock_guard<std::mutex> access_lk(access_mutex_);
     search_start = std::chrono::steady_clock::now();
     read(line);
-    // early return if depth limited or infinite search
-    if (get<go::depth>().data().has_value() || get<go::infinite>().data()) { return *this; }
-    // early return if searching for fixed, user specified, time
-    if (get<go::movetime>().data().has_value()) {
-      min_budget = max_budget = std::chrono::milliseconds(get<go::movetime>().data().value());
-      return *this;
-    }
 
-    constexpr auto over_head = std::chrono::milliseconds(5);
-    const auto remaining = our_time(pov);
-    const auto inc = our_increment(pov);
-
-    if (get<go::movestogo>().data().has_value()) {
-      // handle cyclical time controls (x / y + z)
-      const go::movestogo::type moves_to_go = get<go::movestogo>().data().value();
-      min_budget = 2 * (remaining - over_head) / (3 * moves_to_go) + inc;
-      max_budget = 10 * (remaining - over_head) / (3 * moves_to_go) + inc;
+    if (get<go::depth>().data().has_value() || get<go::infinite>().data()) {
+      min_budget = std::nullopt;
+      max_budget = std::nullopt;
+    } else if (get<go::movetime>().data().has_value()) {
+      min_budget = std::nullopt;
+      max_budget = std::chrono::milliseconds(*get<go::movetime>().data());
     } else {
-      // handle incremental time controls (x + z)
-      min_budget = (remaining - over_head + 25 * inc) / 40;
-      max_budget = (remaining - over_head + 25 * inc) / 10;
-    }
+      const auto remaining = our_time(pov);
+      const auto inc = our_increment(pov);
 
-    // avoid time losses by capping budget to 4/5 remaining time
-    min_budget = std::min(4 * (remaining - over_head) / 5, min_budget);
-    max_budget = std::min(4 * (remaining - over_head) / 5, max_budget);
+      if (get<go::movestogo>().data().has_value()) {
+        // handle cyclical time controls (x / y + z)
+        const go::movestogo::type moves_to_go = *get<go::movestogo>().data();
+        min_budget = 2 * (remaining - over_head) / (3 * moves_to_go) + inc;
+        max_budget = 10 * (remaining - over_head) / (3 * moves_to_go) + inc;
+      } else {
+        // handle incremental time controls (x + z)
+        min_budget = (remaining - over_head + 25 * inc) / 40;
+        max_budget = (remaining - over_head + 25 * inc) / 10;
+      }
+
+      // avoid time losses by capping budget to 4/5 remaining time
+      min_budget = std::min(4 * (remaining - over_head) / 5, *min_budget);
+      max_budget = std::min(4 * (remaining - over_head) / 5, *max_budget);
+    }
 
     return *this;
   }
 
-  bool should_stop(const search_info& info) {
+  bool should_stop_on_update() {
     std::lock_guard<std::mutex> access_lk(access_mutex_);
-    // never stop whilst pondering
-    if (get<go::ponder>().data()) { return false; }
-    // never stop an infinite search
     if (get<go::infinite>().data()) { return false; }
-    // otherwise, stop if max depth was exceeded
+    if (get<go::ponder>().data()) { return false; }
+    
+    if (max_budget.has_value() && elapsed() >= *max_budget) { return true; };
+    return false;
+  }
+
+  bool should_stop_on_iter(const search_info& info) {
+    std::lock_guard<std::mutex> access_lk(access_mutex_);
+    if (get<go::infinite>().data()) { return false; }
+    if (get<go::ponder>().data()) { return false; }
+
     if (info.depth >= search::max_depth) { return true; }
-    // stopping conditions
-    if (get<go::depth>().data().has_value()) { return get<go::depth>().data().value() < info.depth; }
-    if (elapsed() >= max_budget) { return true; }
-    if (elapsed() >= min_budget && info.is_stable && info.is_iter) { return true; }
+    if (max_budget.has_value() && elapsed() >= *max_budget) { return true; }
+    if (min_budget.has_value() && info.is_stable && elapsed() >= *min_budget) { return true; }
+    if (get<go::depth>().data().has_value() && info.depth >= *get<go::depth>().data()) { return true; }
     return false;
   }
 };
