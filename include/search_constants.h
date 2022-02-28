@@ -67,8 +67,6 @@ inline constexpr score_type draw_score = 0;
 
 inline constexpr score_type aspiration_delta = 20;
 
-inline constexpr score_type stability_threshold = 50;
-
 using counter_type = std::int32_t;
 
 using see_type = std::int32_t;
