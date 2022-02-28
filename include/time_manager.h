@@ -121,7 +121,7 @@ struct named_condition {
 
 struct search_info {
   search::depth_type depth;
-  size_t best_move_percent;
+  std::uint64_t best_move_percent;
 };
 
 struct time_manager {
@@ -226,8 +226,8 @@ struct time_manager {
   }
 
   bool should_stop_on_iter(const search_info& info) {
-    constexpr size_t numerator = 50;
-    constexpr size_t min_percent = 20;
+    constexpr std::uint64_t numerator = 50;
+    constexpr std::uint64_t min_percent = 20;
     
     std::lock_guard<std::mutex> access_lk(access_mutex_);
     if (get<go::infinite>().data()) { return false; }

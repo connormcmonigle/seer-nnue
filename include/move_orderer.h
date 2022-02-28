@@ -43,6 +43,7 @@ struct move_orderer_data {
 
   square_set threatened{};
 
+  const std::unordered_map<move, std::uint64_t>* node_distribution{nullptr};
   const board* bd;
   const move_list* list;
   const history_heuristic* hh;
@@ -72,6 +73,11 @@ struct move_orderer_data {
     return *this;
   }
 
+  move_orderer_data& set_node_distribution(const std::unordered_map<move, std::uint64_t>* distribution) {
+    node_distribution = distribution;
+    return *this;
+  }
+
   move_orderer_data(const board* bd_, const move_list* list_, const history_heuristic* hh_) : bd{bd_}, list{list_}, hh{hh_} {}
 };
 
@@ -87,6 +93,9 @@ struct move_orderer_entry {
   const std::uint64_t& sort_key() const { return data_; }
 
   move_orderer_entry() = default;
+
+  move_orderer_entry(const move& mv_, const std::uint64_t& data) : mv{mv_}, data_{data} {}
+
   move_orderer_entry(const move& mv_, bool is_first, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
     first_::set(data_, is_first);
     positive_noisy_::set(data_, is_positive_noisy);
@@ -104,10 +113,14 @@ struct move_orderer_entry {
   static inline move_orderer_entry make_quiet(const move& mv, const move& killer, const std::int32_t& history_value) {
     return move_orderer_entry(mv, false, false, mv == killer, history_value);
   }
+
+  static inline move_orderer_entry make_root(const move& mv, const std::uint64_t& node_count) { return move_orderer_entry(mv, node_count); }
 };
 
+template <bool is_root>
 struct move_orderer_iterator_end_tag {};
 
+template <bool is_root>
 struct move_orderer_iterator {
   using difference_type = std::ptrdiff_t;
   using value_type = std::tuple<std::ptrdiff_t, move>;
@@ -138,8 +151,8 @@ struct move_orderer_iterator {
     return retval;
   }
 
-  constexpr bool operator==(const move_orderer_iterator&) const { return false; }
-  constexpr bool operator==(const move_orderer_iterator_end_tag&) const { return begin_ == end_; }
+  constexpr bool operator==(const move_orderer_iterator<is_root>&) const { return false; }
+  constexpr bool operator==(const move_orderer_iterator_end_tag<is_root>&) const { return begin_ == end_; }
 
   template <typename T>
   constexpr bool operator!=(const T& other) const {
@@ -149,27 +162,40 @@ struct move_orderer_iterator {
   std::tuple<std::ptrdiff_t, move> operator*() const { return std::tuple(begin_ - entries_.begin(), begin_->mv); }
 
   move_orderer_iterator(const move_orderer_data& data) : entries_{}, begin_{entries_.begin()} {
-    const history::context ctxt{data.follow, data.counter, data.threatened};
-    end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data, &ctxt](const move& mv) {
-      if (mv == data.first) { return move_orderer_entry::make_first(mv); }
-      if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see<std::int32_t>(mv), data.hh->compute_value(ctxt, mv)); }
-      return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
-    });
+    if (is_root && data.node_distribution != nullptr) {
+      end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data](const move& mv) {
+        const auto iter = data.node_distribution->find(mv);
+        return move_orderer_entry::make_root(mv, iter != data.node_distribution->end() ? iter->second : std::uint64_t{});
+      });
+    } else {
+      const history::context ctxt{data.follow, data.counter, data.threatened};
+      end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data, &ctxt](const move& mv) {
+        if (mv == data.first) { return move_orderer_entry::make_first(mv); }
+        if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see<std::int32_t>(mv), data.hh->compute_value(ctxt, mv)); }
+        return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
+      });
+    }
 
     update_list_();
   }
 };
 
+template <bool is_root>
 struct move_orderer {
-  using iterator = move_orderer_iterator;
+  using iterator = move_orderer_iterator<is_root>;
 
   move_orderer_data data_;
 
-  move_orderer_iterator begin() { return move_orderer_iterator(data_); }
-  move_orderer_iterator_end_tag end() { return move_orderer_iterator_end_tag(); }
+  move_orderer_iterator<is_root> begin() { return move_orderer_iterator<is_root>(data_); }
+  move_orderer_iterator_end_tag<is_root> end() { return move_orderer_iterator_end_tag<is_root>(); }
 
-  move_orderer& set_first(const move& mv) {
+  move_orderer<is_root>& set_first(const move& mv) {
     data_.set_first(mv);
+    return *this;
+  }
+
+  move_orderer<is_root>& set_node_distribution(const std::unordered_map<move, std::uint64_t>* distribution) {
+    data_.set_node_distribution(distribution);
     return *this;
   }
 

@@ -92,6 +92,7 @@ struct fixed_constants {
   constexpr depth_type singular_extension_depth() const { return 6; }
   constexpr depth_type iir_depth() const { return 4; }
   constexpr depth_type prob_prune_depth() const { return 4; }
+  constexpr depth_type root_burn_in_depth() const { return 12; }
 
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;

@@ -60,10 +60,10 @@ struct internal_state {
   search::stack stack{position_history{}, board::start_pos()};
   sided_history_heuristic hh{};
   eval_cache cache{};
-  std::unordered_map<move, size_t> node_distribution{};
+  std::unordered_map<move, std::uint64_t> node_distribution{};
 
-  std::atomic_size_t nodes{};
-  std::atomic_size_t tb_hits{};
+  std::atomic_uint64_t nodes{};
+  std::atomic_uint64_t tb_hits{};
   std::atomic<search::depth_type> depth{};
 
   std::atomic<search::score_type> score{};
@@ -71,10 +71,10 @@ struct internal_state {
   std::atomic<move::data_type> best_move{};
   std::atomic<move::data_type> ponder_move{};
 
-  template <size_t N>
+  template <std::uint64_t N>
   inline bool one_of() const {
     static_assert((N != 0) && ((N & (N - 1)) == 0), "N must be a power of 2");
-    constexpr size_t bit_pattern = N - 1;
+    constexpr std::uint64_t bit_pattern = N - 1;
     return (nodes & bit_pattern) == bit_pattern;
   }
 
@@ -188,7 +188,7 @@ struct thread_worker {
     if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
     if (bd.is_trivially_drawn()) { return search::draw_score; }
 
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())));
+    move_orderer<false> orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())));
 
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
@@ -316,11 +316,13 @@ struct thread_worker {
     const move counter = ss.counter();
     const square_set threatened = bd.them_threat_mask();
 
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
-                             .set_killer(killer)
-                             .set_follow(follow)
-                             .set_counter(counter)
-                             .set_threatened(threatened));
+    move_orderer<is_root> orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
+                                      .set_killer(killer)
+                                      .set_follow(follow)
+                                      .set_counter(counter)
+                                      .set_threatened(threatened));
+
+    if (is_root && depth >= external.constants->root_burn_in_depth()) { orderer.set_node_distribution(&internal.node_distribution); }
 
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
@@ -412,7 +414,7 @@ struct thread_worker {
       assert((mv != move::null()));
       if (!loop.keep_going() || best_score >= beta) { break; }
       if (mv == ss.excluded()) { continue; }
-      const size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
+      const std::uint64_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
       ss.set_played(mv);
 
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
@@ -616,9 +618,9 @@ struct thread_worker {
     }
   }
 
-  size_t best_move_percent_() const { return 100 * internal.node_distribution.at(move{internal.best_move}) / internal.nodes.load(); }
-  size_t nodes() const { return internal.nodes.load(); }
-  size_t tb_hits() const { return internal.tb_hits.load(); }
+  std::uint64_t best_move_percent_() const { return 100 * internal.node_distribution.at(move{internal.best_move}) / internal.nodes.load(); }
+  std::uint64_t nodes() const { return internal.nodes.load(); }
+  std::uint64_t tb_hits() const { return internal.tb_hits.load(); }
   search::depth_type depth() const { return internal.depth.load(); }
   move best_move() const { return move{internal.best_move.load()}; }
   move ponder_move() const { return move{internal.ponder_move.load()}; }
@@ -682,14 +684,16 @@ struct worker_pool {
     for (auto& worker : pool_) { worker->stop(); }
   }
 
-  size_t nodes() const {
-    return std::accumulate(
-        pool_.begin(), pool_.end(), static_cast<size_t>(0), [](const size_t& count, const auto& worker) { return count + worker->nodes(); });
+  std::uint64_t nodes() const {
+    return std::accumulate(pool_.begin(), pool_.end(), static_cast<std::uint64_t>(0), [](const std::uint64_t& count, const auto& worker) {
+      return count + worker->nodes();
+    });
   }
 
-  size_t tb_hits() const {
-    return std::accumulate(
-        pool_.begin(), pool_.end(), static_cast<size_t>(0), [](const size_t& count, const auto& worker) { return count + worker->tb_hits(); });
+  std::uint64_t tb_hits() const {
+    return std::accumulate(pool_.begin(), pool_.end(), static_cast<std::uint64_t>(0), [](const std::uint64_t& count, const auto& worker) {
+      return count + worker->tb_hits();
+    });
   }
 
   thread_worker<>& primary_worker() { return *pool_[primary_id]; }
