@@ -60,7 +60,7 @@ struct internal_state {
   search::stack stack{position_history{}, board::start_pos()};
   sided_history_heuristic hh{};
   eval_cache cache{};
-  std::unordered_map<move, size_t, chess::move_hash> node_distribution{};
+  std::unordered_map<move, size_t, move_hash> node_distribution{};
 
   std::atomic_size_t nodes{};
   std::atomic_size_t tb_hits{};
