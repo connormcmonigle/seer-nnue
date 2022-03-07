@@ -152,6 +152,10 @@ std::ostream& operator<<(std::ostream& ostr, const move& mv) {
   return ostr;
 }
 
+struct move_hash {
+  size_t operator()(const move& mv) const { return std::hash<std::uint32_t>{}(mv.data); }
+};
+
 struct move_list {
   static constexpr size_t max_branching_factor = 192;
   using iterator = std::array<move, max_branching_factor>::iterator;
@@ -202,8 +206,3 @@ std::ostream& operator<<(std::ostream& ostr, const move_list& mv_ls) {
 }
 
 }  // namespace chess
-
-template <>
-struct std::hash<chess::move> {
-  size_t operator()(const chess::move& mv) const noexcept { return static_cast<size_t>(mv.data); }
-};
