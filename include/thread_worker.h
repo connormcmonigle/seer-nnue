@@ -475,12 +475,6 @@ struct thread_worker {
           if (excluded_score >= beta) { multicut = true; }
         }
 
-        if constexpr (is_root) {
-            const size_t move_percent = (100 * internal.node_distribution[mv]) / internal.nodes.load();
-            const bool exploration_extension = move_percent <= 3 && depth <= 12;
-            if (exploration_extension) { return 1; }
-        }
-
         return 0;
       }();
 
@@ -519,6 +513,11 @@ struct thread_worker {
           if (is_player(reducer, !bd.turn())) { ++reduction; }
 
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
+
+          if constexpr (is_root) {
+            const size_t move_percent = (100 * internal.node_distribution[mv]) / internal.nodes.load();
+            if (move_percent <= 2) { --reduction; }
+          }
 
           reduction = std::max(0, reduction);
 
