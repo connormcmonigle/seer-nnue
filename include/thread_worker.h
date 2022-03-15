@@ -516,7 +516,7 @@ struct thread_worker {
 
           if constexpr (is_root) {
             const size_t move_percent = (100 * internal.node_distribution[mv]) / internal.nodes.load();
-            if (move_percent <= 2) { --reduction; }
+            if (move_percent <= 5 && idx <= 3) { --reduction; }
           }
 
           reduction = std::max(0, reduction);
