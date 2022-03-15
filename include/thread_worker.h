@@ -514,8 +514,8 @@ struct thread_worker {
 
           if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
-          if constexpr (is_root) {
-            const size_t move_percent = (100 * internal.node_distribution[mv]) / internal.nodes.load();
+          if (const size_t nodes = internal.nodes.load(std::memory_order_relaxed); is_root && nodes > 0) {
+            const size_t move_percent = 100 * internal.node_distribution[mv] / nodes;
             if (move_percent <= 5 && idx <= 3) { --reduction; }
           }
 
@@ -621,7 +621,13 @@ struct thread_worker {
     }
   }
 
-  size_t best_move_percent_() const { return 100 * internal.node_distribution.at(move{internal.best_move}) / internal.nodes.load(); }
+  size_t best_move_percent_() const {
+    const size_t nodes = internal.nodes.load();
+    const auto iter = internal.node_distribution.find(move{internal.best_move});
+    const bool can_calculate_percent = iter != internal.node_distribution.end() && nodes > 0;
+    return can_calculate_percent ? (100 * iter->second / nodes) : 0;
+  }
+
   size_t nodes() const { return internal.nodes.load(); }
   size_t tb_hits() const { return internal.tb_hits.load(); }
   search::depth_type depth() const { return internal.depth.load(); }
