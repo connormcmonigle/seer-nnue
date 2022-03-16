@@ -418,13 +418,11 @@ struct thread_worker {
       const search::counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
-      const board bd_ = bd.forward(mv);
-
       const bool try_pruning = !is_root && idx >= 2 && best_score > search::max_mate_score;
 
       // step 11. pruning
       if (try_pruning) {
-        const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune = !bd.gives_check(mv) && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { break; }
 
@@ -447,10 +445,6 @@ struct thread_worker {
 
         if (history_prune) { continue; }
       }
-
-      external.tt->prefetch(bd_.hash());
-      internal.cache.prefetch(bd_.hash());
-      const nnue::eval eval_ = bd.apply_update(mv, eval);
 
       // step 12. extensions
       bool multicut = false;
@@ -479,6 +473,11 @@ struct thread_worker {
       }();
 
       if (!is_root && multicut) { return make_result(beta, move::null()); }
+
+      const board bd_ = bd.forward(mv);
+      external.tt->prefetch(bd_.hash());
+      internal.cache.prefetch(bd_.hash());
+      const nnue::eval eval_ = bd.apply_update(mv, eval);
 
       const search::score_type score = [&, this, idx = idx, mv = mv] {
         const search::depth_type next_depth = depth + extension - 1;

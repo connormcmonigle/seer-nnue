@@ -246,7 +246,8 @@ struct uci {
   void see() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     for (const chess::move& mv : position.generate_moves()) {
-      os << mv.name(position.turn()) << ": " << position.see<search::see_type>(mv) << std::endl;
+      os << mv.name(position.turn()) << ": {see_value: " << position.see<search::see_type>(mv) << ", gives_check: " << std::boolalpha
+         << position.gives_check(mv) << "}" << std::endl;
     }
   }
 

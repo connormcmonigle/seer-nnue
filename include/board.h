@@ -356,6 +356,30 @@ struct board {
 
   square_set them_threat_mask() const { return turn() ? threat_mask<color::black>() : threat_mask<color::white>(); }
 
+  template <color c>
+  bool gives_check_(const move& mv) const {
+    // sufficient condition for giving check, but not a necessary condition
+    const auto from = square_set{mv.from().bit_board()};
+    const auto to = square_set{mv.to().bit_board()};
+    auto updated = [from, to](const square_set& ss) { return (ss | to) & ~from; };
+
+    const square_set occ = updated(man_.white.all() | man_.black.all());
+    const auto b_check_mask = bishop_attack_tbl.look_up(man_.them<c>().king().item(), occ);
+    const auto r_check_mask = rook_attack_tbl.look_up(man_.them<c>().king().item(), occ);
+    const auto n_check_mask = knight_attack_tbl.look_up(man_.them<c>().king().item());
+    const auto p_check_mask = pawn_attack_tbl<opponent<c>>.look_up(man_.them<c>().king().item());
+    const auto q_check_mask = b_check_mask | r_check_mask;
+
+    auto test = [from, updated](const square_set& check_mask, const square_set& piece_mask) {
+      return (from & piece_mask).any() ? (updated(piece_mask) & check_mask).any() : (piece_mask & check_mask).any();
+    };
+
+    return test(b_check_mask, man_.us<c>().bishop()) || test(r_check_mask, man_.us<c>().rook()) || test(n_check_mask, man_.us<c>().knight()) ||
+           test(p_check_mask, man_.us<c>().pawn()) || test(q_check_mask, man_.us<c>().queen());
+  }
+
+  bool gives_check(const move& mv) const { return turn() ? gives_check_<color::white>(mv) : gives_check_<color::black>(mv); }
+
   template <color c, typename T>
   T see_(const move& mv) const {
     const square tgt_sq = mv.to();
