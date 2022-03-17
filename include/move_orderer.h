@@ -27,6 +27,7 @@
 #include <iterator>
 #include <limits>
 #include <tuple>
+#include <optional>
 
 namespace chess {
 
@@ -108,7 +109,7 @@ struct move_orderer_entry {
 
 struct move_orderer_iterator_end_tag {};
 
-struct move_orderer_iterator {
+struct move_orderer_stepper {
   using difference_type = std::ptrdiff_t;
   using value_type = std::tuple<std::ptrdiff_t, move>;
   using pointer = std::tuple<std::ptrdiff_t, move>*;
@@ -126,29 +127,16 @@ struct move_orderer_iterator {
     std::iter_swap(begin_, std::max_element(begin_, end_, comparator));
   }
 
-  move_orderer_iterator& operator++() {
+  void next() {
     ++begin_;
     if (begin_ != end_) { update_list_(); }
-    return *this;
   }
 
-  move_orderer_iterator operator++(int) {
-    auto retval = *this;
-    ++(*this);
-    return retval;
-  }
+  bool has_next() { return begin_ == end_; }
 
-  constexpr bool operator==(const move_orderer_iterator&) const { return false; }
-  constexpr bool operator==(const move_orderer_iterator_end_tag&) const { return begin_ == end_; }
+  move current_move() const { return begin_->mv; }
 
-  template <typename T>
-  constexpr bool operator!=(const T& other) const {
-    return !(*this == other);
-  }
-
-  std::tuple<std::ptrdiff_t, move> operator*() const { return std::tuple(begin_ - entries_.begin(), begin_->mv); }
-
-  move_orderer_iterator(const move_orderer_data& data) : entries_{}, begin_{entries_.begin()} {
+  move_orderer_stepper(const move_orderer_data& data) : entries_{}, begin_{entries_.begin()} {
     const history::context ctxt{data.follow, data.counter, data.threatened};
     end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data, &ctxt](const move& mv) {
       if (mv == data.first) { return move_orderer_entry::make_first(mv); }
@@ -159,6 +147,26 @@ struct move_orderer_iterator {
     update_list_();
   }
 };
+
+
+struct move_orderer_iterator{
+  int counter{};
+  std::optional<move_orderer_stepper> stepper_{std::nullopt};
+  const move_orderer_data* data_;
+
+
+  std::tuple<int, move> operator*() const {
+    if (!stepper_.has_value()) { return std::tuple(counter, data_->first); }
+    return std::tuple(counter, stepper_->current_move());
+  }
+
+  
+
+  move_orderer_iterator(const move_orderer_data* data) : data_{data} {
+    if (!data->list->has(data->first)) { stepper_ = move_orderer_stepper(*data); }
+  }
+};
+
 
 struct move_orderer {
   using iterator = move_orderer_iterator;
