@@ -226,7 +226,7 @@ struct thread_worker {
     ss.set_hash(bd.hash()).set_eval(static_value);
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
-      if (!loop.keep_going() || best_score >= beta) { break; }
+      if (!loop.keep_going()) { break; }
 
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
@@ -257,6 +257,8 @@ struct thread_worker {
           if constexpr (is_pv) { ss.prepend_to_pv(mv); }
         }
       }
+
+      if (best_score >= beta) { break; }
     }
 
     if (use_tt && loop.keep_going()) {
@@ -410,8 +412,9 @@ struct thread_worker {
 
     for (const auto& [idx, mv] : orderer) {
       assert((mv != move::null()));
-      if (!loop.keep_going() || best_score >= beta) { break; }
+      if (!loop.keep_going()) { break; }
       if (mv == ss.excluded()) { continue; }
+
       const size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
       ss.set_played(mv);
 
@@ -538,6 +541,8 @@ struct thread_worker {
       }
 
       if constexpr (is_root) { internal.node_distribution[mv] += (internal.nodes.load(std::memory_order_relaxed) - nodes_before); }
+
+      if (best_score >= beta) { break; }
     }
 
     // step 14. update histories if appropriate and maybe insert a new transposition_table_entry
