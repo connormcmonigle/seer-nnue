@@ -87,6 +87,13 @@ struct move_orderer_entry {
 
   const std::uint64_t& sort_key() const { return data_; }
 
+  bool is_positive_noisy() const { return positive_noisy_::get(data_); }
+
+  move_orderer_entry& set_value(const std::int32_t& value) {
+    value_::set(data_, make_positive(value));
+    return *this;
+  }
+
   move_orderer_entry() = default;
   move_orderer_entry(const move& mv_, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
     positive_noisy_::set(data_, is_positive_noisy);
@@ -130,11 +137,8 @@ struct move_orderer_stepper {
   move_orderer_stepper& refresh(const move_orderer_data& data) {
     const history::context ctxt{data.follow, data.counter, data.threatened};
 
-    std::transform(begin_, end_, begin_, [&data, &ctxt](const move_orderer_entry& entry) {
-      if (entry.mv.is_noisy()) {
-        return move_orderer_entry::make_noisy(entry.mv, data.bd->see<std::int32_t>(entry.mv), data.hh->compute_value(ctxt, entry.mv));
-      }
-      return move_orderer_entry::make_quiet(entry.mv, data.killer, data.hh->compute_value(ctxt, entry.mv));
+    std::for_each(begin_, end_, [&data, &ctxt](move_orderer_entry& entry) {
+      if (!entry.is_positive_noisy()) { entry.set_value(data.hh->compute_value(ctxt, entry.mv)); }
     });
 
     return *this;
