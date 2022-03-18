@@ -318,7 +318,7 @@ struct thread_worker {
     const move counter = ss.counter();
     const square_set threatened = bd.them_threat_mask();
 
-    move_orderer<is_pv> orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
+    move_orderer<true> orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
                              .set_killer(killer)
                              .set_follow(follow)
                              .set_counter(counter)
