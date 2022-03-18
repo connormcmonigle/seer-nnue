@@ -379,8 +379,7 @@ struct thread_worker {
 
     if (snm_prune) { return make_result(value, move::null()); }
 
-    const bool alpha_prune = !is_pv && !ss.has_excluded() && depth <= 6 && maybe.has_value() && maybe->bound() == bound_type::upper &&
-                             (maybe->score() + 1024 * depth) <= alpha && (static_value + 1024 * depth) <= alpha;
+    const bool alpha_prune = !is_pv && !ss.has_excluded() && depth <= 6 && (value + 1536 * depth) <= alpha;
 
     if (alpha_prune) { return make_result(alpha, move::null()); }
 
