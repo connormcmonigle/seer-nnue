@@ -169,7 +169,6 @@ struct move_orderer_stepper {
 
 struct move_orderer_iterator_end_tag {};
 
-template <bool dynamic>
 struct move_orderer_iterator {
   using difference_type = std::ptrdiff_t;
   using value_type = std::tuple<int, move>;
@@ -177,6 +176,7 @@ struct move_orderer_iterator {
   using reference = std::tuple<int, move>&;
   using iterator_category = std::output_iterator_tag;
 
+  bool dynamic_{};
   int idx{};
   move_orderer_stepper stepper_;
   move_orderer_data data_;
@@ -190,7 +190,7 @@ struct move_orderer_iterator {
     if (!stepper_.is_initialized()) {
       stepper_.initialize(data_);
     } else {
-      if constexpr (dynamic) { stepper_.refresh(data_); }
+      if (dynamic_) { stepper_.refresh(data_); }
       stepper_.next();
     }
 
@@ -206,26 +206,26 @@ struct move_orderer_iterator {
     return !(*this == other);
   }
 
-  move_orderer_iterator(const move_orderer_data& data) : data_{data} {
+  move_orderer_iterator(const bool& dynamic, const move_orderer_data& data) : dynamic_{dynamic}, data_{data} {
     if (!data.list->has(data.first)) { stepper_.initialize(data); }
   }
 };
 
-template <bool dynamic = false>
 struct move_orderer {
-  using iterator = move_orderer_iterator<dynamic>;
+  using iterator = move_orderer_iterator;
 
+  bool dynamic_;
   move_orderer_data data_;
 
-  move_orderer_iterator<dynamic> begin() { return move_orderer_iterator<dynamic>(data_); }
+  move_orderer_iterator begin() { return move_orderer_iterator(dynamic_, data_); }
   move_orderer_iterator_end_tag end() { return move_orderer_iterator_end_tag(); }
 
-  move_orderer<dynamic>& set_first(const move& mv) {
+  move_orderer& set_first(const move& mv) {
     data_.set_first(mv);
     return *this;
   }
 
-  move_orderer(const move_orderer_data& data) : data_{data} {}
+  move_orderer(const bool& dynamic, const move_orderer_data& data) : dynamic_{dynamic}, data_{data} {}
 };
 
 }  // namespace chess
