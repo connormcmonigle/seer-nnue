@@ -88,8 +88,7 @@ struct move_orderer_entry {
   const std::uint64_t& sort_key() const { return data_; }
 
   move_orderer_entry() = default;
-  move_orderer_entry(const move& mv_, bool is_first, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
-    first_::set(data_, is_first);
+  move_orderer_entry(const move& mv_, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
     positive_noisy_::set(data_, is_positive_noisy);
     killer_::set(data_, is_killer);
     value_::set(data_, make_positive(value));
@@ -97,11 +96,11 @@ struct move_orderer_entry {
 
   static inline move_orderer_entry make_noisy(const move& mv, const std::int32_t& see_value, const std::int32_t& history_value) {
     const bool positive_noisy = see_value > 0;
-    return move_orderer_entry(mv, false, positive_noisy, false, positive_noisy ? see_value : history_value);
+    return move_orderer_entry(mv, positive_noisy, false, positive_noisy ? see_value : history_value);
   }
 
   static inline move_orderer_entry make_quiet(const move& mv, const move& killer, const std::int32_t& history_value) {
-    return move_orderer_entry(mv, false, false, mv == killer, history_value);
+    return move_orderer_entry(mv, false, mv == killer, history_value);
   }
 };
 
