@@ -26,6 +26,7 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <tuple>
 
 namespace chess {
@@ -94,8 +95,6 @@ struct move_orderer_entry {
     value_::set(data_, make_positive(value));
   }
 
-  static inline move_orderer_entry make_first(const move& mv) { return move_orderer_entry(mv, true, false, false, 0); }
-
   static inline move_orderer_entry make_noisy(const move& mv, const std::int32_t& see_value, const std::int32_t& history_value) {
     const bool positive_noisy = see_value > 0;
     return move_orderer_entry(mv, false, positive_noisy, false, positive_noisy ? see_value : history_value);
@@ -106,16 +105,10 @@ struct move_orderer_entry {
   }
 };
 
-struct move_orderer_iterator_end_tag {};
-
-struct move_orderer_iterator {
-  using difference_type = std::ptrdiff_t;
-  using value_type = std::tuple<std::ptrdiff_t, move>;
-  using pointer = std::tuple<std::ptrdiff_t, move>*;
-  using reference = std::tuple<std::ptrdiff_t, move>&;
-  using iterator_category = std::output_iterator_tag;
-
+struct move_orderer_stepper {
   using entry_array_type = std::array<move_orderer_entry, move_list::max_branching_factor>;
+
+  bool is_initialized_{false};
 
   entry_array_type entries_;
   entry_array_type::iterator begin_;
@@ -126,37 +119,78 @@ struct move_orderer_iterator {
     std::iter_swap(begin_, std::max_element(begin_, end_, comparator));
   }
 
-  move_orderer_iterator& operator++() {
+  bool is_initialized() const { return is_initialized_; }
+  bool has_next() const { return begin_ != end_; }
+  move current_move() const { return begin_->mv; }
+
+  void next() {
     ++begin_;
     if (begin_ != end_) { update_list_(); }
-    return *this;
   }
 
-  move_orderer_iterator operator++(int) {
-    auto retval = *this;
-    ++(*this);
-    return retval;
-  }
-
-  constexpr bool operator==(const move_orderer_iterator&) const { return false; }
-  constexpr bool operator==(const move_orderer_iterator_end_tag&) const { return begin_ == end_; }
-
-  template <typename T>
-  constexpr bool operator!=(const T& other) const {
-    return !(*this == other);
-  }
-
-  std::tuple<std::ptrdiff_t, move> operator*() const { return std::tuple(begin_ - entries_.begin(), begin_->mv); }
-
-  move_orderer_iterator(const move_orderer_data& data) : entries_{}, begin_{entries_.begin()} {
+  move_orderer_stepper& initialize(const move_orderer_data& data) {
     const history::context ctxt{data.follow, data.counter, data.threatened};
+
     end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data, &ctxt](const move& mv) {
-      if (mv == data.first) { return move_orderer_entry::make_first(mv); }
       if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see<std::int32_t>(mv), data.hh->compute_value(ctxt, mv)); }
       return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
     });
 
-    update_list_();
+    end_ = std::remove_if(begin_, end_, [&data](const auto& entry){ return entry.mv == data.first; });
+
+    if (begin_ != end_) { update_list_(); }
+    is_initialized_ = true;
+    return *this;
+  }
+
+  move_orderer_stepper() : begin_{entries_.begin()} {}
+
+  move_orderer_stepper& operator=(const move_orderer_stepper& other) = delete;
+  move_orderer_stepper& operator=(move_orderer_stepper&& other) = delete;
+  move_orderer_stepper(const move_orderer_stepper& other) = delete;
+  move_orderer_stepper(move_orderer_stepper&& other) = delete;
+
+};
+
+struct move_orderer_iterator_end_tag {};
+
+struct move_orderer_iterator {
+  using difference_type = std::ptrdiff_t;
+  using value_type = std::tuple<int, move>;
+  using pointer = std::tuple<int, move>*;
+  using reference = std::tuple<int, move>&;
+  using iterator_category = std::output_iterator_tag;
+
+  int idx{};
+  move_orderer_stepper stepper_;
+  move_orderer_data data_;
+
+  std::tuple<int, move> operator*() const {
+    if (!stepper_.is_initialized()) { return std::tuple(idx, data_.first); }
+    return std::tuple(idx, stepper_.current_move());
+  }
+
+  move_orderer_iterator& operator++() {
+    if (!stepper_.is_initialized()) {
+      stepper_.initialize(data_);
+    } else {
+      stepper_.next();
+    }
+
+    ++idx;
+    return *this;
+  }
+
+  bool operator==(const move_orderer_iterator&) const { return false; }
+  bool operator==(const move_orderer_iterator_end_tag&) const { return stepper_.is_initialized() && !stepper_.has_next(); }
+
+  template <typename T>
+  bool operator!=(const T& other) const {
+    return !(*this == other);
+  }
+
+  move_orderer_iterator(const move_orderer_data& data) : data_{data} {
+    if (!data.list->has(data.first)) { stepper_.initialize(data); }
   }
 };
 
