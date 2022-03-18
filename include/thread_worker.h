@@ -379,7 +379,7 @@ struct thread_worker {
 
     if (snm_prune) { return make_result(value, move::null()); }
 
-    const bool alpha_prune = !is_pv && !ss.has_excluded() && depth <= 6 && (value + 1536 * depth) <= alpha;
+    const bool alpha_prune = !is_pv && !ss.has_excluded() && depth <= 5 && value + 8192 <= alpha;
 
     if (alpha_prune) { return make_result(alpha, move::null()); }
 
