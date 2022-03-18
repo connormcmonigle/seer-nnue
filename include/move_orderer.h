@@ -127,6 +127,19 @@ struct move_orderer_stepper {
     if (begin_ != end_) { update_list_(); }
   }
 
+  move_orderer_stepper& refresh(const move_orderer_data& data) {
+    const history::context ctxt{data.follow, data.counter, data.threatened};
+
+    std::transform(begin_, end_, begin_, [&data, &ctxt](const move_orderer_entry& entry) {
+      if (entry.mv.is_noisy()) {
+        return move_orderer_entry::make_noisy(entry.mv, data.bd->see<std::int32_t>(entry.mv), data.hh->compute_value(ctxt, entry.mv));
+      }
+      return move_orderer_entry::make_quiet(entry.mv, data.killer, data.hh->compute_value(ctxt, entry.mv));
+    });
+
+    return *this;
+  }
+
   move_orderer_stepper& initialize(const move_orderer_data& data) {
     const history::context ctxt{data.follow, data.counter, data.threatened};
 
@@ -135,7 +148,7 @@ struct move_orderer_stepper {
       return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
     });
 
-    end_ = std::remove_if(begin_, end_, [&data](const auto& entry){ return entry.mv == data.first; });
+    end_ = std::remove_if(begin_, end_, [&data](const auto& entry) { return entry.mv == data.first; });
 
     if (begin_ != end_) { update_list_(); }
     is_initialized_ = true;
@@ -148,11 +161,11 @@ struct move_orderer_stepper {
   move_orderer_stepper& operator=(move_orderer_stepper&& other) = delete;
   move_orderer_stepper(const move_orderer_stepper& other) = delete;
   move_orderer_stepper(move_orderer_stepper&& other) = delete;
-
 };
 
 struct move_orderer_iterator_end_tag {};
 
+template <bool dynamic>
 struct move_orderer_iterator {
   using difference_type = std::ptrdiff_t;
   using value_type = std::tuple<int, move>;
@@ -173,6 +186,7 @@ struct move_orderer_iterator {
     if (!stepper_.is_initialized()) {
       stepper_.initialize(data_);
     } else {
+      if constexpr (dynamic) { stepper_.refresh(data_); }
       stepper_.next();
     }
 
@@ -193,15 +207,16 @@ struct move_orderer_iterator {
   }
 };
 
+template <bool dynamic = false>
 struct move_orderer {
-  using iterator = move_orderer_iterator;
+  using iterator = move_orderer_iterator<dynamic>;
 
   move_orderer_data data_;
 
-  move_orderer_iterator begin() { return move_orderer_iterator(data_); }
+  move_orderer_iterator<dynamic> begin() { return move_orderer_iterator<dynamic>(data_); }
   move_orderer_iterator_end_tag end() { return move_orderer_iterator_end_tag(); }
 
-  move_orderer& set_first(const move& mv) {
+  move_orderer<dynamic>& set_first(const move& mv) {
     data_.set_first(mv);
     return *this;
   }
