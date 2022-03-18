@@ -446,9 +446,13 @@ struct thread_worker {
 
         if (noisy_see_prune) { continue; }
 
-        const bool history_prune = mv.is_quiet() && history_value <= external.constants->history_prune_threshold(depth);
+        const bool quiet_history_prune = mv.is_quiet() && history_value <= external.constants->history_quiet_prune_threshold(depth);
 
-        if (history_prune) { continue; }
+        if (quiet_history_prune) { continue; }
+
+        const bool noisy_history_prune = mv.is_noisy() && history_value <= external.constants->history_noisy_prune_threshold(depth);
+
+        if (noisy_history_prune) { continue; }
       }
 
       external.tt->prefetch(bd_.hash());
