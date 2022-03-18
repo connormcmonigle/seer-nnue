@@ -427,7 +427,7 @@ struct thread_worker {
       if (try_pruning) {
         const bool lm_prune = !bd.gives_check(mv) && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
-        if (lm_prune) { break; }
+        if (lm_prune) { continue; }
 
         const bool futility_prune =
             mv.is_quiet() && depth <= external.constants->futility_prune_depth() && value + external.constants->futility_margin(depth) < alpha;
