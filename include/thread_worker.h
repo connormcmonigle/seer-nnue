@@ -230,6 +230,9 @@ struct thread_worker {
 
       const search::see_type see_value = bd.see<search::see_type>(mv);
 
+      const bool lm_prune = !is_pv && idx > 3;
+      if (lm_prune) { break; }
+
       if (!is_check && see_value < 0) { continue; }
 
       const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((value + external.constants->delta_margin()) < alpha);
@@ -238,6 +241,7 @@ struct thread_worker {
       const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && see_value >= external.constants->good_capture_prune_see_margin() &&
                                       value + external.constants->good_capture_prune_score_margin() > beta;
       if (good_capture_prune) { return beta; }
+
 
       ss.set_played(mv);
 
