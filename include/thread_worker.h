@@ -478,7 +478,7 @@ struct thread_worker {
           if (excluded_score >= beta) { multicut = true; }
         }
 
-        const bool history_ext = !is_root && !ss.has_excluded() && depth >= 3 && idx < 3 && history_value >= 16384;
+        const bool history_ext = !is_root && is_pv && !ss.has_excluded() && depth >= 3 && idx < 3 && history_value >= 16384;
         if (history_ext) { return 1; }
 
         return 0;
