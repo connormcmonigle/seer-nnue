@@ -181,14 +181,10 @@ struct thread_worker {
     if (should_update) { external.on_update(*this); }
 
     ++internal.nodes;
-    const move_list list = bd.generate_noisy_moves();
     const bool is_check = bd.is_check();
 
-    if (list.size() == 0 && is_check) { return ss.loss_score(); }
     if (ss.is_two_fold(bd.hash())) { return search::draw_score; }
     if (bd.is_trivially_drawn()) { return search::draw_score; }
-
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())));
 
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
@@ -196,7 +192,6 @@ struct thread_worker {
       const bool is_cutoff = (entry.bound() == bound_type::lower && entry.score() >= beta) || (entry.bound() == bound_type::exact) ||
                              (entry.bound() == bound_type::upper && entry.score() <= alpha);
       if (use_tt && is_cutoff) { return entry.score(); }
-      orderer.set_first(entry.best_move());
     }
 
     const auto [static_value, value] = [&] {
@@ -216,8 +211,15 @@ struct thread_worker {
       return std::tuple(static_value, value);
     }();
 
-    if (list.size() == 0 || value >= beta) { return value; }
+    if (!is_check && value >= beta) { return value; }
     if (ss.reached_max_height()) { return value; }
+
+    const move_list list = bd.generate_noisy_moves();
+    if (list.size() == 0 && is_check) { return ss.loss_score(); }
+    if (list.size() == 0) { return value; }
+
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())));
+    if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
 
     alpha = std::max(alpha, value);
     search::score_type best_score = value;
@@ -296,33 +298,17 @@ struct thread_worker {
     ++internal.nodes;
 
     // step 2. check if node is terminal
-    const move_list list = bd.generate_moves();
     const bool is_check = bd.is_check();
 
-    if (list.size() == 0 && is_check) { return make_result(ss.loss_score(), move::null()); }
-    if (list.size() == 0) { return make_result(search::draw_score, move::null()); }
     if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(search::draw_score, move::null()); }
     if (!is_root && bd.is_trivially_drawn()) { return make_result(search::draw_score, move::null()); }
-    if (!is_root && bd.is_rule50_draw()) { return make_result(search::draw_score, move::null()); }
+    if (!is_root && !is_check && bd.is_rule50_draw()) { return make_result(search::draw_score, move::null()); }
 
     if constexpr (is_root) {
       if (const syzygy::tb_dtz_result result = syzygy::probe_dtz(bd); result.success) { return make_result(result.score, result.move); }
     }
 
     const search::score_type original_alpha = alpha;
-
-    // step 3. initialize move orderer (setting tt move first if applicable)
-    // and check for tt entry + tt induced cutoff on nonpv nodes
-    const move killer = ss.killer();
-    const move follow = ss.follow();
-    const move counter = ss.counter();
-    const square_set threatened = bd.them_threat_mask();
-
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
-                             .set_killer(killer)
-                             .set_follow(follow)
-                             .set_counter(counter)
-                             .set_threatened(threatened));
 
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
@@ -331,7 +317,6 @@ struct thread_worker {
                              ((entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
                               (entry.bound() == bound_type::upper && entry.score() <= alpha));
       if (is_cutoff) { return make_result(entry.score(), entry.best_move()); }
-      orderer.set_first(entry.best_move());
     }
 
     if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(bd); !is_root && result.success) {
@@ -344,11 +329,11 @@ struct thread_worker {
       }
     }
 
-    // step 4. internal iterative reductions
+    // step 3. internal iterative reductions
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
-    // step 5. compute static eval and adjust appropriately if there's a tt hit
+    // step 4. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
       const search::score_type static_value = is_check                         ? ss.loss_score() :
@@ -366,20 +351,21 @@ struct thread_worker {
       return std::tuple(static_value, value);
     }();
 
-    // step 6. return static eval if max depth was reached
+    // step 5. return static eval if max depth was reached
     if (ss.reached_max_height()) { return make_result(value, move::null()); }
 
-    // step 7. add position and static eval to stack
+    // step 6. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_value);
     const bool improving = !is_check && ss.improving();
+    const square_set threatened = bd.them_threat_mask();
 
-    // step 8. static null move pruning
+    // step 7. static null move pruning
     const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
                            value > beta + external.constants->snmp_margin(improving, threatened.any(), depth) && value > ss.loss_score();
 
     if (snm_prune) { return make_result(value, move::null()); }
 
-    // step 9. prob pruning
+    // step 8. prob pruning
     const bool prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
                             maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
                             maybe->score() > beta + external.constants->prob_prune_margin() &&
@@ -387,10 +373,10 @@ struct thread_worker {
 
     if (prob_prune) { return make_result(beta, move::null()); }
 
-    // step 10. null move pruning
+    // step 9. null move pruning
     const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
                          bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
-                         (!maybe.has_value() || (maybe->bound() == bound_type::lower && list.has(maybe->best_move()) &&
+                         (!maybe.has_value() || (maybe->bound() == bound_type::lower &&
                                                  bd.see<search::see_type>(maybe->best_move()) <= external.constants->nmp_see_threshold()));
 
     if (try_nmp) {
@@ -400,6 +386,23 @@ struct thread_worker {
           -pv_search<false>(ss.next(), eval, bd.forward(move::null()), -beta, -beta + 1, adjusted_depth, player_from(!bd.turn()));
       if (nmp_score >= beta) { return make_result(nmp_score, move::null()); }
     }
+
+    const move_list list = bd.generate_moves();
+    if (list.size() == 0 && is_check) { return make_result(ss.loss_score(), move::null()); }
+    if (list.size() == 0) { return make_result(search::draw_score, move::null()); }
+
+    // step 10. initialize move orderer (setting tt move first if applicable)
+    const move killer = ss.killer();
+    const move follow = ss.follow();
+    const move counter = ss.counter();
+
+    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
+                             .set_killer(killer)
+                             .set_follow(follow)
+                             .set_counter(counter)
+                             .set_threatened(threatened));
+
+    if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
 
     // list of attempted moves for updating histories
     move_list moves_tried{};
