@@ -49,6 +49,17 @@ constexpr T phase_value(const piece_type& pt) {
   return values[static_cast<size_t>(pt)];
 }
 
+struct move_generator_state {
+  square_set occ;
+  square_set last_rank;
+  square_set checkers;
+  square_set checker_rays;
+  square_set pinned;
+  square_set king_danger;
+  square_set king_diagonal;
+  square_set king_horizontal;
+};
+
 struct board {
   sided_manifest man_{};
   sided_latent lat_{};
@@ -171,7 +182,7 @@ struct board {
   }
 
   template <color c>
-  move_list& append_en_passant(move_list& mv_ls) const {
+  void add_en_passant(move_list& mv_ls) const {
     if (lat_.them<c>().ep_mask().any()) {
       const square_set occ = man_.white.all() | man_.black.all();
       const square ep_square = lat_.them<c>().ep_mask().item();
@@ -184,161 +195,249 @@ struct board {
         }
       }
     }
-    return mv_ls;
+  }
+
+  template <color c, bool gen_quiet>
+  void add_castle(const move_generator_state& state, move_list& result) const {
+    if (lat_.us<c>().oo() && !(castle_info<c>.oo_mask & (state.king_danger | state.occ)).any()) {
+      result.add_(castle_info<c>.start_king, castle_info<c>.oo_rook, piece_type::king, true, piece_type::rook);
+    }
+    if (lat_.us<c>().ooo() && !(castle_info<c>.ooo_danger_mask & state.king_danger).any() && !(castle_info<c>.ooo_occ_mask & state.occ).any()) {
+      result.add_(castle_info<c>.start_king, castle_info<c>.ooo_rook, piece_type::king, true, piece_type::rook);
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_normal_pawn(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().pawn() & ~state.pinned)) {
+      const auto to_quiet = pawn_push_tbl<c>.look_up(from, state.occ);
+      const auto to_noisy = pawn_attack_tbl<c>.look_up(from) & man_.them<c>().all();
+      if constexpr (gen_quiet) {
+        for (const auto to : (to_quiet & ~state.last_rank)) { result.add_(from, to, piece_type::pawn); }
+      }
+      for (const auto to : (to_noisy & ~state.last_rank)) { result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
+      for (const auto to : (to_quiet & state.last_rank)) { result.add_promotion_<gen_quiet>(from, to, piece_type::pawn); }
+      for (const auto to : (to_noisy & state.last_rank)) {
+        result.add_promotion_<gen_quiet>(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
+      }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_normal_knight(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().knight() & ~state.pinned)) {
+      const auto to_mask = knight_attack_tbl.look_up(from);
+      if constexpr (gen_quiet) {
+        for (const auto to : (to_mask & ~state.occ)) { result.add_(from, to, piece_type::knight); }
+      }
+      for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::knight, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_normal_bishop(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().bishop() & ~state.pinned)) {
+      const auto to_mask = bishop_attack_tbl.look_up(from, state.occ);
+      if constexpr (gen_quiet) {
+        for (const auto to : (to_mask & ~state.occ)) { result.add_(from, to, piece_type::bishop); }
+      }
+      for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::bishop, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_normal_rook(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().rook() & ~state.pinned)) {
+      const auto to_mask = rook_attack_tbl.look_up(from, state.occ);
+      if constexpr (gen_quiet) {
+        for (const auto to : (to_mask & ~state.occ)) { result.add_(from, to, piece_type::rook); }
+      }
+      for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::rook, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_normal_queen(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().queen() & ~state.pinned)) {
+      const auto to_mask = bishop_attack_tbl.look_up(from, state.occ) | rook_attack_tbl.look_up(from, state.occ);
+      if constexpr (gen_quiet) {
+        for (const auto to : (to_mask & ~state.occ)) { result.add_(from, to, piece_type::queen); }
+      }
+      for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_pinned_pawn(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().pawn() & state.pinned & state.king_diagonal)) {
+      const auto to_mask = pawn_attack_tbl<c>.look_up(from) & state.king_diagonal;
+      for (const auto to : (to_mask & ~state.last_rank & man_.them<c>().all())) {
+        result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
+      }
+      for (const auto to : (to_mask & state.last_rank & man_.them<c>().all())) {
+        result.add_promotion_<gen_quiet>(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
+      }
+    }
+    for (const auto from : (man_.us<c>().pawn() & state.pinned & state.king_horizontal)) {
+      const auto to_mask = pawn_push_tbl<c>.look_up(from, state.occ) & state.king_horizontal;
+      if constexpr (gen_quiet) {
+        for (const auto to : (to_mask & ~state.last_rank)) { result.add_(from, to, piece_type::pawn); }
+      }
+      for (const auto to : (to_mask & state.last_rank)) { result.add_promotion_<gen_quiet>(from, to, piece_type::pawn); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_pinned_bishop(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().bishop() & state.pinned & state.king_diagonal)) {
+      const auto to_mask = bishop_attack_tbl.look_up(from, state.occ) & state.king_diagonal;
+      if constexpr (gen_quiet) {
+        for (const auto to : (to_mask & ~state.occ)) { result.add_(from, to, piece_type::bishop); }
+      }
+      for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::bishop, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_pinned_rook(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().rook() & state.pinned & state.king_horizontal)) {
+      const auto to_mask = rook_attack_tbl.look_up(from, state.occ) & state.king_horizontal;
+      if constexpr (gen_quiet) {
+        for (const auto to : (to_mask & ~state.occ)) { result.add_(from, to, piece_type::rook); }
+      }
+      for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::rook, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_pinned_queen(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().queen() & state.pinned & state.king_diagonal)) {
+      const auto to_mask = bishop_attack_tbl.look_up(from, state.occ) & state.king_diagonal;
+      if constexpr (gen_quiet) {
+        for (const auto to : (to_mask & ~state.occ)) { result.add_(from, to, piece_type::queen); }
+      }
+      for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); }
+    }
+    for (const auto from : (man_.us<c>().queen() & state.pinned & state.king_horizontal)) {
+      const auto to_mask = rook_attack_tbl.look_up(from, state.occ) & state.king_horizontal;
+      if constexpr (gen_quiet) {
+        for (const auto to : (to_mask & ~state.occ)) { result.add_(from, to, piece_type::queen); }
+      }
+      for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_checked_pawn(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().pawn() & ~state.pinned)) {
+      const auto to_quiet = state.checker_rays & pawn_push_tbl<c>.look_up(from, state.occ);
+      const auto to_noisy = state.checkers & pawn_attack_tbl<c>.look_up(from);
+      for (const auto to : (to_quiet & ~state.last_rank)) { result.add_(from, to, piece_type::pawn); }
+      for (const auto to : (to_noisy & ~state.last_rank)) { result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
+      for (const auto to : (to_quiet & state.last_rank)) { result.add_promotion_<gen_quiet>(from, to, piece_type::pawn); }
+      for (const auto to : (to_noisy & state.last_rank)) {
+        result.add_promotion_<gen_quiet>(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
+      }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_checked_knight(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().knight() & ~state.pinned)) {
+      const auto to_mask = knight_attack_tbl.look_up(from);
+      const auto to_quiet = state.checker_rays & to_mask;
+      const auto to_noisy = state.checkers & to_mask;
+      for (const auto to : to_quiet) { result.add_(from, to, piece_type::knight); }
+      for (const auto to : to_noisy) { result.add_(from, to, piece_type::knight, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_checked_rook(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().rook() & ~state.pinned)) {
+      const auto to_mask = rook_attack_tbl.look_up(from, state.occ);
+      const auto to_quiet = state.checker_rays & to_mask;
+      const auto to_noisy = state.checkers & to_mask;
+      for (const auto to : to_quiet) { result.add_(from, to, piece_type::rook); }
+      for (const auto to : to_noisy) { result.add_(from, to, piece_type::rook, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_checked_bishop(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().bishop() & ~state.pinned)) {
+      const auto to_mask = bishop_attack_tbl.look_up(from, state.occ);
+      const auto to_quiet = state.checker_rays & to_mask;
+      const auto to_noisy = state.checkers & to_mask;
+      for (const auto to : to_quiet) { result.add_(from, to, piece_type::bishop); }
+      for (const auto to : to_noisy) { result.add_(from, to, piece_type::bishop, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_checked_queen(const move_generator_state& state, move_list& result) const {
+    for (const auto from : (man_.us<c>().queen() & ~state.pinned)) {
+      const auto to_mask = bishop_attack_tbl.look_up(from, state.occ) | rook_attack_tbl.look_up(from, state.occ);
+      const auto to_quiet = state.checker_rays & to_mask;
+      const auto to_noisy = state.checkers & to_mask;
+      for (const auto to : to_quiet) { result.add_(from, to, piece_type::queen); }
+      for (const auto to : to_noisy) { result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); }
+    }
+  }
+
+  template <color c, bool gen_quiet>
+  void add_king(const move_generator_state& state, move_list& result) const {
+    const square_set to_mask = ~state.king_danger & king_attack_tbl.look_up(man_.us<c>().king().item());
+    if (gen_quiet || state.checkers.any()) {
+      for (const square to : (to_mask & ~state.occ)) { result.add_(man_.us<c>().king().item(), to, piece_type::king); }
+    }
+
+    for (const square to : (to_mask & man_.them<c>().all())) {
+      result.add_(man_.us<c>().king().item(), to, piece_type::king, true, man_.them<c>().occ(to));
+    }
   }
 
   template <color c, bool gen_quiet = true>
   move_list generate_moves_() const {
-    move_list result{};
-    constexpr auto last_rank = pawn_delta<c>::last_rank;
-    const square_set occ = man_.white.all() | man_.black.all();
-    const auto [checkers_, checker_rays_] = checkers<c>(occ);
-    const square_set king_danger_ = king_danger<c>();
+    const auto [checkers_, checker_rays_] = checkers<c>(man_.white.all() | man_.black.all());
     const size_t num_checkers = checkers_.count();
-    const auto k_x_diag = bishop_attack_tbl.look_up(man_.us<c>().king().item(), square_set{});
-    const auto k_x_hori = rook_attack_tbl.look_up(man_.us<c>().king().item(), square_set{});
+
+    const move_generator_state state{
+        man_.white.all() | man_.black.all(),
+        pawn_delta<c>::last_rank,
+        checkers_,
+        checker_rays_,
+        pinned<c>(),
+        king_danger<c>(),
+        bishop_attack_tbl.look_up(man_.us<c>().king().item(), square_set{}),
+        rook_attack_tbl.look_up(man_.us<c>().king().item(), square_set{}),
+    };
+
+    move_list result{};
+
     if (num_checkers == 0) {
-      const square_set pinned_ = pinned<c>();
-      for (const auto from : (man_.us<c>().pawn() & ~pinned_)) {
-        const auto to_quiet = pawn_push_tbl<c>.look_up(from, occ);
-        const auto to_noisy = pawn_attack_tbl<c>.look_up(from) & man_.them<c>().all();
-        if constexpr (gen_quiet) {
-          for (const auto to : (to_quiet & ~last_rank)) { result.add_(from, to, piece_type::pawn); }
-        }
-        for (const auto to : (to_noisy & ~last_rank)) { result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
-        for (const auto to : (to_quiet & last_rank)) { result.add_promotion_<gen_quiet>(from, to, piece_type::pawn); }
-        for (const auto to : (to_noisy & last_rank)) { result.add_promotion_<gen_quiet>(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
-      }
-      for (const auto from : (man_.us<c>().knight() & ~pinned_)) {
-        const auto to_mask = knight_attack_tbl.look_up(from);
-        if constexpr (gen_quiet) {
-          for (const auto to : (to_mask & ~occ)) { result.add_(from, to, piece_type::knight); }
-        }
-        for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::knight, true, man_.them<c>().occ(to)); }
-      }
-      for (const auto from : (man_.us<c>().rook() & ~pinned_)) {
-        const auto to_mask = rook_attack_tbl.look_up(from, occ);
-        if constexpr (gen_quiet) {
-          for (const auto to : (to_mask & ~occ)) { result.add_(from, to, piece_type::rook); }
-        }
-        for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::rook, true, man_.them<c>().occ(to)); }
-      }
-      for (const auto from : (man_.us<c>().bishop() & ~pinned_)) {
-        const auto to_mask = bishop_attack_tbl.look_up(from, occ);
-        if constexpr (gen_quiet) {
-          for (const auto to : (to_mask & ~occ)) { result.add_(from, to, piece_type::bishop); }
-        }
-        for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::bishop, true, man_.them<c>().occ(to)); }
-      }
-      for (const auto from : (man_.us<c>().queen() & ~pinned_)) {
-        const auto to_mask = bishop_attack_tbl.look_up(from, occ) | rook_attack_tbl.look_up(from, occ);
-        if constexpr (gen_quiet) {
-          for (const auto to : (to_mask & ~occ)) { result.add_(from, to, piece_type::queen); }
-        }
-        for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); }
-      }
-      if (lat_.us<c>().oo() && !(castle_info<c>.oo_mask & (king_danger_ | occ)).any()) {
-        result.add_(castle_info<c>.start_king, castle_info<c>.oo_rook, piece_type::king, true, piece_type::rook);
-      }
-      if (lat_.us<c>().ooo() && !(castle_info<c>.ooo_danger_mask & king_danger_).any() && !(castle_info<c>.ooo_occ_mask & occ).any()) {
-        result.add_(castle_info<c>.start_king, castle_info<c>.ooo_rook, piece_type::king, true, piece_type::rook);
-      }
-      if (pinned_.any()) {
-        for (const auto from : (man_.us<c>().pawn() & pinned_ & k_x_diag)) {
-          const auto to_mask = pawn_attack_tbl<c>.look_up(from) & k_x_diag;
-          for (const auto to : (to_mask & ~last_rank & man_.them<c>().all())) {
-            result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
-          }
-          for (const auto to : (to_mask & last_rank & man_.them<c>().all())) {
-            result.add_promotion_<gen_quiet>(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
-          }
-        }
-        for (const auto from : (man_.us<c>().pawn() & pinned_ & k_x_hori)) {
-          const auto to_mask = pawn_push_tbl<c>.look_up(from, occ) & k_x_hori;
-          if constexpr (gen_quiet) {
-            for (const auto to : (to_mask & ~last_rank)) { result.add_(from, to, piece_type::pawn); }
-          }
-          for (const auto to : (to_mask & last_rank)) { result.add_promotion_<gen_quiet>(from, to, piece_type::pawn); }
-        }
-        for (const auto from : (man_.us<c>().bishop() & pinned_ & k_x_diag)) {
-          const auto to_mask = bishop_attack_tbl.look_up(from, occ) & k_x_diag;
-          if constexpr (gen_quiet) {
-            for (const auto to : (to_mask & ~occ)) { result.add_(from, to, piece_type::bishop); }
-          }
-          for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::bishop, true, man_.them<c>().occ(to)); }
-        }
-        for (const auto from : (man_.us<c>().rook() & pinned_ & k_x_hori)) {
-          const auto to_mask = rook_attack_tbl.look_up(from, occ) & k_x_hori;
-          if constexpr (gen_quiet) {
-            for (const auto to : (to_mask & ~occ)) { result.add_(from, to, piece_type::rook); }
-          }
-          for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::rook, true, man_.them<c>().occ(to)); }
-        }
-        for (const auto from : (man_.us<c>().queen() & pinned_ & k_x_diag)) {
-          const auto to_mask = bishop_attack_tbl.look_up(from, occ) & k_x_diag;
-          if constexpr (gen_quiet) {
-            for (const auto to : (to_mask & ~occ)) { result.add_(from, to, piece_type::queen); }
-          }
-          for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); }
-        }
-        for (const auto from : (man_.us<c>().queen() & pinned_ & k_x_hori)) {
-          const auto to_mask = rook_attack_tbl.look_up(from, occ) & k_x_hori;
-          if constexpr (gen_quiet) {
-            for (const auto to : (to_mask & ~occ)) { result.add_(from, to, piece_type::queen); }
-          }
-          for (const auto to : (to_mask & man_.them<c>().all())) { result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); }
-        }
+      add_normal_pawn<c, gen_quiet>(state, result);
+      add_normal_knight<c, gen_quiet>(state, result);
+      add_normal_rook<c, gen_quiet>(state, result);
+      add_normal_bishop<c, gen_quiet>(state, result);
+      add_normal_queen<c, gen_quiet>(state, result);
+      add_castle<c, gen_quiet>(state, result);
+      if (state.pinned.any()) {
+        add_pinned_pawn<c, gen_quiet>(state, result);
+        add_pinned_bishop<c, gen_quiet>(state, result);
+        add_pinned_rook<c, gen_quiet>(state, result);
+        add_pinned_queen<c, gen_quiet>(state, result);
       }
     } else if (num_checkers == 1) {
-      const square_set pinned_ = pinned<c>();
-      const square_set push_mask = checker_rays_;
-      const square_set capture_mask = checkers_;
-      const piece_type checker_type = man_.them<c>().occ(capture_mask.item());
-      for (const auto from : (man_.us<c>().pawn() & ~pinned_)) {
-        const auto to_quiet = push_mask & pawn_push_tbl<c>.look_up(from, occ);
-        const auto to_noisy = capture_mask & pawn_attack_tbl<c>.look_up(from);
-        for (const auto to : (to_quiet & ~last_rank)) { result.add_(from, to, piece_type::pawn); }
-        for (const auto to : (to_noisy & ~last_rank)) { result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
-        for (const auto to : (to_quiet & last_rank)) { result.add_promotion_<gen_quiet>(from, to, piece_type::pawn); }
-        for (const auto to : (to_noisy & last_rank)) { result.add_promotion_<gen_quiet>(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
-      }
-      for (const auto from : (man_.us<c>().knight() & ~pinned_)) {
-        const auto to_mask = knight_attack_tbl.look_up(from);
-        const auto to_quiet = push_mask & to_mask;
-        const auto to_noisy = capture_mask & to_mask;
-        for (const auto to : to_quiet) { result.add_(from, to, piece_type::knight); }
-        for (const auto to : to_noisy) { result.add_(from, to, piece_type::knight, true, checker_type); }
-      }
-      for (const auto from : (man_.us<c>().rook() & ~pinned_)) {
-        const auto to_mask = rook_attack_tbl.look_up(from, occ);
-        const auto to_quiet = push_mask & to_mask;
-        const auto to_noisy = capture_mask & to_mask;
-        for (const auto to : to_quiet) { result.add_(from, to, piece_type::rook); }
-        for (const auto to : to_noisy) { result.add_(from, to, piece_type::rook, true, checker_type); }
-      }
-      for (const auto from : (man_.us<c>().bishop() & ~pinned_)) {
-        const auto to_mask = bishop_attack_tbl.look_up(from, occ);
-        const auto to_quiet = push_mask & to_mask;
-        const auto to_noisy = capture_mask & to_mask;
-        for (const auto to : to_quiet) { result.add_(from, to, piece_type::bishop); }
-        for (const auto to : to_noisy) { result.add_(from, to, piece_type::bishop, true, checker_type); }
-      }
-      for (const auto from : (man_.us<c>().queen() & ~pinned_)) {
-        const auto to_mask = bishop_attack_tbl.look_up(from, occ) | rook_attack_tbl.look_up(from, occ);
-        const auto to_quiet = push_mask & to_mask;
-        const auto to_noisy = capture_mask & to_mask;
-        for (const auto to : to_quiet) { result.add_(from, to, piece_type::queen); }
-        for (const auto to : to_noisy) { result.add_(from, to, piece_type::queen, true, checker_type); }
-      }
+      add_checked_pawn<c, gen_quiet>(state, result);
+      add_checked_knight<c, gen_quiet>(state, result);
+      add_checked_rook<c, gen_quiet>(state, result);
+      add_checked_bishop<c, gen_quiet>(state, result);
+      add_checked_queen<c, gen_quiet>(state, result);
     }
-    const square_set to_mask = ~king_danger_ & king_attack_tbl.look_up(man_.us<c>().king().item());
-    if (gen_quiet || checkers_.any()) {
-      for (const square to : (to_mask & ~occ)) { result.add_(man_.us<c>().king().item(), to, piece_type::king); }
-    }
-    for (const square to : (to_mask & man_.them<c>().all())) {
-      result.add_(man_.us<c>().king().item(), to, piece_type::king, true, man_.them<c>().occ(to));
-    }
-    return append_en_passant<c>(result);
+    add_king<c, gen_quiet>(state, result);
+    add_en_passant<c>(result);
+    return result;
   }
 
   move_list generate_moves() const { return turn() ? generate_moves_<color::white, true>() : generate_moves_<color::black, true>(); }
