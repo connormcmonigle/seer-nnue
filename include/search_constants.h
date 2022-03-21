@@ -51,7 +51,7 @@ inline constexpr depth_type max_depth_margin = 8;
 
 using score_type = std::int32_t;
 
-using wdl_type = std::tuple<search::score_type, search::score_type, search::score_type>;
+using wdl_type = std::tuple<score_type, score_type, score_type>;
 
 inline constexpr score_type big_number = 8 * logit_scale<score_type>;
 
@@ -73,7 +73,7 @@ using see_type = std::int32_t;
 
 inline constexpr size_t nodes_per_update = 512;
 
-struct fixed_constants {
+struct fixed_search_constants {
   static constexpr bool tuning = false;
   static constexpr depth_type lmr_tbl_dim = 64;
   size_t thread_count_;
@@ -156,7 +156,7 @@ struct fixed_constants {
   constexpr see_type good_capture_prune_see_margin() const { return 300; }
   constexpr score_type good_capture_prune_score_margin() const { return 256; }
 
-  fixed_constants& update_(const size_t& thread_count) {
+  fixed_search_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {
       for (depth_type played{1}; played < lmr_tbl_dim; ++played) {
@@ -168,10 +168,10 @@ struct fixed_constants {
 
   auto options() { return engine::uci_options(); }
 
-  fixed_constants(const size_t& thread_count = 1) { update_(thread_count); }
+  fixed_search_constants(const size_t& thread_count = 1) { update_(thread_count); }
 };
 
-struct tuning_constants : fixed_constants {
+struct tuning_search_constants : fixed_search_constants {
   static constexpr bool tuning = true;
   static constexpr depth_type lmr_tbl_dim = 64;
 
@@ -186,7 +186,7 @@ struct tuning_constants : fixed_constants {
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
   }
 
-  tuning_constants& update_(const size_t& thread_count) {
+  tuning_search_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {
       for (depth_type played{1}; played < lmr_tbl_dim; ++played) {
@@ -216,13 +216,13 @@ struct tuning_constants : fixed_constants {
     return uci_options(option_reduce_depth, option_lmr_tbl_bias, option_lmr_tbl_div);
   }
 
-  tuning_constants(const size_t& thread_count = 1) { update_(thread_count); }
+  tuning_search_constants(const size_t& thread_count = 1) { update_(thread_count); }
 };
 
 #ifdef TUNE
-using constants = tuning_constants;
+using search_constants = tuning_search_constants;
 #else
-using constants = fixed_constants;
+using search_constants = fixed_search_constants;
 #endif
 
 }  // namespace search

@@ -32,7 +32,7 @@
 #include <string_view>
 #include <vector>
 
-namespace chess {
+namespace search {
 
 constexpr size_t cache_line_size = 64;
 enum class bound_type { upper, lower, exact };
@@ -44,7 +44,7 @@ struct transposition_table_entry {
   using bound_ = bit::range<bound_type, 0, 2>;
   using score_ = bit::next_range<bound_, std::int16_t>;
   using gen_ = bit::next_range<score_, gen_type>;
-  using best_move_ = bit::next_range<gen_, move::data_type, move::width>;
+  using best_move_ = bit::next_range<gen_, chess::move::data_type, chess::move::width>;
   using depth_ = bit::next_range<best_move_, std::uint8_t>;
 
   zobrist::hash_type key_{empty_key};
@@ -53,10 +53,10 @@ struct transposition_table_entry {
   zobrist::hash_type key() const { return key_ ^ value_;; }
 
   bound_type bound() const { return bound_::get(value_); }
-  search::score_type score() const { return static_cast<search::score_type>(score_::get(value_)); }
+  score_type score() const { return static_cast<score_type>(score_::get(value_)); }
   gen_type gen() const { return gen_::get(value_); }
-  search::depth_type depth() const { return static_cast<search::depth_type>(depth_::get(value_)); }
-  move best_move() const { return move{best_move_::get(value_)}; }
+  depth_type depth() const { return static_cast<depth_type>(depth_::get(value_)); }
+  chess::move best_move() const { return chess::move{best_move_::get(value_)}; }
 
   bool is_empty() const { return key_ == empty_key; }
 
@@ -70,7 +70,7 @@ struct transposition_table_entry {
   }
 
   transposition_table_entry(
-      const zobrist::hash_type& key, const bound_type& bound, const search::score_type& score, const chess::move& mv, const search::depth_type& depth)
+      const zobrist::hash_type& key, const bound_type& bound, const score_type& score, const chess::move& mv, const depth_type& depth)
       : key_{key} {
     bound_::set(value_, bound);
     score_::set(value_, static_cast<score_::type>(score));
@@ -139,7 +139,7 @@ struct transposition_table {
   size_t hash_function(const zobrist::hash_type& hash) const { return hash % data.size(); }
 
   __attribute__((no_sanitize("thread"))) transposition_table& insert(const transposition_table_entry& entry) {
-    constexpr search::depth_type offset = 2;
+    constexpr depth_type offset = 2;
     const transposition_table_entry::gen_type gen = current_gen.load(std::memory_order_relaxed);
 
     transposition_table_entry* to_replace = data[hash_function(entry.key())].to_replace(gen, entry.key());

@@ -29,7 +29,7 @@
 #include <optional>
 #include <tuple>
 
-namespace chess {
+namespace search {
 
 constexpr std::uint32_t make_positive(const std::int32_t& x) {
   constexpr std::uint32_t upper = static_cast<std::uint32_t>(1) + std::numeric_limits<std::int32_t>::max();
@@ -37,43 +37,43 @@ constexpr std::uint32_t make_positive(const std::int32_t& x) {
 }
 
 struct move_orderer_data {
-  move killer{move::null()};
-  move follow{move::null()};
-  move counter{move::null()};
-  move first{move::null()};
+  chess::move killer{chess::move::null()};
+  chess::move follow{chess::move::null()};
+  chess::move counter{chess::move::null()};
+  chess::move first{chess::move::null()};
 
-  square_set threatened{};
+  chess::square_set threatened{};
 
-  const board* bd;
-  const move_list* list;
+  const chess::board* bd;
+  const chess::move_list* list;
   const history_heuristic* hh;
 
-  move_orderer_data& set_killer(const move& mv) {
+  move_orderer_data& set_killer(const chess::move& mv) {
     killer = mv;
     return *this;
   }
 
-  move_orderer_data& set_follow(const move& mv) {
+  move_orderer_data& set_follow(const chess::move& mv) {
     follow = mv;
     return *this;
   }
 
-  move_orderer_data& set_counter(const move& mv) {
+  move_orderer_data& set_counter(const chess::move& mv) {
     counter = mv;
     return *this;
   }
 
-  move_orderer_data& set_first(const move& mv) {
+  move_orderer_data& set_first(const chess::move& mv) {
     first = mv;
     return *this;
   }
 
-  move_orderer_data& set_threatened(const square_set& mask) {
+  move_orderer_data& set_threatened(const chess::square_set& mask) {
     threatened = mask;
     return *this;
   }
 
-  move_orderer_data(const board* bd_, const move_list* list_, const history_heuristic* hh_) : bd{bd_}, list{list_}, hh{hh_} {}
+  move_orderer_data(const chess::board* bd_, const chess::move_list* list_, const history_heuristic* hh_) : bd{bd_}, list{list_}, hh{hh_} {}
 };
 
 struct move_orderer_entry {
@@ -82,30 +82,30 @@ struct move_orderer_entry {
   using positive_noisy_ = bit::next_flag<killer_>;
   using first_ = bit::next_flag<positive_noisy_>;
 
-  move mv;
+  chess::move mv;
   std::uint64_t data_;
 
   const std::uint64_t& sort_key() const { return data_; }
 
   move_orderer_entry() = default;
-  move_orderer_entry(const move& mv_, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
+  move_orderer_entry(const chess::move& mv_, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
     positive_noisy_::set(data_, is_positive_noisy);
     killer_::set(data_, is_killer);
     value_::set(data_, make_positive(value));
   }
 
-  static inline move_orderer_entry make_noisy(const move& mv, const std::int32_t& see_value, const std::int32_t& history_value) {
+  static inline move_orderer_entry make_noisy(const chess::move& mv, const std::int32_t& see_value, const std::int32_t& history_value) {
     const bool positive_noisy = see_value > 0;
     return move_orderer_entry(mv, positive_noisy, false, positive_noisy ? see_value : history_value);
   }
 
-  static inline move_orderer_entry make_quiet(const move& mv, const move& killer, const std::int32_t& history_value) {
+  static inline move_orderer_entry make_quiet(const chess::move& mv, const chess::move& killer, const std::int32_t& history_value) {
     return move_orderer_entry(mv, false, mv == killer, history_value);
   }
 };
 
 struct move_orderer_stepper {
-  using entry_array_type = std::array<move_orderer_entry, move_list::max_branching_factor>;
+  using entry_array_type = std::array<move_orderer_entry, chess::move_list::max_branching_factor>;
 
   bool is_initialized_{false};
 
@@ -120,7 +120,7 @@ struct move_orderer_stepper {
 
   bool is_initialized() const { return is_initialized_; }
   bool has_next() const { return begin_ != end_; }
-  move current_move() const { return begin_->mv; }
+  chess::move current_move() const { return begin_->mv; }
 
   void next() {
     ++begin_;
@@ -130,7 +130,7 @@ struct move_orderer_stepper {
   move_orderer_stepper& initialize(const move_orderer_data& data) {
     const history::context ctxt{data.follow, data.counter, data.threatened};
 
-    end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data, &ctxt](const move& mv) {
+    end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
       if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see<std::int32_t>(mv), data.hh->compute_value(ctxt, mv)); }
       return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
     });
@@ -155,16 +155,16 @@ struct move_orderer_iterator_end_tag {};
 
 struct move_orderer_iterator {
   using difference_type = std::ptrdiff_t;
-  using value_type = std::tuple<int, move>;
-  using pointer = std::tuple<int, move>*;
-  using reference = std::tuple<int, move>&;
+  using value_type = std::tuple<int, chess::move>;
+  using pointer = std::tuple<int, chess::move>*;
+  using reference = std::tuple<int, chess::move>&;
   using iterator_category = std::output_iterator_tag;
 
   int idx{};
   move_orderer_stepper stepper_;
   move_orderer_data data_;
 
-  std::tuple<int, move> operator*() const {
+  std::tuple<int, chess::move> operator*() const {
     if (!stepper_.is_initialized()) { return std::tuple(idx, data_.first); }
     return std::tuple(idx, stepper_.current_move());
   }
@@ -201,7 +201,7 @@ struct move_orderer {
   move_orderer_iterator begin() { return move_orderer_iterator(data_); }
   move_orderer_iterator_end_tag end() { return move_orderer_iterator_end_tag(); }
 
-  move_orderer& set_first(const move& mv) {
+  move_orderer& set_first(const chess::move& mv) {
     data_.set_first(mv);
     return *this;
   }

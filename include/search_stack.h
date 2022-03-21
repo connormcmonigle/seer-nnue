@@ -43,7 +43,7 @@ struct stack_entry {
   stack_entry() { pv_.fill(chess::move::null()); }
 };
 
-struct stack {
+struct search_stack {
   depth_type sel_depth_{0};
 
   chess::position_history past_;
@@ -77,17 +77,17 @@ struct stack {
 
   chess::move ponder_move() const { return *(future_.begin()->pv_.begin() + 1); }
 
-  stack& clear_future() {
+  search_stack& clear_future() {
     sel_depth_ = 0;
     future_.fill(stack_entry{});
     return *this;
   }
 
-  stack(const chess::position_history& past, const chess::board& present) : past_{past}, present_{present} {}
+  search_stack(const chess::position_history& past, const chess::board& present) : past_{past}, present_{present} {}
 };
 
 struct stack_view {
-  stack* view_;
+  search_stack* view_;
   depth_type height_{};
 
   constexpr score_type loss_score() const {  return mate_score + height_; }
@@ -161,9 +161,9 @@ struct stack_view {
 
   stack_view next() const { return stack_view(view_, height_ + 1); }
 
-  stack_view(stack* view, const depth_type& height) : view_{view}, height_{height} { assert((height >= 0)); }
+  stack_view(search_stack* view, const depth_type& height) : view_{view}, height_{height} { assert((height >= 0)); }
 
-  static stack_view root(stack& st) { return stack_view(&st, 0); }
+  static stack_view root(search_stack& st) { return stack_view(&st, 0); }
 };
 
 }  // namespace search
