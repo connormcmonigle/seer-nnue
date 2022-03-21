@@ -26,7 +26,7 @@
 #include <search_constants.h>
 #include <search_stack.h>
 #include <syzygy.h>
-#include <thread_worker.h>
+#include <search_worker.h>
 #include <time_manager.h>
 #include <version.h>
 
@@ -54,7 +54,7 @@ struct uci {
   chess::board position = chess::board::start_pos();
 
   nnue::weights weights_{};
-  chess::worker_pool pool_;
+  search::worker_pool pool_;
   chess::book book_{};
 
   std::atomic_bool ponder_{false};
@@ -208,7 +208,7 @@ struct uci {
     os << "id name " << version::engine_name << " " << version::major << '.' << version::minor << '.' << version::patch << std::endl;
     os << "id author " << version::author_name << std::endl;
     os << options();
-    if constexpr (search::constants::tuning) { os << (pool_.constants_->options()); }
+    if constexpr (search::search_constants::tuning) { os << (pool_.constants_->options()); }
     os << "uciok" << std::endl;
   }
 
@@ -304,7 +304,7 @@ struct uci {
       quit();
     } else if (!is_searching()) {
       options().update(line);
-      if constexpr (search::constants::tuning) { (pool_.constants_->options()).update(line); }
+      if constexpr (search::search_constants::tuning) { (pool_.constants_->options()).update(line); }
     }
   }
 

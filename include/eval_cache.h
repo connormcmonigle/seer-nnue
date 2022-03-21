@@ -23,11 +23,11 @@
 #include <array>
 #include <optional>
 
-namespace chess {
+namespace search {
 
 struct eval_cache_entry {
   zobrist::hash_type hash{};
-  search::score_type eval{};
+  score_type eval{};
 };
 
 struct eval_cache {
@@ -40,12 +40,12 @@ struct eval_cache {
 
   void prefetch(const zobrist::hash_type& hash) const { __builtin_prefetch(data.data() + hash_function(hash)); }
 
-  std::optional<search::score_type> find(const zobrist::hash_type& hash) const {
+  std::optional<score_type> find(const zobrist::hash_type& hash) const {
     if (data[hash_function(hash)].hash == hash) { return data[hash_function(hash)].eval; }
     return std::nullopt;
   }
 
-  void insert(const zobrist::hash_type& hash, const search::score_type& eval) { data[hash_function(hash)] = eval_cache_entry{hash, eval}; }
+  void insert(const zobrist::hash_type& hash, const score_type& eval) { data[hash_function(hash)] = eval_cache_entry{hash, eval}; }
 
   void clear() { return data.fill(eval_cache_entry{}); }
 };

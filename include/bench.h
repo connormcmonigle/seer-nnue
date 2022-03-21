@@ -20,7 +20,7 @@
 #include <board.h>
 #include <nnue_model.h>
 #include <search_constants.h>
-#include <thread_worker.h>
+#include <search_worker.h>
 #include <time_manager.h>
 
 #include <array>
@@ -100,9 +100,9 @@ struct bench_info {
 std::ostream& operator<<(std::ostream& os, const bench_info& info) { return os << info.total_nodes << " nodes " << info.nodes_per_second << " nps"; }
 
 bench_info get_bench_info(const nnue::weights& weights) {
-  using worker_type = chess::thread_worker<false>;
-  std::shared_ptr<search::constants> constants = std::make_shared<search::constants>(1);
-  std::shared_ptr<chess::transposition_table> tt = std::make_shared<chess::transposition_table>(bench_config::tt_mb_size);
+  using worker_type = search::search_worker<false>;
+  std::shared_ptr<search::search_constants> constants = std::make_shared<search::search_constants>(1);
+  std::shared_ptr<search::transposition_table> tt = std::make_shared<search::transposition_table>(bench_config::tt_mb_size);
 
   std::unique_ptr<worker_type> worker = std::make_unique<worker_type>(&weights, tt, constants, [&](const auto& w) {
     if (w.depth() >= bench_config::bench_depth) { worker->stop(); }
