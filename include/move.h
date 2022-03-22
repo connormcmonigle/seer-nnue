@@ -30,7 +30,7 @@
 
 namespace chess {
 
-inline constexpr std::array<piece_type, 4> under_promotion_types = {piece_type::knight, piece_type::bishop, piece_type::rook};
+inline constexpr std::array<piece_type, 3> under_promotion_types = {piece_type::knight, piece_type::bishop, piece_type::rook};
 
 struct move {
   using from_ = bit::range<std::uint8_t, 0, 6>;
