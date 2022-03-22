@@ -37,17 +37,17 @@
 
 namespace chess {
 
-template <bool noisy_value, bool evasion_value, bool quiet_value>
+template <bool noisy_value, bool check_value, bool quiet_value>
 struct move_generator_mode {
   static constexpr bool noisy = noisy_value;
-  static constexpr bool evasion = evasion_value;
+  static constexpr bool check = check_value;
   static constexpr bool quiet = quiet_value;
 };
 
 namespace generation_mode {
 
-using noisy_and_evasion = move_generator_mode<true, true, false>;
-using quiet_and_evasion = move_generator_mode<false, true, true>;
+using noisy_and_check = move_generator_mode<true, true, false>;
+using quiet_and_check = move_generator_mode<false, true, true>;
 using noisy = move_generator_mode<true, false, false>;
 using all = move_generator_mode<true, true, true>;
 
@@ -335,12 +335,15 @@ struct board {
     for (const auto from : (man_.us<c>().pawn() & ~info.pinned)) {
       const auto to_quiet = info.checker_rays & pawn_push_tbl<c>.look_up(from, info.occ);
       const auto to_noisy = info.checkers & pawn_attack_tbl<c>.look_up(from);
-      for (const auto to : (to_quiet & ~info.last_rank)) { result.add_(from, to, piece_type::pawn); }
-      for (const auto to : (to_noisy & ~info.last_rank)) { result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
-      for (const auto to : (to_quiet & info.last_rank)) { result.add_promotion_<mode::quiet>(from, to, piece_type::pawn); }
-      for (const auto to : (to_noisy & info.last_rank)) {
-        result.add_promotion_<mode::quiet>(from, to, piece_type::pawn, true, man_.them<c>().occ(to));
+      if constexpr (mode::check) { for (const auto to : (to_quiet & ~info.last_rank)) { result.add_(from, to, piece_type::pawn); } }
+      if constexpr (mode::noisy) { for (const auto to : (to_noisy & ~info.last_rank)) { result.add_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); } }
+      for (const auto to : (to_quiet & info.last_rank)) {
+        if constexpr (mode::check) { result.add_under_promotions_(from, to, piece_type::pawn); }
+        if constexpr (mode::noisy) { result.add_queen_promotion_(from, to, piece_type::pawn); }
       }
+      for (const auto to : (to_noisy & info.last_rank)) {
+        if constexpr (mode::check) { result.add_under_promotions_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }
+        if constexpr (mode::noisy) { result.add_queen_promotion_(from, to, piece_type::pawn, true, man_.them<c>().occ(to)); }      }
     }
   }
 
@@ -350,8 +353,8 @@ struct board {
       const auto to_mask = knight_attack_tbl.look_up(from);
       const auto to_quiet = info.checker_rays & to_mask;
       const auto to_noisy = info.checkers & to_mask;
-      for (const auto to : to_quiet) { result.add_(from, to, piece_type::knight); }
-      for (const auto to : to_noisy) { result.add_(from, to, piece_type::knight, true, man_.them<c>().occ(to)); }
+      if constexpr (mode::check) { for (const auto to : to_quiet) { result.add_(from, to, piece_type::knight); } }
+      if constexpr (mode::noisy) { for (const auto to : to_noisy) { result.add_(from, to, piece_type::knight, true, man_.them<c>().occ(to)); } }
     }
   }
 
@@ -361,8 +364,8 @@ struct board {
       const auto to_mask = rook_attack_tbl.look_up(from, info.occ);
       const auto to_quiet = info.checker_rays & to_mask;
       const auto to_noisy = info.checkers & to_mask;
-      for (const auto to : to_quiet) { result.add_(from, to, piece_type::rook); }
-      for (const auto to : to_noisy) { result.add_(from, to, piece_type::rook, true, man_.them<c>().occ(to)); }
+      if constexpr (mode::check) { for (const auto to : to_quiet) { result.add_(from, to, piece_type::rook); } }
+      if constexpr (mode::noisy) { for (const auto to : to_noisy) { result.add_(from, to, piece_type::rook, true, man_.them<c>().occ(to)); } }
     }
   }
 
@@ -372,8 +375,8 @@ struct board {
       const auto to_mask = bishop_attack_tbl.look_up(from, info.occ);
       const auto to_quiet = info.checker_rays & to_mask;
       const auto to_noisy = info.checkers & to_mask;
-      for (const auto to : to_quiet) { result.add_(from, to, piece_type::bishop); }
-      for (const auto to : to_noisy) { result.add_(from, to, piece_type::bishop, true, man_.them<c>().occ(to)); }
+      if constexpr (mode::check) { for (const auto to : to_quiet) { result.add_(from, to, piece_type::bishop); } }
+      if constexpr (mode::noisy) { for (const auto to : to_noisy) { result.add_(from, to, piece_type::bishop, true, man_.them<c>().occ(to)); } }
     }
   }
 
@@ -383,21 +386,17 @@ struct board {
       const auto to_mask = bishop_attack_tbl.look_up(from, info.occ) | rook_attack_tbl.look_up(from, info.occ);
       const auto to_quiet = info.checker_rays & to_mask;
       const auto to_noisy = info.checkers & to_mask;
-      for (const auto to : to_quiet) { result.add_(from, to, piece_type::queen); }
-      for (const auto to : to_noisy) { result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); }
+      if constexpr (mode::check) {  for (const auto to : to_quiet) { result.add_(from, to, piece_type::queen); } }
+      if constexpr (mode::noisy) { for (const auto to : to_noisy) { result.add_(from, to, piece_type::queen, true, man_.them<c>().occ(to)); } }
     }
   }
 
   template <color c, typename mode>
   void add_king(const move_generator_info& info, move_list& result) const {
     const square_set to_mask = ~info.king_danger & king_attack_tbl.look_up(man_.us<c>().king().item());
-    if (mode::quiet || info.checkers.any()) {
-      for (const square to : (to_mask & ~info.occ)) { result.add_(man_.us<c>().king().item(), to, piece_type::king); }
-    }
-
-    for (const square to : (to_mask & man_.them<c>().all())) {
-      result.add_(man_.us<c>().king().item(), to, piece_type::king, true, man_.them<c>().occ(to));
-    }
+    if (mode::quiet && !info.checkers.any()) { for (const square to : (to_mask & ~info.occ)) { result.add_(man_.us<c>().king().item(), to, piece_type::king); } }
+    if (mode::check && info.checkers.any()) { for (const square to : (to_mask & ~info.occ)) { result.add_(man_.us<c>().king().item(), to, piece_type::king); } }
+    if (mode::noisy) { for (const square to : (to_mask & man_.them<c>().all())) { result.add_(man_.us<c>().king().item(), to, piece_type::king, true, man_.them<c>().occ(to)); } }
   }
 
   template <color c, typename mode>
@@ -448,8 +447,8 @@ struct board {
   }
 
   move_list generate_noisy_moves() const {
-    return turn() ? generate_moves_<color::white, generation_mode::noisy_and_evasion>() :
-                    generate_moves_<color::black, generation_mode::noisy_and_evasion>();
+    return turn() ? generate_moves_<color::white, generation_mode::noisy_and_check>() :
+                    generate_moves_<color::black, generation_mode::noisy_and_check>();
   }
 
   template <color c>
