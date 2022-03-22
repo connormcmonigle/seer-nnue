@@ -42,7 +42,7 @@ struct book {
       std::getline(ss, mv_name, delimiter);
 
       const board bd = board::parse_fen(fen);
-      const move_list list = bd.generate_moves();
+      const move_list list = bd.generate_moves<>();
       const auto it = std::find_if(list.begin(), list.end(), [=](const move& mv) { return mv.name(bd.turn()) == mv_name; });
 
       if (it != list.end()) { positions.insert(std::make_pair(upper_half(bd.hash()), it->data)); }

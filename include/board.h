@@ -49,6 +49,8 @@ namespace generation_mode {
 using noisy_and_check = move_generator_mode<true, true, false>;
 using quiet_and_check = move_generator_mode<false, true, true>;
 using noisy = move_generator_mode<true, false, false>;
+using check = move_generator_mode<false, true, false>;
+using quiet = move_generator_mode<false, false, true>;
 using all = move_generator_mode<true, true, true>;
 
 }  // namespace generation_mode
@@ -199,6 +201,7 @@ struct board {
 
   template <color c, typename mode>
   void add_en_passant(move_list& mv_ls) const {
+    if constexpr (!mode::noisy) { return; }
     if (lat_.them<c>().ep_mask().any()) {
       const square_set occ = man_.white.all() | man_.black.all();
       const square ep_square = lat_.them<c>().ep_mask().item();
@@ -215,6 +218,7 @@ struct board {
 
   template <color c, typename mode>
   void add_castle(const move_generator_info& info, move_list& result) const {
+    if constexpr (!mode::noisy) { return; }
     if (lat_.us<c>().oo() && !(castle_info<c>.oo_mask & (info.king_danger | info.occ)).any()) {
       result.add_(castle_info<c>.start_king, castle_info<c>.oo_rook, piece_type::king, true, piece_type::rook);
     }
@@ -457,10 +461,7 @@ struct board {
   template <color c, typename mode>
   void add_king(const move_generator_info& info, move_list& result) const {
     const square_set to_mask = ~info.king_danger & king_attack_tbl.look_up(man_.us<c>().king().item());
-    if (mode::quiet && !info.checkers.any()) {
-      for (const square to : (to_mask & ~info.occ)) { result.add_(man_.us<c>().king().item(), to, piece_type::king); }
-    }
-    if (mode::check && info.checkers.any()) {
+    if (info.checkers.any() ? mode::check : mode::quiet) {
       for (const square to : (to_mask & ~info.occ)) { result.add_(man_.us<c>().king().item(), to, piece_type::king); }
     }
     if (mode::noisy) {
@@ -513,13 +514,9 @@ struct board {
     return result;
   }
 
+  template <typename mode = generation_mode::all>
   move_list generate_moves() const {
-    return turn() ? generate_moves_<color::white, generation_mode::all>() : generate_moves_<color::black, generation_mode::all>();
-  }
-
-  move_list generate_noisy_moves() const {
-    return turn() ? generate_moves_<color::white, generation_mode::noisy_and_check>() :
-                    generate_moves_<color::black, generation_mode::noisy_and_check>();
+    return turn() ? generate_moves_<color::white, mode>() : generate_moves_<color::black, mode>();
   }
 
   template <color c>
@@ -753,7 +750,7 @@ struct board {
     std::istringstream move_stream(moves);
     std::string move_name;
     while (move_stream >> move_name) {
-      const move_list list = bd.generate_moves();
+      const move_list list = bd.generate_moves<>();
       const auto it = std::find_if(list.begin(), list.end(), [=](const move& mv) { return mv.name(bd.turn()) == move_name; });
       assert((it != list.end()));
       history.push_(bd.hash());
