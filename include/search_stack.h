@@ -68,7 +68,7 @@ struct search_stack {
     auto bd = present_;
     std::string result{};
     for (const auto& pv_mv : future_.begin()->pv_) {
-      if (!bd.generate_moves().has(pv_mv)) { break; }
+      if (!bd.generate_moves<>().has(pv_mv)) { break; }
       result += pv_mv.name(bd.turn()) + " ";
       bd = bd.forward(pv_mv);
     }

@@ -25,8 +25,8 @@
 #include <option_parser.h>
 #include <search_constants.h>
 #include <search_stack.h>
-#include <syzygy.h>
 #include <search_worker.h>
+#include <syzygy.h>
 #include <time_manager.h>
 #include <version.h>
 
@@ -172,7 +172,7 @@ struct uci {
 
   void go(const std::string& line) {
     if (const auto book_move = book_.find(position.hash());
-        own_book_.load() && book_move.has_value() && position.generate_moves().has(book_move.value())) {
+        own_book_.load() && book_move.has_value() && position.generate_moves<>().has(book_move.value())) {
       best_move(book_move.value());
     } else {
       is_searching_.store(true);
@@ -193,7 +193,7 @@ struct uci {
   void best_move(const chess::move& mv, const chess::move& ponder = chess::move::null()) {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     os << "bestmove " << mv.name(position.turn()) << [&] {
-      if (!position.forward(mv).generate_moves().has(ponder)) { return std::string{}; }
+      if (!position.forward(mv).generate_moves<>().has(ponder)) { return std::string{}; }
       return std::string(" ponder ") + ponder.name(position.forward(mv).turn());
     }() << std::endl;
   }
@@ -245,7 +245,7 @@ struct uci {
 
   void see() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    for (const chess::move& mv : position.generate_moves()) {
+    for (const chess::move& mv : position.generate_moves<>()) {
       os << mv.name(position.turn()) << ": " << position.see<search::see_type>(mv) << std::endl;
     }
   }

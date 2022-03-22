@@ -209,7 +209,7 @@ struct search_worker {
     if (!is_check && value >= beta) { return value; }
     if (ss.reached_max_height()) { return value; }
 
-    const chess::move_list list = bd.generate_noisy_moves();
+    const chess::move_list list = bd.generate_moves<chess::generation_mode::noisy_and_check>();
     if (list.size() == 0 && is_check) { return ss.loss_score(); }
     if (list.size() == 0) { return value; }
 
@@ -382,7 +382,7 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const chess::move_list list = bd.generate_moves();
+    const chess::move_list list = bd.generate_moves<chess::generation_mode::all>();
     if (list.size() == 0 && is_check) { return make_result(ss.loss_score(), chess::move::null()); }
     if (list.size() == 0) { return make_result(draw_score, chess::move::null()); }
 
@@ -634,7 +634,7 @@ struct search_worker {
       internal.nodes.store(0);
       internal.tb_hits.store(0);
       internal.depth.store(start_depth);
-      internal.best_move.store(bd.generate_moves().begin()->data);
+      internal.best_move.store(bd.generate_moves<>().begin()->data);
       internal.ponder_move.store(chess::move::null().data);
       internal.stack = search_stack(hist, bd);
     });

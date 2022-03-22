@@ -123,9 +123,9 @@ bench_info get_bench_info(const nnue::weights& weights) {
 }
 
 size_t perft(const chess::board& bd, const search::depth_type& depth) {
-  if (depth == 0) { return bd.generate_moves().size(); }
+  if (depth == 0) { return bd.generate_moves<>().size(); }
   size_t result{0};
-  for (const auto& mv : bd.generate_moves()) { result += perft(bd.forward(mv), depth - 1); }
+  for (const auto& mv : bd.generate_moves<>()) { result += perft(bd.forward(mv), depth - 1); }
   return result;
 }
 

@@ -9,11 +9,7 @@
 
 namespace syzygy {
 
-enum class wdl_type {
-  loss,
-  draw,
-  win
-};
+enum class wdl_type { loss, draw, win };
 
 struct tb_wdl_result {
   bool success;
@@ -44,7 +40,7 @@ struct tb_dtz_result {
     const int wdl = TB_GET_WDL(value);
 
     const chess::move dtz_move = [&] {
-      const chess::move_list list = bd.generate_moves();
+      const chess::move_list list = bd.generate_moves<>();
       const int promo = TB_GET_PROMOTES(value);
       const int from = TB_GET_FROM(value);
       const int to = TB_GET_TO(value);
