@@ -30,7 +30,7 @@
 
 namespace chess {
 
-inline constexpr std::array<piece_type, 4> promotion_types = {piece_type::knight, piece_type::bishop, piece_type::rook, piece_type::queen};
+inline constexpr std::array<piece_type, 4> under_promotion_types = {piece_type::knight, piece_type::bishop, piece_type::rook};
 
 struct move {
   using from_ = bit::range<std::uint8_t, 0, 6>;
@@ -175,7 +175,7 @@ struct move_list {
   move& operator[](const size_t& idx) { return data[idx]; }
   const move& operator[](const size_t& idx) const { return data[idx]; }
 
-  move_list& add_(move mv) {
+  move_list& add_(const move& mv) {
     constexpr size_t last_idx = max_branching_factor - 1;
     data[size_] = mv;
     ++size_;
@@ -188,14 +188,17 @@ struct move_list {
     return add_(move(ts...));
   }
 
-  template <bool gen_quiet, typename... Ts>
-  move_list& add_promotion_(const Ts&... ts) {
+  template <typename... Ts>
+  move_list& add_queen_promotion_(const Ts&... ts) {
     assert((move(ts...).piece() == piece_type::pawn));
-    if constexpr (gen_quiet) {
-      for (const auto& pt : promotion_types) { add_(move(ts...).set_field_<move::promotion_>(pt)); }
-    } else {
-      add_(move(ts...).set_field_<move::promotion_>(piece_type::queen));
-    }
+    add_(move(ts...).set_field_<move::promotion_>(piece_type::queen));
+    return *this;
+  }
+
+  template <typename... Ts>
+  move_list& add_under_promotions_(const Ts&... ts) {
+    assert((move(ts...).piece() == piece_type::pawn));
+    for (const auto& pt : under_promotion_types) { add_(move(ts...).set_field_<move::promotion_>(pt)); }
     return *this;
   }
 };
