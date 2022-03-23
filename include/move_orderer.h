@@ -188,8 +188,7 @@ struct move_orderer_iterator {
   }
 
   move_orderer_iterator(const move_orderer_data& data) : data_{data} {
-    const bool init = data.first.is_null() || (!mode::quiet && !data.bd->is_check() && data.first.is_quiet()) || !data.bd->is_legal(data.first);
-    if (init) { stepper_.initialize(data, data.bd->generate_moves<mode>()); }
+    if (data.first.is_null() || !data.bd->is_legal<mode>(data.first)) { stepper_.initialize(data, data.bd->generate_moves<mode>()); }
   }
 };
 

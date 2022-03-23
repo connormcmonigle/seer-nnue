@@ -523,13 +523,13 @@ struct board {
     return turn() ? generate_moves_<color::white, mode>() : generate_moves_<color::black, mode>();
   }
 
-  template <color c>
+  template <color c, typename mode>
   bool is_legal_(const move& mv) const {
     if (mv.is_castle_oo<c>() || mv.is_castle_ooo<c>() || mv.is_enpassant()) {
       const move_generator_info info = get_move_generator_info<c>();
       move_list list{};
-      add_castle<c, generation_mode::all>(info, list);
-      add_en_passant<c, generation_mode::all>(list);
+      add_castle<c, mode>(info, list);
+      add_en_passant<c, mode>(list);
       return list.has(mv);
     }
 
@@ -545,6 +545,12 @@ struct board {
     if (!mv.is_promotion() && mv.promotion() != static_cast<piece_type>(0)) { return false; }
 
     const move_generator_info info = get_move_generator_info<c>();
+
+    const bool is_noisy = (!mv.is_promotion() || mv.promotion() == chess::piece_type::queen) && (mv.is_capture() || mv.is_promotion());
+    if (!mode::noisy && is_noisy) { return false; }
+    if (!mode::check && info.checkers.any() && !is_noisy) { return false; }
+    if (!mode::quiet && !info.checkers.any() && !is_noisy) { return false; }
+
     const square_set rook_mask = rook_attack_tbl.look_up(mv.from(), info.occ);
     const square_set bishop_mask = bishop_attack_tbl.look_up(mv.from(), info.occ);
 
@@ -587,7 +593,10 @@ struct board {
     return true;
   }
 
-  bool is_legal(const move& mv) const { return turn() ? is_legal_<color::white>(mv) : is_legal_<color::black>(mv); }
+  template <typename mode>
+  bool is_legal(const move& mv) const {
+    return turn() ? is_legal_<color::white, mode>(mv) : is_legal_<color::black, mode>(mv);
+  }
 
   template <color c>
   bool is_check_() const {
