@@ -209,11 +209,7 @@ struct search_worker {
     if (!is_check && value >= beta) { return value; }
     if (ss.reached_max_height()) { return value; }
 
-    const chess::move_list list = bd.generate_moves<chess::generation_mode::noisy_and_check>();
-    if (list.size() == 0 && is_check) { return ss.loss_score(); }
-    if (list.size() == 0) { return value; }
-
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn())));
+    move_orderer<chess::generation_mode::noisy_and_check> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
     if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
 
     alpha = std::max(alpha, value);
@@ -221,8 +217,11 @@ struct search_worker {
     chess::move best_move = chess::move::null();
 
     ss.set_hash(bd.hash()).set_eval(static_value);
+    int legal_count{0};
     for (const auto& [idx, mv] : orderer) {
       assert((mv != chess::move::null()));
+
+      ++legal_count;
       if (!loop.keep_going()) { break; }
 
       const see_type see_value = bd.see<see_type>(mv);
@@ -257,6 +256,9 @@ struct search_worker {
 
       if (best_score >= beta) { break; }
     }
+
+    if (legal_count == 0 && is_check) { return ss.loss_score(); }
+    if (legal_count == 0) { return value; }
 
     if (use_tt && loop.keep_going()) {
       const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
@@ -382,20 +384,13 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const chess::move_list list = bd.generate_moves<chess::generation_mode::all>();
-    if (list.size() == 0 && is_check) { return make_result(ss.loss_score(), chess::move::null()); }
-    if (list.size() == 0) { return make_result(draw_score, chess::move::null()); }
-
     // step 10. initialize move orderer (setting tt move first if applicable)
     const chess::move killer = ss.killer();
     const chess::move follow = ss.follow();
     const chess::move counter = ss.counter();
 
-    move_orderer orderer(move_orderer_data(&bd, &list, &internal.hh.us(bd.turn()))
-                             .set_killer(killer)
-                             .set_follow(follow)
-                             .set_counter(counter)
-                             .set_threatened(threatened));
+    move_orderer<chess::generation_mode::all> orderer(
+        move_orderer_data(&bd, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter).set_threatened(threatened));
 
     if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
 
@@ -404,12 +399,15 @@ struct search_worker {
 
     // move loop
     score_type best_score = ss.loss_score();
-    chess::move best_move = *list.begin();
+    chess::move best_move = chess::move::null();
 
-    bool did_double_extend = false;
+    bool did_double_extend{false};
+    int legal_count{0};
 
     for (const auto& [idx, mv] : orderer) {
       assert((mv != chess::move::null()));
+
+      ++legal_count;
       if (!loop.keep_going()) { break; }
       if (mv == ss.excluded()) { continue; }
 
@@ -544,6 +542,9 @@ struct search_worker {
       if (best_score >= beta) { break; }
     }
 
+    if (legal_count == 0 && is_check) { return make_result(ss.loss_score(), chess::move::null()); }
+    if (legal_count == 0) { return make_result(draw_score, chess::move::null()); }
+
     // step 14. update histories if appropriate and maybe insert a new transposition_table_entry
     if (loop.keep_going() && !ss.has_excluded()) {
       const bound_type bound = [&] {
@@ -605,8 +606,10 @@ struct search_worker {
         } else {
           // store updated information
           internal.score.store(search_score);
-          internal.best_move.store(search_move.data);
-          internal.ponder_move.store(internal.stack.ponder_move().data);
+          if (!search_move.is_null()) {
+            internal.best_move.store(search_move.data);
+            internal.ponder_move.store(internal.stack.ponder_move().data);
+          }
           break;
         }
 

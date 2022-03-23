@@ -45,7 +45,6 @@ struct move_orderer_data {
   chess::square_set threatened{};
 
   const chess::board* bd;
-  const chess::move_list* list;
   const history_heuristic* hh;
 
   move_orderer_data& set_killer(const chess::move& mv) {
@@ -73,7 +72,7 @@ struct move_orderer_data {
     return *this;
   }
 
-  move_orderer_data(const chess::board* bd_, const chess::move_list* list_, const history_heuristic* hh_) : bd{bd_}, list{list_}, hh{hh_} {}
+  move_orderer_data(const chess::board* bd_, const history_heuristic* hh_) : bd{bd_}, hh{hh_} {}
 };
 
 struct move_orderer_entry {
@@ -127,15 +126,15 @@ struct move_orderer_stepper {
     if (begin_ != end_) { update_list_(); }
   }
 
-  move_orderer_stepper& initialize(const move_orderer_data& data) {
+  move_orderer_stepper& initialize(const move_orderer_data& data, const chess::move_list& list) {
     const history::context ctxt{data.follow, data.counter, data.threatened};
 
-    end_ = std::transform(data.list->begin(), data.list->end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
+    end_ = std::transform(list.begin(), list.end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
       if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see<std::int32_t>(mv), data.hh->compute_value(ctxt, mv)); }
       return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
     });
 
-    end_ = std::remove_if(begin_, end_, [&data](const auto& entry){ return entry.mv == data.first; });
+    end_ = std::remove_if(begin_, end_, [&data](const auto& entry) { return entry.mv == data.first; });
 
     if (begin_ != end_) { update_list_(); }
     is_initialized_ = true;
@@ -148,11 +147,11 @@ struct move_orderer_stepper {
   move_orderer_stepper& operator=(move_orderer_stepper&& other) = delete;
   move_orderer_stepper(const move_orderer_stepper& other) = delete;
   move_orderer_stepper(move_orderer_stepper&& other) = delete;
-
 };
 
 struct move_orderer_iterator_end_tag {};
 
+template <typename mode>
 struct move_orderer_iterator {
   using difference_type = std::ptrdiff_t;
   using value_type = std::tuple<int, chess::move>;
@@ -171,7 +170,7 @@ struct move_orderer_iterator {
 
   move_orderer_iterator& operator++() {
     if (!stepper_.is_initialized()) {
-      stepper_.initialize(data_);
+      stepper_.initialize(data_, data_.bd->generate_moves<mode>());
     } else {
       stepper_.next();
     }
@@ -180,7 +179,7 @@ struct move_orderer_iterator {
     return *this;
   }
 
-  bool operator==(const move_orderer_iterator&) const { return false; }
+  bool operator==(const move_orderer_iterator<mode>&) const { return false; }
   bool operator==(const move_orderer_iterator_end_tag&) const { return stepper_.is_initialized() && !stepper_.has_next(); }
 
   template <typename T>
@@ -189,16 +188,17 @@ struct move_orderer_iterator {
   }
 
   move_orderer_iterator(const move_orderer_data& data) : data_{data} {
-    if (!data.list->has(data.first)) { stepper_.initialize(data); }
+    if (data.first.is_null() || !data.bd->is_legal(data.first)) { stepper_.initialize(data, data.bd->generate_moves<mode>()); }
   }
 };
 
+template <typename mode>
 struct move_orderer {
-  using iterator = move_orderer_iterator;
+  using iterator = move_orderer_iterator<mode>;
 
   move_orderer_data data_;
 
-  move_orderer_iterator begin() { return move_orderer_iterator(data_); }
+  move_orderer_iterator<mode> begin() { return move_orderer_iterator<mode>(data_); }
   move_orderer_iterator_end_tag end() { return move_orderer_iterator_end_tag(); }
 
   move_orderer& set_first(const chess::move& mv) {
@@ -209,4 +209,4 @@ struct move_orderer {
   move_orderer(const move_orderer_data& data) : data_{data} {}
 };
 
-}  // namespace chess
+}  // namespace search
