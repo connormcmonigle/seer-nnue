@@ -469,10 +469,9 @@ struct board {
     }
   }
 
-  template <color c, typename mode>
-  move_list generate_moves_() const {
+  template <color c>
+  move_generator_info get_move_generator_info() const {
     const auto [checkers_, checker_rays_] = checkers<c>(man_.white.all() | man_.black.all());
-    const size_t num_checkers = checkers_.count();
 
     const move_generator_info info{
         man_.white.all() | man_.black.all(),
@@ -485,6 +484,13 @@ struct board {
         rook_attack_tbl.look_up(man_.us<c>().king().item(), square_set{}),
     };
 
+    return info;
+  }
+
+  template <color c, typename mode>
+  move_list generate_moves_() const {
+    const move_generator_info info = get_move_generator_info<c>();
+    const size_t num_checkers = info.checkers.count();
     move_list result{};
 
     if (num_checkers == 0) {
@@ -516,6 +522,72 @@ struct board {
   move_list generate_moves() const {
     return turn() ? generate_moves_<color::white, mode>() : generate_moves_<color::black, mode>();
   }
+
+  template <color c>
+  bool is_legal_(const move& mv) const {
+    if (mv.is_castle_oo<c>() || mv.is_castle_ooo<c>() || mv.is_enpassant()) {
+      const move_generator_info info = get_move_generator_info<c>();
+      move_list list{};
+      add_castle<c, generation_mode::all>(info, list);
+      add_en_passant<c, generation_mode::all>(list);
+      return list.has(mv);
+    }
+
+    if (!man_.us<c>().all().is_member(mv.from())) { return false; }
+    if (man_.us<c>().all().is_member(mv.to())) { return false; }
+    if (mv.piece() != man_.us<c>().occ(mv.from())) { return false; }
+
+    if (mv.is_capture() != man_.them<c>().all().is_member(mv.to())) { return false; }
+    if (mv.is_capture() && mv.captured() != man_.them<c>().occ(mv.to())) { return false; }
+    if (!mv.is_capture() && mv.captured() != static_cast<piece_type>(0)) { return false; }
+
+    if (!mv.is_enpassant() && mv.enpassant_sq() != square::from_index(0)) { return false; }
+    if (!mv.is_promotion() && mv.promotion() != static_cast<piece_type>(0)) { return false; }
+
+    const move_generator_info info = get_move_generator_info<c>();
+    const square_set rook_mask = rook_attack_tbl.look_up(mv.from(), info.occ);
+    const square_set bishop_mask = bishop_attack_tbl.look_up(mv.from(), info.occ);
+
+    const bool legal_from_to = [&, this] {
+      const auto pawn_mask = (mv.is_capture() ? pawn_attack_tbl<c>.look_up(mv.from()) : pawn_push_tbl<c>.look_up(mv.from(), info.occ));
+      switch (mv.piece()) {
+        case piece_type::pawn: return pawn_mask.is_member(mv.to());
+        case piece_type::knight: return knight_attack_tbl.look_up(mv.from()).is_member(mv.to());
+        case piece_type::bishop: return bishop_mask.is_member(mv.to());
+        case piece_type::rook: return rook_mask.is_member(mv.to());
+        case piece_type::queen: return (bishop_mask | rook_mask).is_member(mv.to());
+        case piece_type::king: return king_attack_tbl.look_up(mv.from()).is_member(mv.to());
+        default: return false;
+      }
+    }();
+
+    if (!legal_from_to) { return false; }
+
+    if (mv.piece() == piece_type::king && info.king_danger.is_member(mv.to())) { return false; }
+    if (info.checkers.any() && mv.piece() != piece_type::king) {
+      if (info.checkers.count() >= 2) { return false; }
+      if (info.pinned.is_member(mv.from())) { return false; }
+      if (!(info.checkers | info.checker_rays).is_member(mv.to())) { return false; }
+    }
+
+    if (info.pinned.is_member(mv.from())) {
+      const square_set piece_diagonal = bishop_mask;
+      const square_set piece_horizontal = rook_mask;
+      const bool same_diagonal = info.king_diagonal.is_member(mv.from()) && (info.king_diagonal & piece_diagonal).is_member(mv.to());
+      const bool same_horizontal = info.king_horizontal.is_member(mv.from()) && (info.king_horizontal & piece_horizontal).is_member(mv.to());
+      if (!same_diagonal && !same_horizontal) { return false; }
+    }
+
+    if (mv.is_promotion()) {
+      if (mv.piece() != piece_type::pawn) { return false; }
+      if (!info.last_rank.is_member(mv.to())) { return false; }
+      if (mv.promotion() <= piece_type::pawn || mv.promotion() > piece_type::queen) { return false; }
+    }
+
+    return true;
+  }
+
+  bool is_legal(const move& mv) const { return turn() ? is_legal_<color::white>(mv) : is_legal_<color::black>(mv); }
 
   template <color c>
   bool is_check_() const {

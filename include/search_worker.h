@@ -371,8 +371,8 @@ struct search_worker {
     // step 9. null move pruning
     const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
                          bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
-                         (!maybe.has_value() ||
-                          (maybe->bound() == bound_type::lower && bd.see<see_type>(maybe->best_move()) <= external.constants->nmp_see_threshold()));
+                         (!maybe.has_value() || (maybe->bound() == bound_type::lower && bd.is_legal(maybe->best_move()) &&
+                                                 bd.see<see_type>(maybe->best_move()) <= external.constants->nmp_see_threshold()));
 
     if (try_nmp) {
       ss.set_played(chess::move::null());
