@@ -80,11 +80,10 @@ struct move_orderer_entry {
   using value_ = bit::next_range<move_data_, std::uint32_t>;
   using killer_ = bit::next_flag<value_>;
   using positive_noisy_ = bit::next_flag<killer_>;
-  using sort_key_ = bit::range<std::uint64_t, value_::first, positive_noisy_::last>;
 
   std::uint64_t data_;
 
-  std::uint64_t sort_key() const { return sort_key_::get(data_); }
+  const std::uint64_t& sort_key() const { return data_; }
   chess::move move() const { return chess::move{move_data_::get(data_)}; }
 
   move_orderer_entry() = default;
