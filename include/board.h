@@ -38,7 +38,7 @@ namespace chess {
 template <bool noisy_value, bool check_value, bool quiet_value>
 struct move_generator_mode {
   static constexpr bool noisy = noisy_value;
-  static constexpr bool check = noisy_value;
+  static constexpr bool check = check_value;
   static constexpr bool quiet = quiet_value;
 
   static constexpr bool any = noisy_value || check_value || quiet_value;
