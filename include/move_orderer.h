@@ -36,6 +36,8 @@ constexpr std::uint32_t make_positive(const std::int32_t& x) {
   return upper + x;
 }
 
+enum class stage : std::uint8_t { transposition_table_move, noisy_and_check_moves, quiet_moves };
+
 struct move_orderer_data {
   chess::move killer{chess::move::null()};
   chess::move follow{chess::move::null()};
@@ -79,12 +81,12 @@ struct move_orderer_entry {
   using value_ = bit::range<std::uint32_t, 0, 32>;
   using killer_ = bit::next_flag<value_>;
   using positive_noisy_ = bit::next_flag<killer_>;
-  using first_ = bit::next_flag<positive_noisy_>;
 
   chess::move mv;
   std::uint64_t data_;
 
   const std::uint64_t& sort_key() const { return data_; }
+  bool is_positive_noisy() const { return positive_noisy_::get(data_); }
 
   move_orderer_entry() = default;
   move_orderer_entry(const chess::move& mv_, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
@@ -106,42 +108,41 @@ struct move_orderer_entry {
 struct move_orderer_stepper {
   using entry_array_type = std::array<move_orderer_entry, chess::move_list::max_branching_factor>;
 
-  bool is_initialized_{false};
-
   entry_array_type entries_;
   entry_array_type::iterator begin_;
   entry_array_type::iterator end_;
 
-  void update_list_() {
+  void update_list() {
+    if (begin_ == end_) { return; }
     auto comparator = [](const move_orderer_entry& a, const move_orderer_entry& b) { return a.sort_key() < b.sort_key(); };
     std::iter_swap(begin_, std::max_element(begin_, end_, comparator));
   }
 
-  bool is_initialized() const { return is_initialized_; }
-  bool has_next() const { return begin_ != end_; }
   chess::move current_move() const { return begin_->mv; }
+  const move_orderer_entry& current_entry() const { return *begin_; }
 
-  void next() {
-    ++begin_;
-    if (begin_ != end_) { update_list_(); }
-  }
+  bool empty() const { return begin_ == end_; }
+  void step() { ++begin_; }
 
-  move_orderer_stepper& initialize(const move_orderer_data& data, const chess::move_list& list) {
+  void add_move(const move_orderer_data& data, const chess::move& mv) {
     const history::context ctxt{data.follow, data.counter, data.threatened};
 
-    end_ = std::transform(list.begin(), list.end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
+    *end_ = [&] {
       if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see<std::int32_t>(mv), data.hh->compute_value(ctxt, mv)); }
       return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
-    });
+    }();
 
-    end_ = std::remove_if(begin_, end_, [&data](const auto& entry) { return entry.mv == data.first; });
-
-    if (begin_ != end_) { update_list_(); }
-    is_initialized_ = true;
-    return *this;
+    ++end_;
   }
 
-  move_orderer_stepper() : begin_{entries_.begin()} {}
+  void add_moves(const move_orderer_data& data, const chess::move_list& list, const chess::move& excluded = chess::move::null()) {
+    for (const chess::move& mv : list) {
+      if (mv == excluded) { continue; }
+      add_move(data, mv);
+    }
+  }
+
+  move_orderer_stepper() : begin_{entries_.begin()}, end_{entries_.begin()} {}
 
   move_orderer_stepper& operator=(const move_orderer_stepper& other) = delete;
   move_orderer_stepper& operator=(move_orderer_stepper&& other) = delete;
@@ -159,28 +160,52 @@ struct move_orderer_iterator {
   using reference = std::tuple<int, chess::move>&;
   using iterator_category = std::output_iterator_tag;
 
-  int idx{};
-  move_orderer_stepper stepper_;
+  static constexpr stage final_stage = stage::quiet_moves;
+
+  stage current_stage_{stage::transposition_table_move};
+  int current_idx_{0};
+  move_orderer_stepper stepper_{};
   move_orderer_data data_;
 
-  std::tuple<int, chess::move> operator*() const {
-    if (!stepper_.is_initialized()) { return std::tuple(idx, data_.first); }
-    return std::tuple(idx, stepper_.current_move());
+  void update_stage() {
+    switch (current_stage_) {
+      case stage::transposition_table_move: {
+        if (!stepper_.empty()) { break; }
+
+        using stage_mode = chess::generation_mode::noisy_and_check::and_type<mode>;
+        if constexpr (stage_mode::any) { stepper_.add_moves(data_, data_.bd->generate_moves<stage_mode>(), data_.first); }
+        current_stage_ = stage::noisy_and_check_moves;
+        [[fallthrough]];
+      }
+
+      case stage::noisy_and_check_moves: {
+        if (!stepper_.empty() && stepper_.current_entry().is_positive_noisy()) { break; }
+
+        using stage_mode = typename chess::generation_mode::quiet::and_type<mode>;
+        if constexpr (stage_mode::any) { stepper_.add_moves(data_, data_.bd->generate_moves<stage_mode>(), data_.first); }
+        current_stage_ = stage::quiet_moves;
+        [[fallthrough]];
+      }
+
+      case stage::quiet_moves:
+      default: {
+        current_stage_ = stage::quiet_moves;
+      }
+    }
   }
 
-  move_orderer_iterator& operator++() {
-    if (!stepper_.is_initialized()) {
-      stepper_.initialize(data_, data_.bd->generate_moves<mode>());
-    } else {
-      stepper_.next();
-    }
+  std::tuple<int, chess::move> operator*() const { return std::tuple(current_idx_, stepper_.current_move()); }
 
-    ++idx;
+  move_orderer_iterator& operator++() {
+    stepper_.step();
+    update_stage();
+    stepper_.update_list();
+    ++current_idx_;
     return *this;
   }
 
   bool operator==(const move_orderer_iterator<mode>&) const { return false; }
-  bool operator==(const move_orderer_iterator_end_tag&) const { return stepper_.is_initialized() && !stepper_.has_next(); }
+  bool operator==(const move_orderer_iterator_end_tag&) const { return (current_stage_ == final_stage) && stepper_.empty(); }
 
   template <typename T>
   bool operator!=(const T& other) const {
@@ -188,7 +213,9 @@ struct move_orderer_iterator {
   }
 
   move_orderer_iterator(const move_orderer_data& data) : data_{data} {
-    if (data.first.is_null() || !data.bd->is_legal<mode>(data.first)) { stepper_.initialize(data, data.bd->generate_moves<mode>()); }
+    if (!data.first.is_null() && data.bd->is_legal<mode>(data.first)) { stepper_.add_move(data, data.first); }
+    update_stage();
+    stepper_.update_list();
   }
 };
 

@@ -38,8 +38,13 @@ namespace chess {
 template <bool noisy_value, bool check_value, bool quiet_value>
 struct move_generator_mode {
   static constexpr bool noisy = noisy_value;
-  static constexpr bool check = check_value;
+  static constexpr bool check = noisy_value;
   static constexpr bool quiet = quiet_value;
+
+  static constexpr bool any = noisy_value || check_value || quiet_value;
+
+  template <typename other>
+  using and_type = move_generator_mode<noisy_value && other::noisy, check_value && other::check, quiet_value && other::quiet>;
 };
 
 namespace generation_mode {
@@ -507,11 +512,13 @@ struct board {
         add_pinned_queen<c, mode>(info, result);
       }
     } else if (num_checkers == 1) {
-      add_checked_pawn<c, mode>(info, result);
-      add_checked_knight<c, mode>(info, result);
-      add_checked_rook<c, mode>(info, result);
-      add_checked_bishop<c, mode>(info, result);
-      add_checked_queen<c, mode>(info, result);
+      if constexpr (generation_mode::noisy_and_check::and_type<mode>::any) {
+        add_checked_pawn<c, mode>(info, result);
+        add_checked_knight<c, mode>(info, result);
+        add_checked_rook<c, mode>(info, result);
+        add_checked_bishop<c, mode>(info, result);
+        add_checked_queen<c, mode>(info, result);
+      }
     }
     add_king<c, mode>(info, result);
     add_en_passant<c, mode>(result);
