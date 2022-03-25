@@ -76,21 +76,22 @@ struct move_orderer_data {
 };
 
 struct move_orderer_entry {
-  using value_ = bit::range<std::uint32_t, 0, 32>;
+  using move_data_ = bit::range<chess::move::data_type, 0, chess::move::width>;
+  using value_ = bit::next_range<move_data_, std::uint32_t>;
   using killer_ = bit::next_flag<value_>;
   using positive_noisy_ = bit::next_flag<killer_>;
-  using first_ = bit::next_flag<positive_noisy_>;
 
-  chess::move mv;
   std::uint64_t data_;
 
   const std::uint64_t& sort_key() const { return data_; }
+  chess::move move() const { return chess::move{move_data_::get(data_)}; }
 
   move_orderer_entry() = default;
-  move_orderer_entry(const chess::move& mv_, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
+  move_orderer_entry(const chess::move& mv, const bool& is_positive_noisy, const bool& is_killer, const std::int32_t& value) : data_{0} {
     positive_noisy_::set(data_, is_positive_noisy);
     killer_::set(data_, is_killer);
     value_::set(data_, make_positive(value));
+    move_data_::set(data_, mv.data);
   }
 
   static inline move_orderer_entry make_noisy(const chess::move& mv, const bool positive_noisy, const std::int32_t& history_value) {
@@ -118,7 +119,7 @@ struct move_orderer_stepper {
 
   bool is_initialized() const { return is_initialized_; }
   bool has_next() const { return begin_ != end_; }
-  chess::move current_move() const { return begin_->mv; }
+  chess::move current_move() const { return begin_->move(); }
 
   void next() {
     ++begin_;
@@ -133,7 +134,7 @@ struct move_orderer_stepper {
       return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
     });
 
-    end_ = std::remove_if(begin_, end_, [&data](const auto& entry) { return entry.mv == data.first; });
+    end_ = std::remove_if(begin_, end_, [&data](const auto& entry) { return entry.move() == data.first; });
 
     if (begin_ != end_) { update_list_(); }
     is_initialized_ = true;
