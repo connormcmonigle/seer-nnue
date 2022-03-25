@@ -93,9 +93,8 @@ struct move_orderer_entry {
     value_::set(data_, make_positive(value));
   }
 
-  static inline move_orderer_entry make_noisy(const chess::move& mv, const std::int32_t& see_value, const std::int32_t& history_value) {
-    const bool positive_noisy = see_value > 0;
-    return move_orderer_entry(mv, positive_noisy, false, positive_noisy ? see_value : history_value);
+  static inline move_orderer_entry make_noisy(const chess::move& mv, const bool positive_noisy, const std::int32_t& history_value) {
+    return move_orderer_entry(mv, positive_noisy, false, positive_noisy ? mv.mvv_lva_key<std::int32_t>() : history_value);
   }
 
   static inline move_orderer_entry make_quiet(const chess::move& mv, const chess::move& killer, const std::int32_t& history_value) {
@@ -130,7 +129,7 @@ struct move_orderer_stepper {
     const history::context ctxt{data.follow, data.counter, data.threatened};
 
     end_ = std::transform(list.begin(), list.end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
-      if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see<std::int32_t>(mv), data.hh->compute_value(ctxt, mv)); }
+      if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see_gt(mv, 0), data.hh->compute_value(ctxt, mv)); }
       return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
     });
 

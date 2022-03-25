@@ -224,14 +224,12 @@ struct search_worker {
       ++legal_count;
       if (!loop.keep_going()) { break; }
 
-      const see_type see_value = bd.see<see_type>(mv);
+      if (!is_check && !bd.see_ge(mv, 0)) { continue; }
 
-      if (!is_check && see_value < 0) { continue; }
-
-      const bool delta_prune = !is_pv && !is_check && (see_value <= 0) && ((value + external.constants->delta_margin()) < alpha);
+      const bool delta_prune = !is_pv && !is_check && !bd.see_gt(mv, 0) && ((value + external.constants->delta_margin()) < alpha);
       if (delta_prune) { continue; }
 
-      const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && see_value >= external.constants->good_capture_prune_see_margin() &&
+      const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && bd.see_ge(mv, external.constants->good_capture_prune_see_margin()) &&
                                       value + external.constants->good_capture_prune_score_margin() > beta;
       if (good_capture_prune) { return beta; }
 
@@ -375,7 +373,7 @@ struct search_worker {
         !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
         bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
         (!maybe.has_value() || (maybe->bound() == bound_type::lower && bd.is_legal<chess::generation_mode::all>(maybe->best_move()) &&
-                                bd.see<see_type>(maybe->best_move()) <= external.constants->nmp_see_threshold()));
+                                !bd.see_gt(maybe->best_move(), external.constants->nmp_see_threshold())));
 
     if (try_nmp) {
       ss.set_played(chess::move::null());
@@ -416,7 +414,6 @@ struct search_worker {
       ss.set_played(mv);
 
       const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
-      const see_type see_value = bd.see<see_type>(mv);
 
       const chess::board bd_ = bd.forward(mv);
 
@@ -434,12 +431,12 @@ struct search_worker {
         if (futility_prune) { continue; }
 
         const bool quiet_see_prune =
-            mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && see_value < external.constants->quiet_see_prune_threshold(depth);
+            mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && !bd.see_ge(mv, external.constants->quiet_see_prune_threshold(depth));
 
         if (quiet_see_prune) { continue; }
 
         const bool noisy_see_prune =
-            mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() && see_value < external.constants->noisy_see_prune_threshold(depth);
+            mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() && !bd.see_ge(mv, external.constants->noisy_see_prune_threshold(depth));
 
         if (noisy_see_prune) { continue; }
 
@@ -496,7 +493,7 @@ struct search_worker {
         score_type zw_score;
 
         // step 13. late move reductions
-        const bool try_lmr = !is_check && (mv.is_quiet() || see_value < 0) && idx >= 2 && (depth >= external.constants->reduce_depth());
+        const bool try_lmr = !is_check && (mv.is_quiet() || !bd.see_ge(mv, 0)) && idx >= 2 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           depth_type reduction = external.constants->reduction(depth, idx);
 
@@ -506,7 +503,7 @@ struct search_worker {
           if (improving) { --reduction; }
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
-          if (see_value < 0 && mv.is_quiet()) { ++reduction; }
+          if (!bd.see_ge(mv, 0) && mv.is_quiet()) { ++reduction; }
 
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
           // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
@@ -527,7 +524,7 @@ struct search_worker {
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
       }();
 
-      if (score < beta && (mv.is_quiet() || see_value <= 0)) { moves_tried.add_(mv); }
+      if (score < beta && (mv.is_quiet() || !bd.see_gt(mv, 0))) { moves_tried.add_(mv); }
 
       if (score > best_score) {
         best_score = score;
@@ -554,7 +551,7 @@ struct search_worker {
         return bound_type::upper;
       }();
 
-      if (bound == bound_type::lower && (best_move.is_quiet() || bd.see<see_type>(best_move) <= 0)) {
+      if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
         internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
         ss.set_killer(best_move);
       }

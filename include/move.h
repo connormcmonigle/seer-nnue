@@ -64,6 +64,13 @@ struct move {
   constexpr bool is_capture() const { return get_field_<is_capture_>(); }
   constexpr bool is_enpassant() const { return get_field_<is_enpassant_>(); }
   constexpr piece_type captured() const { return get_field_<captured_>(); }
+
+  template <typename T>
+  constexpr T mvv_lva_key() const {
+    constexpr T num_pieces = static_cast<T>(6);
+    return num_pieces * static_cast<T>(get_field_<captured_>()) + num_pieces - static_cast<T>(get_field_<piece_>());
+  }
+
   constexpr square enpassant_sq() const { return square::from_index(get_field_<enpassant_sq_>()); }
   constexpr piece_type promotion() const { return get_field_<promotion_>(); }
 
