@@ -667,6 +667,7 @@ struct board {
 
     for (;;) {
       if (value < 0) { return false; }
+      if ((value - material_value<T>(on_sq)) >= 0) { return true; }
 
       {
         const auto [p, sq] = least_valuable_attacker<opponent<c>>(tgt_sq, used_mask);
@@ -678,6 +679,7 @@ struct board {
       }
 
       if (value >= 0) { return true; }
+      if ((value + material_value<T>(on_sq)) < 0) { return false; }
 
       {
         const auto [p, sq] = least_valuable_attacker<c>(tgt_sq, used_mask);
@@ -704,7 +706,7 @@ struct board {
 
   template <typename T>
   T see_gt(const move& mv, const T& threshold) const {
-    return turn() ? see_ge_<color::white, T>(mv, threshold + 1) : see_ge_<color::black, T>(mv, threshold + 1);
+    return see_ge(mv, threshold + 1);
   }
 
   bool has_non_pawn_material() const {
