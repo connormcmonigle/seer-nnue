@@ -524,7 +524,7 @@ struct search_worker {
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
       }();
 
-      if (score < beta && (mv.is_quiet() || !bd.see_gt(mv, 0))) { moves_tried.add_(mv); }
+      if (score < beta) { moves_tried.add_(mv); }
 
       if (score > best_score) {
         best_score = score;
@@ -551,7 +551,7 @@ struct search_worker {
         return bound_type::upper;
       }();
 
-      if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
+      if (bound == bound_type::lower) {
         internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
         ss.set_killer(best_move);
       }
