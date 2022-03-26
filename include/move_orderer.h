@@ -87,14 +87,14 @@ struct move_orderer_entry {
   const std::uint64_t& sort_key() const { return data_; }
 
   move_orderer_entry() = default;
-  move_orderer_entry(const chess::move& mv_, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
+  move_orderer_entry(const chess::move& mv_, bool is_positive_noisy, bool is_killer, const std::int32_t& value) : mv{mv_}, data_{0} {
     positive_noisy_::set(data_, is_positive_noisy);
     killer_::set(data_, is_killer);
     value_::set(data_, make_positive(value));
   }
 
   static inline move_orderer_entry make_noisy(const chess::move& mv, const bool positive_noisy, const std::int32_t& history_value) {
-    return move_orderer_entry(mv, positive_noisy, false, positive_noisy ? mv.mvv_lva_key<std::int32_t>() : history_value);
+    return move_orderer_entry(mv, positive_noisy, false, history_value);
   }
 
   static inline move_orderer_entry make_quiet(const chess::move& mv, const chess::move& killer, const std::int32_t& history_value) {
