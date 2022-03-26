@@ -610,47 +610,6 @@ struct board {
   square_set them_threat_mask() const { return turn() ? threat_mask<color::black>() : threat_mask<color::white>(); }
 
   template <color c, typename T>
-  T see_(const move& mv) const {
-    const square tgt_sq = mv.to();
-    size_t last_idx{0};
-    std::array<T, 32> material_deltas{};
-    auto used_mask = square_set{};
-    auto on_sq = mv.is_promotion() ? mv.promotion() : mv.piece();
-    used_mask.add_(mv.from());
-
-    for (;;) {
-      {
-        const auto [p, sq] = least_valuable_attacker<opponent<c>>(tgt_sq, used_mask);
-        if (sq == tgt_sq) { break; }
-
-        material_deltas[last_idx++] = material_value<T>(on_sq);
-        used_mask.add_(sq);
-        on_sq = p;
-      }
-
-      {
-        const auto [p, sq] = least_valuable_attacker<c>(tgt_sq, used_mask);
-        if (sq == tgt_sq) { break; }
-
-        material_deltas[last_idx++] = material_value<T>(on_sq);
-        used_mask.add_(sq);
-        on_sq = p;
-      }
-    }
-
-    T delta_sum{};
-    for (auto iter = material_deltas.rend() - last_idx; iter != material_deltas.rend(); ++iter) { delta_sum = std::max(T{}, *iter - delta_sum); }
-
-    const T base = [&] {
-      T val{};
-      if (mv.is_promotion()) { val += material_value<T>(mv.promotion()) - material_value<T>(mv.piece()); }
-      if (mv.is_capture() && !mv.is_castle_ooo<c>() && !mv.is_castle_oo<c>()) { val += material_value<T>(mv.captured()); }
-      return val;
-    }();
-    return base - delta_sum;
-  }
-
-  template <color c, typename T>
   bool see_ge_(const move& mv, const T& threshold) const {
     const square tgt_sq = mv.to();
     auto used_mask = square_set{};
@@ -692,11 +651,6 @@ struct board {
     }
 
     return value >= 0;
-  }
-
-  template <typename T>
-  T see(const move& mv) const {
-    return turn() ? see_<color::white, T>(mv) : see_<color::black, T>(mv);
   }
 
   template <typename T>

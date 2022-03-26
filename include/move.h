@@ -68,7 +68,9 @@ struct move {
   template <typename T>
   constexpr T mvv_lva_key() const {
     constexpr T num_pieces = static_cast<T>(6);
-    return num_pieces * static_cast<T>(get_field_<captured_>()) + num_pieces - static_cast<T>(get_field_<piece_>());
+    const T victim = static_cast<T>(get_field_<captured_>()) + is_promotion() ? static_cast<T>(get_field_<promotion_>()) : T{};
+    const T aggressor = static_cast<T>(get_field_<piece_>());
+    return num_pieces * victim + num_pieces - aggressor;
   }
 
   constexpr square enpassant_sq() const { return square::from_index(get_field_<enpassant_sq_>()); }

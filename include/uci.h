@@ -243,13 +243,6 @@ struct uci {
     }
   }
 
-  void see() {
-    std::lock_guard<std::mutex> os_lk(os_mutex_);
-    for (const chess::move& mv : position.generate_moves<>()) {
-      os << mv.name(position.turn()) << ": " << position.see<search::see_type>(mv) << std::endl;
-    }
-  }
-
   void threats() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     os << "us:\n" << position.us_threat_mask() << std::endl;
@@ -288,8 +281,6 @@ struct uci {
       bench();
     } else if (!is_searching() && line == "eval") {
       eval();
-    } else if (!is_searching() && line == "see") {
-      see();
     } else if (!is_searching() && line == "threats") {
       threats();
     } else if (!is_searching() && line == "probe") {
