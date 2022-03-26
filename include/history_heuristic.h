@@ -43,6 +43,7 @@ inline constexpr size_t num_pieces = 6;
 };  // namespace constants
 
 struct context {
+  const chess::board* bd;
   chess::move follow;
   chess::move counter;
   chess::square_set threatened;
@@ -109,15 +110,17 @@ struct follow_info {
 };
 
 struct capture_info {
-  static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_pieces;
+  static constexpr size_t N = 2 * constants::num_squares * constants::num_pieces * constants::num_pieces;
 
   static constexpr bool is_applicable(const context&, const chess::move& mv) { return mv.is_capture(); }
 
-  static constexpr size_t compute_index(const context&, const chess::move& mv) {
+  static inline size_t compute_index(const context& ctxt, const chess::move& mv) {
+    const size_t positive = static_cast<size_t>(ctxt.bd->see_gt(mv, 0));
     const size_t piece = static_cast<size_t>(mv.piece());
     const size_t to = static_cast<size_t>(mv.to().index());
     const size_t capture = static_cast<size_t>(mv.captured());
-    return piece * constants::num_squares * constants::num_pieces + to * constants::num_pieces + capture;
+    return positive * constants::num_squares * constants::num_pieces * constants::num_pieces +
+           piece * constants::num_squares * constants::num_pieces + to * constants::num_pieces + capture;
   }
 };
 

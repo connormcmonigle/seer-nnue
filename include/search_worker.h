@@ -413,7 +413,7 @@ struct search_worker {
       const size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
       ss.set_played(mv);
 
-      const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
+      const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{&bd, follow, counter, threatened}, mv);
 
       const chess::board bd_ = bd.forward(mv);
 
@@ -552,7 +552,7 @@ struct search_worker {
       }();
 
       if (bound == bound_type::lower) {
-        internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
+        internal.hh.us(bd.turn()).update(history::context{&bd, follow, counter, threatened}, best_move, moves_tried, depth);
         ss.set_killer(best_move);
       }
 
