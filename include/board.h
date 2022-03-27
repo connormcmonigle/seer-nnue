@@ -657,9 +657,63 @@ struct board {
     return base - delta_sum;
   }
 
+  template <color c, typename T>
+  bool see_ge_(const move& mv, const T& threshold) const {
+    const square tgt_sq = mv.to();
+    auto used_mask = square_set{};
+
+    auto on_sq = mv.is_promotion() ? mv.promotion() : mv.piece();
+    used_mask.add_(mv.from());
+
+    T value = [&] {
+      T val{-threshold};
+      if (mv.is_promotion()) { val += material_value<T>(mv.promotion()) - material_value<T>(mv.piece()); }
+      if (mv.is_capture() && !mv.is_castle_ooo<c>() && !mv.is_castle_oo<c>()) { val += material_value<T>(mv.captured()); }
+      return val;
+    }();
+
+    for (;;) {
+      if (value < 0) { return false; }
+      if ((value - material_value<T>(on_sq)) >= 0) { return true; }
+
+      {
+        const auto [p, sq] = least_valuable_attacker<opponent<c>>(tgt_sq, used_mask);
+        if (sq == tgt_sq) { break; }
+
+        value -= material_value<T>(on_sq);
+        used_mask.add_(sq);
+        on_sq = p;
+      }
+
+      if (value >= 0) { return true; }
+      if ((value + material_value<T>(on_sq)) < 0) { return false; }
+
+      {
+        const auto [p, sq] = least_valuable_attacker<c>(tgt_sq, used_mask);
+        if (sq == tgt_sq) { break; }
+
+        value += material_value<T>(on_sq);
+        used_mask.add_(sq);
+        on_sq = p;
+      }
+    }
+
+    return value >= 0;
+  }
+
   template <typename T>
   T see(const move& mv) const {
     return turn() ? see_<color::white, T>(mv) : see_<color::black, T>(mv);
+  }
+
+  template <typename T>
+  T see_ge(const move& mv, const T& threshold) const {
+    return turn() ? see_ge_<color::white, T>(mv, threshold) : see_ge_<color::black, T>(mv, threshold);
+  }
+
+  template <typename T>
+  T see_gt(const move& mv, const T& threshold) const {
+    return see_ge(mv, threshold + 1);
   }
 
   bool has_non_pawn_material() const {
