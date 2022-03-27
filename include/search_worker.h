@@ -229,7 +229,8 @@ struct search_worker {
       const bool delta_prune = !is_pv && !is_check && !bd.see_gt(mv, 0) && ((value + external.constants->delta_margin()) < alpha);
       if (delta_prune) { continue; }
 
-      const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && bd.see_ge(mv, external.constants->good_capture_prune_see_margin()) &&
+      const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() &&
+                                      bd.see_ge(mv, external.constants->good_capture_prune_see_margin()) &&
                                       value + external.constants->good_capture_prune_score_margin() > beta;
       if (good_capture_prune) { return beta; }
 
@@ -384,15 +385,21 @@ struct search_worker {
     }
 
     // step 10. initialize move orderer (setting tt move first if applicable)
-    const chess::move killer = ss.killer();
+    const chess::move killer_0 = ss.killer_0();
+    const chess::move killer_1 = ss.killer_1();
+
     const chess::move follow = ss.follow();
     const chess::move counter = ss.counter();
 
-    move_orderer<chess::generation_mode::all> orderer(
-        move_orderer_data(&bd, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter).set_threatened(threatened));
+    move_orderer<chess::generation_mode::all> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn()))
+                                                          .set_killer_0(killer_0)
+                                                          .set_killer_1(killer_1)
+                                                          .set_follow(follow)
+                                                          .set_counter(counter)
+                                                          .set_threatened(threatened));
 
     if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
-    ss.clear_children_killer();
+    ss.clear_children_killers();
 
     // list of attempted moves for updating histories
     chess::move_list moves_tried{};
@@ -431,13 +438,13 @@ struct search_worker {
 
         if (futility_prune) { continue; }
 
-        const bool quiet_see_prune =
-            mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() && !bd.see_ge(mv, external.constants->quiet_see_prune_threshold(depth));
+        const bool quiet_see_prune = mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() &&
+                                     !bd.see_ge(mv, external.constants->quiet_see_prune_threshold(depth));
 
         if (quiet_see_prune) { continue; }
 
-        const bool noisy_see_prune =
-            mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() && !bd.see_ge(mv, external.constants->noisy_see_prune_threshold(depth));
+        const bool noisy_see_prune = mv.is_noisy() && depth <= external.constants->noisy_see_prune_depth() &&
+                                     !bd.see_ge(mv, external.constants->noisy_see_prune_threshold(depth));
 
         if (noisy_see_prune) { continue; }
 
@@ -554,7 +561,7 @@ struct search_worker {
 
       if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
         internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
-        ss.set_killer(best_move);
+        ss.insert_killer(best_move);
       }
 
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);

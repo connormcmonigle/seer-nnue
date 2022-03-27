@@ -37,7 +37,8 @@ constexpr std::uint32_t make_positive(const std::int32_t& x) {
 }
 
 struct move_orderer_data {
-  chess::move killer{chess::move::null()};
+  chess::move killer_0{chess::move::null()};
+  chess::move killer_1{chess::move::null()};
   chess::move follow{chess::move::null()};
   chess::move counter{chess::move::null()};
   chess::move first{chess::move::null()};
@@ -47,8 +48,13 @@ struct move_orderer_data {
   const chess::board* bd;
   const history_heuristic* hh;
 
-  move_orderer_data& set_killer(const chess::move& mv) {
-    killer = mv;
+  move_orderer_data& set_killer_0(const chess::move& mv) {
+    killer_0 = mv;
+    return *this;
+  }
+
+  move_orderer_data& set_killer_1(const chess::move& mv) {
+    killer_1 = mv;
     return *this;
   }
 
@@ -79,7 +85,6 @@ struct move_orderer_entry {
   using value_ = bit::range<std::uint32_t, 0, 32>;
   using killer_ = bit::next_flag<value_>;
   using positive_noisy_ = bit::next_flag<killer_>;
-  using first_ = bit::next_flag<positive_noisy_>;
 
   chess::move mv;
   std::uint64_t data_;
@@ -97,8 +102,8 @@ struct move_orderer_entry {
     return move_orderer_entry(mv, positive_noisy, false, positive_noisy ? mv.mvv_lva_key<std::int32_t>() : history_value);
   }
 
-  static inline move_orderer_entry make_quiet(const chess::move& mv, const chess::move& killer, const std::int32_t& history_value) {
-    return move_orderer_entry(mv, false, mv == killer, history_value);
+  static inline move_orderer_entry make_quiet(const chess::move& mv, const bool is_killer, const std::int32_t& history_value) {
+    return move_orderer_entry(mv, false, is_killer, history_value);
   }
 };
 
@@ -130,7 +135,7 @@ struct move_orderer_stepper {
 
     end_ = std::transform(list.begin(), list.end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
       if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see_gt(mv, 0), data.hh->compute_value(ctxt, mv)); }
-      return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
+      return move_orderer_entry::make_quiet(mv, (mv == data.killer_0) || (mv == data.killer_1), data.hh->compute_value(ctxt, mv));
     });
 
     end_ = std::remove_if(begin_, end_, [&data](const auto& entry) { return entry.mv == data.first; });
