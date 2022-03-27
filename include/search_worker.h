@@ -392,6 +392,7 @@ struct search_worker {
         move_orderer_data(&bd, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter).set_threatened(threatened));
 
     if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
+    ss.clear_children_killer();
 
     // list of attempted moves for updating histories
     chess::move_list moves_tried{};

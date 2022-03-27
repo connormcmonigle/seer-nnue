@@ -152,6 +152,11 @@ struct stack_view {
     return *this;
   }
 
+  const stack_view& clear_children_killer() const {
+    next().set_killer(chess::move::null());
+    return *this;
+  }
+
   const stack_view& set_excluded(const chess::move& excluded) const {
     view_->at(height_).excluded_ = excluded;
     return *this;
