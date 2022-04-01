@@ -245,7 +245,6 @@ struct search_worker {
       const chess::board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-
       nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
 
       const score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_node_, bd_, -beta, -alpha, elevation + 1);

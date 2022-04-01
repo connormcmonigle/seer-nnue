@@ -109,19 +109,17 @@ struct eval : chess::sided<eval, feature_transformer<weights::parameter_type>> {
   eval(const weights* src) : weights_{src}, white{&src->shared}, black{&src->shared} {}
 };
 
-struct eval_node;
-
-struct eval_node_context {
-  eval_node* parent_node_{nullptr};
-  const chess::board* parent_board_{nullptr};
-  const chess::move move_{chess::move::null()};
-};
-
 struct eval_node {
+  struct context {
+    eval_node* parent_node_{nullptr};
+    const chess::board* parent_board_{nullptr};
+    const chess::move move_{chess::move::null()};
+  };
+
   bool dirty_;
 
   union {
-    eval_node_context context_;
+    context context_;
     eval eval_;
   } data_;
 
@@ -129,15 +127,15 @@ struct eval_node {
 
   const eval& evaluator() {
     if (!dirty_) { return data_.eval_; }
-    const eval_node_context ctxt = data_.context_;
     dirty_ = false;
+    const context ctxt = data_.context_;
     data_.eval_ = ctxt.parent_board_->apply_update(ctxt.move_, ctxt.parent_node_->evaluator());
     return data_.eval_;
   }
 
-  eval_node dirty_child(const chess::board* bd, const chess::move& mv) { return eval_node::dirty_node(eval_node_context{this, bd, mv}); }
+  eval_node dirty_child(const chess::board* bd, const chess::move& mv) { return eval_node::dirty_node(context{this, bd, mv}); }
 
-  static eval_node dirty_node(const eval_node_context& context) { return eval_node{true, context}; }
+  static eval_node dirty_node(const context& context) { return eval_node{true, context}; }
 
   static eval_node clean_node(const eval& eval) {
     eval_node result{};
@@ -145,7 +143,6 @@ struct eval_node {
     result.data_.eval_ = eval;
     return result;
   }
-
 };
 
 }  // namespace nnue
