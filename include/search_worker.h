@@ -19,9 +19,11 @@
 
 #include <board.h>
 #include <eval_cache.h>
+#include <evaluator_cache.h>
 #include <history_heuristic.h>
 #include <move.h>
 #include <move_orderer.h>
+#include <nnue_eval_node.h>
 #include <nnue_model.h>
 #include <search_constants.h>
 #include <search_stack.h>
@@ -60,6 +62,7 @@ struct internal_state {
   search_stack stack{chess::position_history{}, chess::board::start_pos()};
   sided_history_heuristic hh{};
   eval_cache cache{};
+  evaluator_cache ecache{};
   std::unordered_map<chess::move, size_t, chess::move_hash> node_distribution{};
 
   std::atomic_size_t nodes{};
@@ -82,6 +85,7 @@ struct internal_state {
     stack = search_stack{chess::position_history{}, chess::board::start_pos()};
     hh.clear();
     cache.clear();
+    ecache.clear();
     node_distribution.clear();
     nodes.store(0);
     tb_hits.store(0);
@@ -245,8 +249,7 @@ struct search_worker {
       const chess::board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-
-      nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+      nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.ecache, &bd, &bd_, mv);
 
       const score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_node_, bd_, -beta, -alpha, elevation + 1);
 
@@ -455,7 +458,7 @@ struct search_worker {
 
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-      nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+      nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.ecache, &bd, &bd_, mv);
 
       // step 12. extensions
       bool multicut = false;
@@ -657,7 +660,9 @@ struct search_worker {
       std::shared_ptr<search_constants> constants,
       std::function<void(const search_worker<is_active>&)> on_iter = [](auto&&...) {},
       std::function<void(const search_worker<is_active>&)> on_update = [](auto&&...) {})
-      : external(weights, tt, constants, on_iter, on_update), loop([this] { iterative_deepening_loop_(); }) {}
+      : external(weights, tt, constants, on_iter, on_update), loop([this] { iterative_deepening_loop_(); }) {
+    internal.ecache.set_weights(external.weights);
+  }
 };
 
 struct worker_pool {

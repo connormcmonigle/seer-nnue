@@ -74,6 +74,8 @@ struct feature_transformer {
   void erase(const size_t idx) { weights_->erase_idx(idx, active_); }
 
   feature_transformer(const big_affine<T, feature::half_ka::numel, weights::base_dim>* src) : weights_{src} { clear(); }
+  feature_transformer(const big_affine<T, feature::half_ka::numel, weights::base_dim>* src, const stack_vector<T, weights::base_dim>& active)
+      : weights_{src}, active_{active} {}
 };
 
 struct eval : chess::sided<eval, feature_transformer<weights::parameter_type>> {
@@ -107,45 +109,12 @@ struct eval : chess::sided<eval, feature_transformer<weights::parameter_type>> {
   }
 
   eval(const weights* src) : weights_{src}, white{&src->shared}, black{&src->shared} {}
-};
 
-struct eval_node;
-
-struct eval_node_context {
-  eval_node* parent_node_{nullptr};
-  const chess::board* parent_board_{nullptr};
-  const chess::move move_{chess::move::null()};
-};
-
-struct eval_node {
-  bool dirty_;
-
-  union {
-    eval_node_context context_;
-    eval eval_;
-  } data_;
-
-  bool dirty() const { return dirty_; }
-
-  const eval& evaluator() {
-    if (!dirty_) { return data_.eval_; }
-    const eval_node_context ctxt = data_.context_;
-    dirty_ = false;
-    data_.eval_ = ctxt.parent_board_->apply_update(ctxt.move_, ctxt.parent_node_->evaluator());
-    return data_.eval_;
-  }
-
-  eval_node dirty_child(const chess::board* bd, const chess::move& mv) { return eval_node::dirty_node(eval_node_context{this, bd, mv}); }
-
-  static eval_node dirty_node(const eval_node_context& context) { return eval_node{true, context}; }
-
-  static eval_node clean_node(const eval& eval) {
-    eval_node result{};
-    result.dirty_ = false;
-    result.data_.eval_ = eval;
-    return result;
-  }
-
+  eval(
+      const weights* src,
+      const stack_vector<parameter_type, weights::base_dim>& white_transformer_active,
+      const stack_vector<parameter_type, weights::base_dim>& black_transformer_active)
+      : weights_{src}, white{&src->shared, white_transformer_active}, black{&src->shared, black_transformer_active} {}
 };
 
 }  // namespace nnue
