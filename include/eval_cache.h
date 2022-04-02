@@ -26,7 +26,7 @@
 namespace search {
 
 struct eval_cache_entry {
-  zobrist::hash_type hash{};
+  zobrist::half_hash_type hash{};
   score_type eval{};
 };
 
@@ -41,11 +41,11 @@ struct eval_cache {
   void prefetch(const zobrist::hash_type& hash) const { __builtin_prefetch(data.data() + hash_function(hash)); }
 
   std::optional<score_type> find(const zobrist::hash_type& hash) const {
-    if (data[hash_function(hash)].hash == hash) { return data[hash_function(hash)].eval; }
+    if (data[hash_function(hash)].hash == zobrist::upper_half(hash)) { return data[hash_function(hash)].eval; }
     return std::nullopt;
   }
 
-  void insert(const zobrist::hash_type& hash, const score_type& eval) { data[hash_function(hash)] = eval_cache_entry{hash, eval}; }
+  void insert(const zobrist::hash_type& hash, const score_type& eval) { data[hash_function(hash)] = eval_cache_entry{zobrist::upper_half(hash), eval}; }
 
   void clear() { return data.fill(eval_cache_entry{}); }
 };
