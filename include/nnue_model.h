@@ -135,7 +135,7 @@ struct eval_node {
 
   eval_node dirty_child(const chess::board* bd, const chess::move& mv) { return eval_node::dirty_node(context{this, bd, mv}); }
 
-  static eval_node dirty_node(const context& context) { return eval_node{true, context}; }
+  static eval_node dirty_node(const context& context) { return eval_node{true, {context}}; }
 
   static eval_node clean_node(const eval& eval) {
     eval_node result{};

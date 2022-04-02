@@ -554,7 +554,7 @@ struct board {
     const square_set rook_mask = rook_attack_tbl.look_up(mv.from(), info.occ);
     const square_set bishop_mask = bishop_attack_tbl.look_up(mv.from(), info.occ);
 
-    const bool legal_from_to = [&, this] {
+    const bool legal_from_to = [&] {
       const auto pawn_mask = (mv.is_capture() ? pawn_attack_tbl<c>.look_up(mv.from()) : pawn_push_tbl<c>.look_up(mv.from(), info.occ));
       switch (mv.piece()) {
         case piece_type::pawn: return pawn_mask.is_member(mv.to());
