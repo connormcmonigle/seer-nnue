@@ -49,8 +49,7 @@ struct transposition_table_entry {
 
   zobrist::hash_type key_{empty_key};
   zobrist::hash_type value_{};
-
-  zobrist::hash_type key() const { return key_ ^ value_;; }
+  bool is_match(const zobrist::hash_type& hash) const { return (key_ ^ value_) == zobrist::upper_half(hash); }
 
   bound_type bound() const { return bound_::get(value_); }
   score_type score() const { return static_cast<score_type>(score_::get(value_)); }
@@ -71,7 +70,7 @@ struct transposition_table_entry {
 
   transposition_table_entry(
       const zobrist::hash_type& key, const bound_type& bound, const score_type& score, const chess::move& mv, const depth_type& depth)
-      : key_{key} {
+      : key_{zobrist::upper_half(key)} {
     bound_::set(value_, bound);
     score_::set(value_, static_cast<score_::type>(score));
     best_move_::set(value_, mv.data);
@@ -88,7 +87,7 @@ struct alignas(cache_line_size) bucket {
 
   std::optional<transposition_table_entry> match(const transposition_table_entry::gen_type& gen, const zobrist::hash_type& key) {
     for (auto& elem : data) {
-      if (elem.key() == key) { return std::optional(elem.set_gen(gen)); }
+      if (elem.is_match(key)) { return std::optional(elem.set_gen(gen)); }
     }
     return std::nullopt;
   }
@@ -96,7 +95,7 @@ struct alignas(cache_line_size) bucket {
   transposition_table_entry* to_replace(const transposition_table_entry::gen_type& gen, const zobrist::hash_type& key) {
     auto worst = std::begin(data);
     for (auto iter = std::begin(data); iter != std::end(data); ++iter) {
-      if (iter->key() == key) { return iter; }
+      if (iter->is_match(key)) { return iter; }
 
       const bool is_worse = (!iter->is_current(gen) && worst->is_current(gen)) || (iter->is_empty() && !worst->is_empty()) ||
                             ((iter->is_current(gen) == worst->is_current(gen)) && (iter->depth() < worst->depth()));
@@ -138,14 +137,14 @@ struct transposition_table {
 
   size_t hash_function(const zobrist::hash_type& hash) const { return hash % data.size(); }
 
-  __attribute__((no_sanitize("thread"))) transposition_table& insert(const transposition_table_entry& entry) {
+  __attribute__((no_sanitize("thread"))) transposition_table& insert(const zobrist::hash_type& key, const transposition_table_entry& entry) {
     constexpr depth_type offset = 2;
     const transposition_table_entry::gen_type gen = current_gen.load(std::memory_order_relaxed);
 
-    transposition_table_entry* to_replace = data[hash_function(entry.key())].to_replace(gen, entry.key());
+    transposition_table_entry* to_replace = data[hash_function(key)].to_replace(gen, key);
 
     const bool should_replace =
-        (entry.bound() == bound_type::exact) || (entry.key() != to_replace->key()) || ((entry.depth() + offset) >= to_replace->depth());
+        (entry.bound() == bound_type::exact) || (!to_replace->is_match(key)) || ((entry.depth() + offset) >= to_replace->depth());
 
     if (should_replace) {
       *to_replace = entry;

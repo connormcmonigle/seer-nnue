@@ -267,7 +267,7 @@ struct search_worker {
     if (use_tt && loop.keep_going()) {
       const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
-      external.tt->insert(entry);
+      external.tt->insert(bd.hash(), entry);
     }
 
     return best_score;
@@ -564,7 +564,7 @@ struct search_worker {
       }
 
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);
-      external.tt->insert(entry);
+      external.tt->insert(bd.hash(), entry);
     }
 
     return make_result(best_score, best_move);
