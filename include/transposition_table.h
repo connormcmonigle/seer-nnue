@@ -38,8 +38,11 @@ constexpr size_t cache_line_size = 64;
 enum class bound_type { upper, lower, exact };
 
 struct transposition_table_entry {
-  static constexpr zobrist::hash_type empty_key = zobrist::hash_type{};
+  static constexpr zobrist::hash_type empty = zobrist::hash_type{};
   using gen_type = std::uint8_t;
+
+  using key_ = bit::range<zobrist::half_hash_type, 0>;
+  using static_value_ = bit::next_range<key_, score_type>;
 
   using bound_ = bit::range<bound_type, 0, 2>;
   using score_ = bit::next_range<bound_, std::int16_t>;
@@ -47,35 +50,47 @@ struct transposition_table_entry {
   using best_move_ = bit::next_range<gen_, chess::move::data_type, chess::move::width>;
   using depth_ = bit::next_range<best_move_, std::uint8_t>;
 
-  zobrist::hash_type key_{empty_key};
-  zobrist::hash_type value_{};
-  bool is_match(const zobrist::hash_type& hash) const { return (key_ ^ value_) == zobrist::upper_half(hash); }
+  zobrist::hash_type data0_{empty};
+  zobrist::hash_type data1_{empty};
 
-  bound_type bound() const { return bound_::get(value_); }
-  score_type score() const { return static_cast<score_type>(score_::get(value_)); }
-  gen_type gen() const { return gen_::get(value_); }
-  depth_type depth() const { return static_cast<depth_type>(depth_::get(value_)); }
-  chess::move best_move() const { return chess::move{best_move_::get(value_)}; }
+  bool is_match(const zobrist::hash_type& hash) const { return key_::get(data0_ ^ data1_) == zobrist::upper_half(hash); }
 
-  bool is_empty() const { return key_ == empty_key; }
+  zobrist::half_hash_type upper_key_half() const { return key_::get(data0_ ^ data1_); }
+  score_type static_value() const { return static_value_::get(data0_ ^ data1_); }
 
-  bool is_current(const gen_type& gen) const { return gen == gen_::get(value_); }
+  bound_type bound() const { return bound_::get(data1_); }
+  score_type score() const { return static_cast<score_type>(score_::get(data1_)); }
+  gen_type gen() const { return gen_::get(data1_); }
+  depth_type depth() const { return static_cast<depth_type>(depth_::get(data1_)); }
+  chess::move best_move() const { return chess::move{best_move_::get(data1_)}; }
+
+  bool is_empty() const { return data0_ == empty && data1_ == empty; }
+
+  bool is_current(const gen_type& gen) const { return gen == gen_::get(data1_); }
 
   transposition_table_entry& set_gen(const gen_type& gen) {
-    key_ ^= value_;
-    gen_::set(value_, gen);
-    key_ ^= value_;
+    data0_ ^= data1_;
+    gen_::set(data1_, gen);
+    data0_ ^= data1_;
     return *this;
   }
 
   transposition_table_entry(
-      const zobrist::hash_type& key, const bound_type& bound, const score_type& score, const chess::move& mv, const depth_type& depth)
-      : key_{zobrist::upper_half(key)} {
-    bound_::set(value_, bound);
-    score_::set(value_, static_cast<score_::type>(score));
-    best_move_::set(value_, mv.data);
-    depth_::set(value_, static_cast<depth_::type>(depth));
-    key_ ^= value_;
+      const zobrist::hash_type& key,
+      const score_type& static_value,
+      const bound_type& bound,
+      const score_type& score,
+      const chess::move& mv,
+      const depth_type& depth) {
+    key_::set(data0_, zobrist::upper_half(key));
+    static_value_::set(data0_, static_value);
+
+    bound_::set(data1_, bound);
+    score_::set(data1_, static_cast<score_::type>(score));
+    best_move_::set(data1_, mv.data);
+    depth_::set(data1_, static_cast<depth_::type>(depth));
+
+    data0_ ^= data1_;
   }
 
   transposition_table_entry() {}
@@ -162,4 +177,4 @@ struct transposition_table {
   transposition_table(size_t size) : data(size * one_mb) {}
 };
 
-}  // namespace chess
+}  // namespace search

@@ -22,7 +22,7 @@
 
 namespace bit {
 
-template <typename T, size_t B0, size_t B1>
+template <typename T, size_t B0, size_t B1 = 8 * sizeof(T)>
 struct range {
   static_assert(B0 < B1, "wrong bit order");
   using type = T;
@@ -32,7 +32,7 @@ struct range {
   template <typename I>
   static constexpr T get(const I& i) {
     constexpr int num_bits = 8 * sizeof(I);
-    static_assert(B1 < num_bits, "integral type accessed by bit::range::get has insufficient bits");
+    static_assert(B1 <= num_bits, "integral type accessed by bit::range::get has insufficient bits");
     constexpr I one = static_cast<I>(1);
     constexpr I b0 = static_cast<I>(first);
     constexpr I b1 = static_cast<I>(last);
@@ -43,7 +43,7 @@ struct range {
   template <typename I>
   static constexpr void set(I& i, const T& info) {
     constexpr int num_bits = 8 * sizeof(I);
-    static_assert(B1 < num_bits, "integral type accessed by bit::range::set has insufficient bits");
+    static_assert(B1 <= num_bits, "integral type accessed by bit::range::set has insufficient bits");
     constexpr I one = static_cast<I>(1);
     constexpr I b0 = static_cast<I>(first);
     constexpr I b1 = static_cast<I>(last);
@@ -57,10 +57,10 @@ struct range {
 template <size_t B>
 using flag = range<bool, B, B + 1>;
 
-template<typename R>
+template <typename R>
 using next_flag = flag<R::last>;
 
-template<typename R, typename T, size_t width = 8*sizeof(T)>
+template <typename R, typename T, size_t width = 8 * sizeof(T)>
 using next_range = range<T, R::last, R::last + width>;
 
 }  // namespace bit

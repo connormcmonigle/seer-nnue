@@ -196,10 +196,10 @@ struct search_worker {
 
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const score_type static_value = is_check ? ss.loss_score() :
-                                      !is_pv && maybe_eval.has_value() ?
-                                                 maybe_eval.value() :
-                                                 eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+      const score_type static_value = is_check               ? ss.loss_score() :
+                                      maybe.has_value()      ? maybe->static_value() :
+                                      maybe_eval.has_value() ? maybe_eval.value() :
+                                                               eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -266,7 +266,7 @@ struct search_worker {
 
     if (use_tt && loop.keep_going()) {
       const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
-      const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
+      const transposition_table_entry entry(bd.hash(), static_value, bound, best_score, best_move, 0);
       external.tt->insert(bd.hash(), entry);
     }
 
@@ -337,10 +337,10 @@ struct search_worker {
     // step 4. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
-      const score_type static_value = is_check ? ss.loss_score() :
-                                      !is_pv && maybe_eval.has_value() ?
-                                                 maybe_eval.value() :
-                                                 eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+      const score_type static_value = is_check               ? ss.loss_score() :
+                                      maybe.has_value()      ? maybe->static_value() :
+                                      maybe_eval.has_value() ? maybe_eval.value() :
+                                                               eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -563,7 +563,7 @@ struct search_worker {
         ss.set_killer(best_move);
       }
 
-      const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);
+      const transposition_table_entry entry(bd.hash(), static_value, bound, best_score, best_move, depth);
       external.tt->insert(bd.hash(), entry);
     }
 

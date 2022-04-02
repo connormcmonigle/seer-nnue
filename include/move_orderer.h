@@ -76,7 +76,7 @@ struct move_orderer_data {
 };
 
 struct move_orderer_entry {
-  using value_ = bit::range<std::uint32_t, 0, 32>;
+  using value_ = bit::range<std::uint32_t, 0>;
   using killer_ = bit::next_flag<value_>;
   using positive_noisy_ = bit::next_flag<killer_>;
   using first_ = bit::next_flag<positive_noisy_>;
