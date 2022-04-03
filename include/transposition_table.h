@@ -35,7 +35,7 @@
 namespace search {
 
 constexpr size_t cache_line_size = 64;
-enum class bound_type { upper, lower, exact };
+enum class bound_type { upper, lower, exact, none };
 
 struct transposition_table_entry {
   static constexpr zobrist::hash_type empty = zobrist::hash_type{};
@@ -94,6 +94,10 @@ struct transposition_table_entry {
   }
 
   transposition_table_entry() {}
+
+  static transposition_table_entry from_static_value(const zobrist::hash_type& key, const score_type& static_value) {
+    return transposition_table_entry(key, static_value, bound_type::none, static_value, chess::move::null(), 0);
+  }
 };
 
 template <size_t N>
@@ -158,8 +162,8 @@ struct transposition_table {
 
     transposition_table_entry* to_replace = data[hash_function(key)].to_replace(gen, key);
 
-    const bool should_replace =
-        (entry.bound() == bound_type::exact) || (!to_replace->is_match(key)) || ((entry.depth() + offset) >= to_replace->depth());
+    const bool should_replace = (entry.bound() == bound_type::exact) || (entry.bound() != bound_type::none && !to_replace->is_match(key)) ||
+                                ((entry.depth() + offset) >= to_replace->depth());
 
     if (should_replace) {
       *to_replace = entry;

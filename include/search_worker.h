@@ -201,7 +201,7 @@ struct search_worker {
                                       maybe_eval.has_value() ? maybe_eval.value() :
                                                                eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
-      if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
+      if (!is_check && !maybe_eval.has_value()) { internal.cache.insert(bd.hash(), static_value); }
 
       score_type value = static_value;
       if (use_tt && maybe.has_value()) {
@@ -342,7 +342,8 @@ struct search_worker {
                                       maybe_eval.has_value() ? maybe_eval.value() :
                                                                eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
-      if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
+      if (!is_check && !maybe_eval.has_value()) { internal.cache.insert(bd.hash(), static_value); }
+      if (!is_check && !maybe.has_value()) { external.tt->insert(bd.hash(), transposition_table_entry::from_static_value(bd.hash(), static_value)); }
 
       score_type value = static_value;
       if (maybe.has_value()) {
