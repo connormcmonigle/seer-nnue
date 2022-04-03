@@ -303,7 +303,6 @@ struct search_worker {
 
     if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(draw_score, chess::move::null()); }
     if (!is_root && bd.is_trivially_drawn()) { return make_result(draw_score, chess::move::null()); }
-    if (!is_root && !is_check && bd.is_rule50_draw()) { return make_result(draw_score, chess::move::null()); }
 
     if constexpr (is_root) {
       if (const syzygy::tb_dtz_result result = syzygy::probe_dtz(bd); result.success) { return make_result(result.score, result.move); }
@@ -547,6 +546,7 @@ struct search_worker {
       if (best_score >= beta) { break; }
     }
 
+    if (legal_count != 0 && bd.is_rule50_draw()) { return make_result(draw_score, chess::move::null()); }
     if (legal_count == 0 && is_check) { return make_result(ss.loss_score(), chess::move::null()); }
     if (legal_count == 0) { return make_result(draw_score, chess::move::null()); }
 
