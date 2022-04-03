@@ -126,8 +126,8 @@ struct fixed_search_constants {
 
   constexpr score_type snmp_margin(const bool& improving, const bool& threats, const depth_type& depth) const {
     assert(depth > 0);
-    constexpr score_type m = 288;
-    constexpr score_type b = 128;
+    constexpr score_type m = 320;
+    constexpr score_type b = 150;
     return m * static_cast<score_type>(depth - (improving && !threats)) + (threats ? b : 0);
   }
 
