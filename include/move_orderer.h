@@ -161,6 +161,7 @@ struct move_orderer_iterator {
   int idx{};
   move_orderer_stepper stepper_;
   move_orderer_data data_;
+  chess::move_list list_;
 
   std::tuple<int, chess::move> operator*() const {
     if (!stepper_.is_initialized()) { return std::tuple(idx, data_.first); }
@@ -169,7 +170,7 @@ struct move_orderer_iterator {
 
   move_orderer_iterator& operator++() {
     if (!stepper_.is_initialized()) {
-      stepper_.initialize(data_, data_.bd->generate_moves<mode>());
+      stepper_.initialize(data_, list_);
     } else {
       stepper_.next();
     }
@@ -186,8 +187,8 @@ struct move_orderer_iterator {
     return !(*this == other);
   }
 
-  move_orderer_iterator(const move_orderer_data& data) : data_{data} {
-    if (data.first.is_null() || !data.bd->is_legal<mode>(data.first)) { stepper_.initialize(data, data.bd->generate_moves<mode>()); }
+  move_orderer_iterator(const move_orderer_data& data) : data_{data}, list_{data.bd->generate_moves<mode>()} {
+    if (data.first.is_null() || !list_.has(data.first)) { stepper_.initialize(data, list_); }
   }
 };
 
