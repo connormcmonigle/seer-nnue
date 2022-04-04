@@ -303,7 +303,9 @@ struct search_worker {
 
     if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(draw_score, chess::move::null()); }
     if (!is_root && bd.is_trivially_drawn()) { return make_result(draw_score, chess::move::null()); }
-    if (!is_root && bd.is_rule50_draw() && (!is_check || bd.generate_moves<chess::generation_mode::all>().size() != 0)) { return make_result(draw_score, chess::move::null()); }
+    if (!is_root && bd.is_rule50_draw() && (!is_check || bd.generate_moves<chess::generation_mode::all>().size() != 0)) {
+      return make_result(draw_score, chess::move::null());
+    }
 
     if constexpr (is_root) {
       if (const syzygy::tb_dtz_result result = syzygy::probe_dtz(bd); result.success) { return make_result(result.score, result.move); }
@@ -627,7 +629,14 @@ struct search_worker {
     }
   }
 
-  size_t best_move_percent_() const { return 100 * internal.node_distribution.at(chess::move{internal.best_move}) / internal.nodes.load(); }
+  size_t best_move_percent_() const {
+    const size_t one_hundred = 100;
+    if (const auto iter = internal.node_distribution.find(chess::move{internal.best_move}); iter != internal.node_distribution.end()) {
+      return one_hundred * iter->second / internal.nodes.load();
+    }
+    return one_hundred;
+  }
+
   size_t nodes() const { return internal.nodes.load(); }
   size_t tb_hits() const { return internal.tb_hits.load(); }
   depth_type depth() const { return internal.depth.load(); }
