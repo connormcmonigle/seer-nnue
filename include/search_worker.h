@@ -630,11 +630,9 @@ struct search_worker {
   }
 
   size_t best_move_percent_() const {
-    const size_t one_hundred = 100;
-    if (const auto iter = internal.node_distribution.find(chess::move{internal.best_move}); iter != internal.node_distribution.end()) {
-      return one_hundred * iter->second / internal.nodes.load();
-    }
-    return one_hundred;
+    constexpr size_t one_hundred = 100;
+    const auto iter = internal.node_distribution.find(chess::move{internal.best_move});
+    return iter != internal.node_distribution.end() ? (one_hundred * iter->second / internal.nodes.load()) : one_hundred;
   }
 
   size_t nodes() const { return internal.nodes.load(); }
