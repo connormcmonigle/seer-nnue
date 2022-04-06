@@ -50,7 +50,7 @@ struct transposition_table_entry {
   zobrist::hash_type key_{empty_key};
   zobrist::hash_type value_{};
 
-  zobrist::hash_type key() const { return key_ ^ value_;; }
+  zobrist::hash_type key() const { return key_ ^ value_; }
 
   bound_type bound() const { return bound_::get(value_); }
   score_type score() const { return static_cast<score_type>(score_::get(value_)); }
@@ -163,4 +163,4 @@ struct transposition_table {
   transposition_table(size_t size) : data(size * one_mb) {}
 };
 
-}  // namespace chess
+}  // namespace search
