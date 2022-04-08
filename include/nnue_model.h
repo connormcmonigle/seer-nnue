@@ -31,14 +31,14 @@ namespace nnue {
 
 struct weights {
   using parameter_type = float;
-  static constexpr size_t base_dim = 256;
+  static constexpr size_t base_dim = 384;
 
   weights_streamer::signature_type signature_{0};
   big_affine<parameter_type, feature::half_ka::numel, base_dim> shared{};
-  stack_affine<parameter_type, 2 * base_dim, 16> fc0{};
-  stack_affine<parameter_type, 16, 16> fc1{};
-  stack_affine<parameter_type, 32, 16> fc2{};
-  stack_affine<parameter_type, 48, 1> fc3{};
+  stack_affine<parameter_type, 2 * base_dim, 8> fc0{};
+  stack_affine<parameter_type, 8, 8> fc1{};
+  stack_affine<parameter_type, 16, 8> fc2{};
+  stack_affine<parameter_type, 24, 1> fc3{};
 
   size_t signature() const { return signature_; }
 
