@@ -49,6 +49,8 @@ inline constexpr depth_type max_depth = 128;
 
 inline constexpr depth_type max_depth_margin = 8;
 
+constexpr depth_type safe_depth = max_depth + max_depth_margin;
+
 using score_type = std::int32_t;
 
 using wdl_type = std::tuple<score_type, score_type, score_type>;

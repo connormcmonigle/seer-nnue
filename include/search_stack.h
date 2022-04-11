@@ -30,15 +30,13 @@
 
 namespace search {
 
-constexpr depth_type safe_depth_ = max_depth + max_depth_margin;
-
 struct stack_entry {
   zobrist::hash_type hash_{};
   score_type eval_{};
   chess::move played_{chess::move::null()};
   chess::move killer_{chess::move::null()};
   chess::move excluded_{chess::move::null()};
-  std::array<chess::move, safe_depth_> pv_{};
+  std::array<chess::move, safe_depth> pv_{};
 
   stack_entry() { pv_.fill(chess::move::null()); }
 };
@@ -48,7 +46,7 @@ struct search_stack {
 
   chess::position_history past_;
   chess::board present_;
-  std::array<stack_entry, safe_depth_> future_{};
+  std::array<stack_entry, safe_depth> future_{};
 
   stack_entry& at(const depth_type& height) {
     sel_depth_ = std::max(sel_depth_, height);
@@ -94,7 +92,7 @@ struct stack_view {
 
   constexpr score_type win_score() const { return -mate_score - height_; }
 
-  bool reached_max_height() const { return height_ >= (safe_depth_ - 1); }
+  bool reached_max_height() const { return height_ >= (safe_depth - 1); }
 
   depth_type height() const { return height_; }
 
@@ -118,7 +116,7 @@ struct stack_view {
 
   bool has_excluded() const { return !view_->at(height_).excluded_.is_null(); }
 
-  const std::array<chess::move, safe_depth_>& pv() const { return view_->at(height_).pv_; }
+  const std::array<chess::move, safe_depth>& pv() const { return view_->at(height_).pv_; }
 
   bool nmp_valid() const { return !counter().is_null() && !follow().is_null(); }
 
