@@ -461,21 +461,25 @@ struct search_worker {
       // step 12. extensions
       bool multicut = false;
       const depth_type extension = [&, mv = mv] {
-        const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
-                                  mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
+        const bool try_singular = !is_root && !ss.has_excluded() && maybe.has_value() && mv == maybe->best_move() &&
+                                  maybe->bound() != bound_type::upper &&
                                   maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
 
         if (try_singular) {
+          const bool singular_search = depth >= external.constants->singular_extension_depth();
           const depth_type singular_depth = external.constants->singular_search_depth(depth);
           const score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
+
           ss.set_excluded(mv);
-          const score_type excluded_score = pv_search<false>(ss, eval_node, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
+          const score_type excluded_score =
+              singular_search ? pv_search<false>(ss, eval_node, bd, singular_beta - 1, singular_beta, singular_depth, reducer) : static_value;
           ss.set_excluded(chess::move::null());
 
-          if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) {
+          if (!is_pv && singular_search && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) {
             did_double_extend = true;
             return 2;
           }
+          
           if (excluded_score < singular_beta) { return 1; }
 
           if (excluded_score >= beta) { multicut = true; }
