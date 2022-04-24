@@ -31,10 +31,16 @@ namespace nnue {
 
 struct weights {
   using parameter_type = float;
+  using quantized_parameter_type = std::int16_t;
+
+  static constexpr parameter_type quantization_scale = static_cast<parameter_type>(512);
+  static constexpr parameter_type inverse_quantization_scale = static_cast<parameter_type>(1) / quantization_scale;
   static constexpr size_t base_dim = 384;
 
   weights_streamer::signature_type signature_{0};
   big_affine<parameter_type, feature::half_ka::numel, base_dim> shared{};
+  big_affine<quantized_parameter_type, feature::half_ka::numel, base_dim> quantized_shared{};
+
   stack_affine<parameter_type, 2 * base_dim, 8> fc0{};
   stack_affine<parameter_type, 8, 8> fc1{};
   stack_affine<parameter_type, 16, 8> fc2{};
@@ -49,6 +55,8 @@ struct weights {
   template <typename streamer_type>
   weights& load(streamer_type& ws) {
     shared.load_(ws);
+    quantized_shared = shared.quantized<quantized_parameter_type>(quantization_scale);
+
     fc0.load_(ws);
     fc1.load_(ws);
     fc2.load_(ws);
@@ -76,18 +84,19 @@ struct feature_transformer {
   feature_transformer(const big_affine<T, feature::half_ka::numel, weights::base_dim>* src) : weights_{src} { clear(); }
 };
 
-struct eval : chess::sided<eval, feature_transformer<weights::parameter_type>> {
+struct eval : chess::sided<eval, feature_transformer<weights::quantized_parameter_type>> {
   using parameter_type = weights::parameter_type;
+  using quantized_parameter_type = weights::quantized_parameter_type;
 
   const weights* weights_;
-  feature_transformer<parameter_type> white;
-  feature_transformer<parameter_type> black;
+  feature_transformer<quantized_parameter_type> white;
+  feature_transformer<quantized_parameter_type> black;
 
   inline parameter_type propagate(const bool pov) const {
     const auto w_x = white.active();
     const auto b_x = black.active();
     const auto x0 = pov ? splice(w_x, b_x).apply_(relu<weights::parameter_type>) : splice(b_x, w_x).apply_(relu<weights::parameter_type>);
-    const auto x1 = weights_->fc0.forward(x0).apply_(relu<weights::parameter_type>);
+    const auto x1 = weights_->fc0.forward(x0.dequantized<parameter_type>(weights::inverse_quantization_scale)).apply_(relu<weights::parameter_type>);
     const auto x2 = splice(x1, weights_->fc1.forward(x1).apply_(relu<weights::parameter_type>));
     const auto x3 = splice(x2, weights_->fc2.forward(x2).apply_(relu<weights::parameter_type>));
     return weights_->fc3.forward(x3).item();
@@ -106,7 +115,7 @@ struct eval : chess::sided<eval, feature_transformer<weights::parameter_type>> {
     return static_cast<search::score_type>(value);
   }
 
-  eval(const weights* src) : weights_{src}, white{&src->shared}, black{&src->shared} {}
+  eval(const weights* src) : weights_{src}, white{&src->quantized_shared}, black{&src->quantized_shared} {}
 };
 
 struct eval_node {
