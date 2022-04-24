@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <type_traits>
 #include <utility>
 
 namespace nnue {
@@ -86,6 +87,15 @@ struct stack_vector {
     T result{};
 #pragma omp simd
     for (size_t i = 0; i < dim; ++i) { result += data[i]; }
+    return result;
+  }
+
+  template <typename U>
+  inline stack_vector<U, dim> dequantized(const U& scale) const {
+    static_assert(std::is_integral_v<T> && std::is_floating_point_v<U>);
+    stack_vector<U, dim> result;
+#pragma omp simd
+    for (size_t i = 0; i < dim; ++i) { result.data[i] = scale * static_cast<U>(data[i]); }
     return result;
   }
 
@@ -176,6 +186,16 @@ struct big_affine {
   big_affine<T, dim0, dim1>& load_(streamer_type& ws) {
     ws.template stream<T>(W, W_numel).template stream<T>(b, b_numel);
     return *this;
+  }
+
+  template <typename U>
+  big_affine<U, dim0, dim1> quantized(const T& scale) const {
+    static_assert(std::is_floating_point_v<T> && std::is_integral_v<U>);
+    big_affine<U, dim0, dim1> result{};
+#pragma omp simd
+    for (size_t i = 0; i < W_numel; ++i) { result.W[i] = static_cast<U>(std::round(scale * W[i])); }
+    for (size_t i = 0; i < b_numel; ++i) { result.b[i] = static_cast<U>(std::round(scale * b[i])); }
+    return result;
   }
 
   big_affine<T, dim0, dim1>& operator=(const big_affine<T, dim0, dim1>& other) {
