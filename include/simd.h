@@ -118,8 +118,8 @@ struct dot_product_16_type {
     const __m128 reduced_4 = _mm_add_ps(_mm256_castps256_ps128(reduced_8), _mm256_extractf128_ps(reduced_8, 1));
     const __m128 reduced_2 = _mm_add_ps(reduced_4, _mm_movehl_ps(reduced_4, reduced_4));
     const __m128 reduced_1 = _mm_add_ss(reduced_2, _mm_shuffle_ps(reduced_2, reduced_2, 1));
-    const float sum = _mm_cvtss_f32(reduced_1);
-    return sum;
+    const float res = _mm_cvtss_f32(reduced_1);
+    return res;
   }
 };
 
