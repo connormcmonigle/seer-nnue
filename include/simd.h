@@ -146,25 +146,25 @@ struct dot_product_32_type {
       {
         const __m256 a_0 = _mm256_load_ps(a + 0 * per_unit<float>);
         const __m256 b_0 = _mm256_load_ps(b + 0 * per_unit<float>);
-        sum_0 = _mm256_fmadd_ps(a_0, b_0, sum_0);
+        sum_0 = _mm256_add_ps(_mm256_mul_ps(a_0, b_0), sum_0);
       }
 
       {
         const __m256 a_1 = _mm256_load_ps(a + 1 * per_unit<float>);
         const __m256 b_1 = _mm256_load_ps(b + 1 * per_unit<float>);
-        sum_1 = _mm256_fmadd_ps(a_1, b_1, sum_1);
+        sum_1 = _mm256_add_ps(_mm256_mul_ps(a_1, b_1), sum_1);
       }
 
       {
         const __m256 a_2 = _mm256_load_ps(a + 2 * per_unit<float>);
         const __m256 b_2 = _mm256_load_ps(b + 2 * per_unit<float>);
-        sum_2 = _mm256_fmadd_ps(a_2, b_2, sum_2);
+        sum_2 = _mm256_add_ps(_mm256_mul_ps(a_2, b_2), sum_2);
       }
 
       {
         const __m256 a_3 = _mm256_load_ps(a + 3 * per_unit<float>);
         const __m256 b_3 = _mm256_load_ps(b + 3 * per_unit<float>);
-        sum_3 = _mm256_fmadd_ps(a_3, b_3, sum_3);
+        sum_3 = _mm256_add_ps(_mm256_mul_ps(a_3, b_3), sum_3);
       }
     }
 
