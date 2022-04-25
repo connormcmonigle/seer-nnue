@@ -148,7 +148,7 @@ struct dot_product_32_type {
     }
 
     const __m512 reduced_16 = _mm512_add_ps(sum_0, sum_1);
-    const __m256 reduced_8 = _mm256_add_ps(_mm512_castps512_ps256(sum_), _mm512_extractf32x8_ps(sum_, 1));
+    const __m256 reduced_8 = _mm256_add_ps(_mm512_castps512_ps256(reduced_16), _mm512_extractf32x8_ps(reduced_16, 1));
     const __m128 reduced_4 = _mm_add_ps(_mm256_castps256_ps128(reduced_8), _mm256_extractf128_ps(reduced_8, 1));
     const __m128 reduced_2 = _mm_add_ps(reduced_4, _mm_movehl_ps(reduced_4, reduced_4));
     const __m128 reduced_1 = _mm_add_ss(reduced_2, _mm_shuffle_ps(reduced_2, reduced_2, 1));
@@ -196,7 +196,7 @@ struct dot_product_64_type {
     }
 
     const __m512 reduced_16 = _mm512_add_ps(_mm512_add_ps(sum_0, sum_1), _mm512_add_ps(sum_0, sum_1));
-    const __m256 reduced_8 = _mm256_add_ps(_mm512_castps512_ps256(sum_), _mm512_extractf32x8_ps(sum_, 1));
+    const __m256 reduced_8 = _mm256_add_ps(_mm512_castps512_ps256(reduced_16), _mm512_extractf32x8_ps(reduced_16, 1));
     const __m128 reduced_4 = _mm_add_ps(_mm256_castps256_ps128(reduced_8), _mm256_extractf128_ps(reduced_8, 1));
     const __m128 reduced_2 = _mm_add_ps(reduced_4, _mm_movehl_ps(reduced_4, reduced_4));
     const __m128 reduced_1 = _mm_add_ss(reduced_2, _mm_shuffle_ps(reduced_2, reduced_2, 1));
