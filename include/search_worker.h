@@ -478,9 +478,8 @@ struct search_worker {
           }
 
           if (excluded_score < singular_beta) { return 1; }
-          if (singular_beta <= excluded_score && excluded_score < beta && beta <= maybe->score()) { return -1; }
-
-          if (excluded_score >= beta) { multicut = true; }
+          if (singular_beta < beta && beta <= maybe->score()) { return -1; }
+          if (singular_beta >= beta) { multicut = true; }
         }
 
         return 0;
