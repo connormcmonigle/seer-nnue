@@ -476,7 +476,9 @@ struct search_worker {
             did_double_extend = true;
             return 2;
           }
+
           if (excluded_score < singular_beta) { return 1; }
+          if (singular_beta <= excluded_score && excluded_score < beta && beta <= maybe->score()) { return -1; }
 
           if (excluded_score >= beta) { multicut = true; }
         }
