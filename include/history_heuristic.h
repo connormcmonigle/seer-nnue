@@ -138,8 +138,6 @@ struct combined {
   std::tuple<table<Ts>...> tables_{};
 
   constexpr combined<Ts...>& update(const context& ctxt, const chess::move& best_move, const chess::move_list& tried, const depth_type& depth) {
-    constexpr value_type history_max = 400;
-
     auto single_update = [&, this](const auto& mv, const value_type& gain) {
       const value_type value = compute_value(ctxt, mv);
       util::apply(tables_, [=](auto& tbl) {
@@ -147,7 +145,7 @@ struct combined {
       });
     };
 
-    const value_type gain = std::min(history_max, depth * depth);
+    const value_type gain = depth >= 16 ? 64 : (depth * depth + depth);
     std::for_each(tried.begin(), tried.end(), [single_update, gain](const chess::move& mv) { single_update(mv, -gain); });
     single_update(best_move, gain);
 
