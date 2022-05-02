@@ -316,8 +316,82 @@ struct dot_product_32_type {
 };
 
 template <size_t N>
+struct dot_product_64_type {
+  static constexpr size_t num_units = 8;
+  static constexpr size_t per_iteration = per_unit<float> * num_units;
+  static constexpr bool available = divides<N, per_iteration>;
+
+  static inline float f(const float* a, const float* b) {
+    __m256 sum_0 = _mm256_setzero_ps();
+    __m256 sum_1 = _mm256_setzero_ps();
+    __m256 sum_2 = _mm256_setzero_ps();
+    __m256 sum_3 = _mm256_setzero_ps();
+    __m256 sum_4 = _mm256_setzero_ps();
+    __m256 sum_5 = _mm256_setzero_ps();
+    __m256 sum_6 = _mm256_setzero_ps();
+    __m256 sum_7 = _mm256_setzero_ps();
+
+    for (size_t i(0); i < N; i += per_iteration, a += per_iteration, b += per_iteration) {
+      {
+        const __m256 a_0 = _mm256_load_ps(a + 0 * per_unit<float>);
+        const __m256 b_0 = _mm256_load_ps(b + 0 * per_unit<float>);
+        sum_0 = _mm256_add_ps(_mm256_mul_ps(a_0, b_0), sum_0);
+      }
+
+      {
+        const __m256 a_1 = _mm256_load_ps(a + 1 * per_unit<float>);
+        const __m256 b_1 = _mm256_load_ps(b + 1 * per_unit<float>);
+        sum_1 = _mm256_add_ps(_mm256_mul_ps(a_1, b_1), sum_1);
+      }
+
+      {
+        const __m256 a_2 = _mm256_load_ps(a + 2 * per_unit<float>);
+        const __m256 b_2 = _mm256_load_ps(b + 2 * per_unit<float>);
+        sum_2 = _mm256_add_ps(_mm256_mul_ps(a_2, b_2), sum_2);
+      }
+
+      {
+        const __m256 a_3 = _mm256_load_ps(a + 3 * per_unit<float>);
+        const __m256 b_3 = _mm256_load_ps(b + 3 * per_unit<float>);
+        sum_3 = _mm256_add_ps(_mm256_mul_ps(a_3, b_3), sum_3);
+      }
+      {
+        const __m256 a_4 = _mm256_load_ps(a + 4 * per_unit<float>);
+        const __m256 b_4 = _mm256_load_ps(b + 4 * per_unit<float>);
+        sum_4 = _mm256_add_ps(_mm256_mul_ps(a_4, b_4), sum_4);
+      }
+
+      {
+        const __m256 a_5 = _mm256_load_ps(a + 5 * per_unit<float>);
+        const __m256 b_5 = _mm256_load_ps(b + 5 * per_unit<float>);
+        sum_5 = _mm256_add_ps(_mm256_mul_ps(a_5, b_5), sum_5);
+      }
+
+      {
+        const __m256 a_6 = _mm256_load_ps(a + 6 * per_unit<float>);
+        const __m256 b_6 = _mm256_load_ps(b + 6 * per_unit<float>);
+        sum_6 = _mm256_add_ps(_mm256_mul_ps(a_6, b_6), sum_6);
+      }
+
+      {
+        const __m256 a_7 = _mm256_load_ps(a + 7 * per_unit<float>);
+        const __m256 b_7 = _mm256_load_ps(b + 7 * per_unit<float>);
+        sum_7 = _mm256_add_ps(_mm256_mul_ps(a_7, b_7), sum_7);
+      }
+    }
+
+    const __m256 reduced_8 = _mm256_add_ps(_mm256_add_ps(_mm256_add_ps(sum_0, sum_1), _mm256_add_ps(sum_2, sum_3)), _mm256_add_ps(_mm256_add_ps(sum_4, sum_5), _mm256_add_ps(sum_6, sum_7)));
+    const __m128 reduced_4 = _mm_add_ps(_mm256_castps256_ps128(reduced_8), _mm256_extractf128_ps(reduced_8, 1));
+    const __m128 reduced_2 = _mm_add_ps(reduced_4, _mm_movehl_ps(reduced_4, reduced_4));
+    const __m128 reduced_1 = _mm_add_ss(reduced_2, _mm_shuffle_ps(reduced_2, reduced_2, 0x1));
+    const float sum = _mm_cvtss_f32(reduced_1);
+    return sum;
+  }
+};
+
+template <size_t N>
 inline float dot_product(const float* a, const float* b) {
-  return binary_reduction_overload_set<dot_product_32_type<N>, dot_product_16_type<N>, dot_product_8_type<N> >::f(a, b);
+  return binary_reduction_overload_set<dot_product_64_type<N>, dot_product_32_type<N>, dot_product_16_type<N>, dot_product_8_type<N> >::f(a, b);
 }
 
 #elif defined(__SSE__)
