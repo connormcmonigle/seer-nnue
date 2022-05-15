@@ -95,10 +95,10 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
   inline parameter_type propagate(const bool pov) const {
     const auto w_x = white.active();
     const auto b_x = black.active();
-    const auto x0 = pov ? splice(w_x, b_x).apply_(relu<weights::parameter_type>) : splice(b_x, w_x).apply_(relu<weights::parameter_type>);
-    const auto x1 = weights_->fc0.forward(x0.dequantized<parameter_type>(weights::inverse_quantization_scale)).apply_(relu<weights::parameter_type>);
-    const auto x2 = splice(x1, weights_->fc1.forward(x1).apply_(relu<weights::parameter_type>));
-    const auto x3 = splice(x2, weights_->fc2.forward(x2).apply_(relu<weights::parameter_type>));
+    const auto x0 = pov ? splice(w_x, b_x).apply_(relu<quantized_parameter_type>) : splice(b_x, w_x).apply_(relu<quantized_parameter_type>);
+    const auto x1 = weights_->fc0.forward(x0.dequantized<parameter_type>(weights::inverse_quantization_scale)).apply_(relu<parameter_type>);
+    const auto x2 = splice(x1, weights_->fc1.forward(x1).apply_(relu<parameter_type>));
+    const auto x3 = splice(x2, weights_->fc2.forward(x2).apply_(relu<parameter_type>));
     return weights_->fc3.forward(x3).item();
   }
 
