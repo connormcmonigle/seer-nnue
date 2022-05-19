@@ -99,6 +99,15 @@ struct stack_vector {
     return result;
   }
 
+  template <size_t out_dim>
+  inline stack_vector<T, out_dim> slice() const {
+    static_assert(out_dim <= dim);
+    stack_vector<T, out_dim> result;
+#pragma omp simd
+    for (size_t i = 0; i < out_dim; ++i) { result.data[i] = data[i]; }
+    return result;
+  }
+
   static inline stack_vector<T, dim> zeros() {
     stack_vector<T, dim> result{};
 #pragma omp simd
