@@ -70,6 +70,11 @@ struct depth {
   using type = search::depth_type;
 };
 
+struct nodes {
+  static constexpr std::string_view name = "nodes";
+  using type = size_t;
+};
+
 struct ponder {
   static constexpr std::string_view name = "ponder";
 };
@@ -119,7 +124,11 @@ struct named_condition {
   }
 };
 
-struct search_info {
+struct update_info {
+  size_t nodes;
+};
+
+struct iter_info {
   search::depth_type depth;
   size_t best_move_percent;
 };
@@ -135,6 +144,7 @@ struct time_manager {
       named_numeric_param<go::movetime>,
       named_numeric_param<go::movestogo>,
       named_numeric_param<go::depth>,
+      named_numeric_param<go::nodes>,
       named_condition<go::ponder>,
       named_condition<go::infinite> >
       params_{};
@@ -216,16 +226,16 @@ struct time_manager {
     return *this;
   }
 
-  bool should_stop_on_update() {
+  bool should_stop_on_update(const update_info& info) {
     std::lock_guard<std::mutex> access_lk(access_mutex_);
     if (get<go::infinite>().data()) { return false; }
     if (get<go::ponder>().data()) { return false; }
-
+    if (info.nodes >= get<go::nodes>().data()) { return true; }
     if (max_budget.has_value() && elapsed() >= *max_budget) { return true; };
     return false;
   }
 
-  bool should_stop_on_iter(const search_info& info) {
+  bool should_stop_on_iter(const iter_info& info) {
     constexpr size_t numerator = 50;
     constexpr size_t min_percent = 20;
     

@@ -314,10 +314,10 @@ struct uci {
             default_hash_size,
             [this](const auto& worker) {
               info_string(worker);
-              if (manager_.should_stop_on_iter(search_info{worker.depth(), worker.best_move_percent_()})) { stop(); }
+              if (manager_.should_stop_on_iter(iter_info{worker.depth(), worker.best_move_percent_()})) { stop(); }
             },
-            [this](const auto&) {
-              if (manager_.should_stop_on_update()) { stop(); }
+            [this](const auto& worker) {
+              if (manager_.should_stop_on_update(update_info{worker.nodes()})) { stop(); }
             }) {
     nnue::embedded_weight_streamer embedded(embed::weights_file_data);
     weights_.load(embedded);
