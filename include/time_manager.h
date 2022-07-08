@@ -230,7 +230,7 @@ struct time_manager {
     std::lock_guard<std::mutex> access_lk(access_mutex_);
     if (get<go::infinite>().data()) { return false; }
     if (get<go::ponder>().data()) { return false; }
-    if (info.nodes >= get<go::nodes>().data()) { return true; }
+    if (get<go::nodes>().data().has_value() && info.nodes >= *get<go::nodes>().data()) { return true; }
     if (max_budget.has_value() && elapsed() >= *max_budget) { return true; };
     return false;
   }
