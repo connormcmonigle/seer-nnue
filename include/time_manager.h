@@ -215,7 +215,7 @@ struct time_manager {
       } else {
         // handle incremental time controls (x + z)
         min_budget = (remaining - over_head + 25 * inc) / 25;
-        max_budget = (remaining - over_head + 25 * inc) / 10;
+        max_budget = (remaining - over_head + 25 * inc) / 5;
       }
 
       // avoid time losses by capping budget to 4/5 remaining time
