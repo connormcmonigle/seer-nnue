@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <board.h>
 #include <chess_types.h>
 #include <feature_util.h>
 #include <nnue_util.h>
