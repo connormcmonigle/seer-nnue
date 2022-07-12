@@ -411,6 +411,7 @@ struct search_worker {
 
     bool did_double_extend{false};
     int legal_count{0};
+    int normal_count{0};
 
     for (const auto& [idx, mv] : orderer) {
       assert((mv != chess::move::null()));
@@ -425,12 +426,13 @@ struct search_worker {
       const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
 
       const chess::board bd_ = bd.forward(mv);
+      if (!bd_.is_check()) { ++normal_count; }
 
       const bool try_pruning = !is_root && idx >= 2 && best_score > max_mate_score;
 
       // step 11. pruning
       if (try_pruning) {
-        const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && normal_count > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { break; }
 
