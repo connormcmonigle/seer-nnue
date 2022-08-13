@@ -321,7 +321,7 @@ struct search_worker {
                               (entry.bound() == bound_type::upper && entry.score() <= alpha));
       if (is_cutoff) { return make_result(entry.score(), entry.best_move()); }
 
-      const bool should_prompt_research = !is_pv && (entry.depth() + 1 >= depth) && (entry.bound() == bound_type::lower) &&
+      const bool should_prompt_research = !is_pv && (entry.depth() + 1 >= depth) && (entry.bound() == bound_type::upper) &&
                                           (entry.score() + 128 <= alpha) && is_player(reducer, !bd.turn());
       if (should_prompt_research) { return make_result(alpha, chess::move::null()); }
     }
