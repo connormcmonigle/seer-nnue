@@ -18,6 +18,7 @@
 #pragma once
 
 #include <type_traits>
+#include <utility>
 
 #if defined(__AVX__)
 #include <immintrin.h>
@@ -44,25 +45,25 @@ template <size_t A, size_t B>
 static constexpr bool divides = A % B == 0;
 
 template <typename... Ts>
-struct binary_reduction_overload_set {};
+struct overload_set {};
 
 template <typename T, typename... Ts>
-struct binary_reduction_overload_set<T, Ts...> {
-  template <typename U>
-  static U f(const U* a, const U* b) {
+struct overload_set<T, Ts...> {
+  template <typename ... Us>
+  static auto f(Us&& ... us) {
     if constexpr (T::available) {
-      return T::f(a, b);
+      return T::f(std::forward<Us>(us)...);
     } else {
-      return binary_reduction_overload_set<Ts...>::f(a, b);
+      return overload_set<Ts...>::f(std::forward<Us>(us)...);
     }
   }
 };
 
 template <typename T>
-struct binary_reduction_overload_set<T> {
-  template <typename U>
-  static U f(const U* a, const U* b) {
-    return T::f(a, b);
+struct overload_set<T> {
+  template <typename ... Us>
+  static auto f(Us&& ... us) {
+    return T::f(std::forward<Us>(us)...);
   }
 };
 
@@ -72,6 +73,11 @@ inline T dot_product(const T* a, const T* b) {
 #pragma omp simd
   for (size_t i = 0; i < N; ++i) { sum += a[i] * b[i]; }
   return sum;
+}
+
+template <size_t dim0, size_t dim1, typename T>
+inline void matrix_vector_product(const T* matrix, const T* input, T* output) {
+  for (size_t i(0); i < dim1; ++i) { output[i] += dot_product<dim0, T>(input, matrix + i * dim0); }
 }
 
 #if defined(__AVX512DQ__)
@@ -207,7 +213,14 @@ struct dot_product_64_type {
 
 template <size_t N>
 inline float dot_product(const float* a, const float* b) {
-  return binary_reduction_overload_set<dot_product_64_type<N>, dot_product_32_type<N>, dot_product_16_type<N>, dot_product_8_type<N> >::f(a, b);
+  return overload_set<dot_product_64_type<N>, dot_product_32_type<N>, dot_product_16_type<N>, dot_product_8_type<N> >::f(a, b);
+}
+
+template <size_t dim0, size_t dim1>
+inline void matrix_vector_product(const float* matrix, const float* input, float* output) {
+  using dot_product_type =
+      overload_set<dot_product_64_type<dim0>, dot_product_32_type<dim0>, dot_product_16_type<dim0>, dot_product_8_type<dim0> >;
+  for (size_t i(0); i < dim1; ++i) { output[i] += dot_product_type::f(input, matrix + i * dim0); }
 }
 
 #elif defined(__AVX__)
@@ -315,9 +328,74 @@ struct dot_product_32_type {
   }
 };
 
+template <size_t dim0, size_t dim1>
+struct matrix_vector_product_fallback_type {
+  static constexpr bool available = divides<dim0, per_unit<float>>;
+
+  static inline void f(const float* matrix, const float* input, float* output) {
+    using dot_product_type = overload_set<dot_product_32_type<dim0>, dot_product_16_type<dim0>, dot_product_8_type<dim0> >;
+    for (size_t i(0); i < dim1; ++i) { output[i] += dot_product_type::f(input, matrix + i * dim0); }    
+  }
+};
+
+template <size_t dim0, size_t dim1>
+struct matrix_vector_product_optimized_type {
+  static constexpr bool available = dim1 == 8 && divides<dim0, per_unit<float>>;
+
+  static inline void f(const float* matrix, const float* input, float* output) {
+    __m256 sum_0 = _mm256_setzero_ps();
+    __m256 sum_1 = _mm256_setzero_ps();
+    __m256 sum_2 = _mm256_setzero_ps();
+    __m256 sum_3 = _mm256_setzero_ps();
+    __m256 sum_4 = _mm256_setzero_ps();
+    __m256 sum_5 = _mm256_setzero_ps();
+    __m256 sum_6 = _mm256_setzero_ps();
+    __m256 sum_7 = _mm256_setzero_ps();
+
+    for (size_t i(0); i < dim0; i += per_unit<float>) {
+        const __m256 input_region = _mm256_load_ps(input + i);
+        sum_0 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + 0 * dim0 + i), input_region), sum_0);
+        sum_1 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + 1 * dim0 + i), input_region), sum_1);
+        sum_2 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + 2 * dim0 + i), input_region), sum_2);
+        sum_3 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + 3 * dim0 + i), input_region), sum_3);
+        sum_4 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + 4 * dim0 + i), input_region), sum_4);
+        sum_5 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + 5 * dim0 + i), input_region), sum_5);
+        sum_6 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + 6 * dim0 + i), input_region), sum_6);
+        sum_7 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + 7 * dim0 + i), input_region), sum_7);
+    }
+
+
+    const __m256 sum_0_1 = _mm256_hadd_ps(sum_0, sum_1);
+    const __m256 sum_2_3 = _mm256_hadd_ps(sum_2, sum_3);
+    const __m256 sum_4_5 = _mm256_hadd_ps(sum_4, sum_5);
+    const __m256 sum_6_7 = _mm256_hadd_ps(sum_6, sum_7);
+
+    const __m256 sum_0_1_2_3 = _mm256_hadd_ps(sum_0_1, sum_2_3);
+    const __m256 sum_4_5_6_7 = _mm256_hadd_ps(sum_4_5, sum_6_7);
+
+    const __m128 sum_abcd_0 = _mm256_extractf128_ps(sum_0_1_2_3, 0);
+    const __m128 sum_abcd_1 = _mm256_extractf128_ps(sum_0_1_2_3, 1);
+    const __m128 sum_efgh_0 = _mm256_extractf128_ps(sum_4_5_6_7, 0);
+    const __m128 sum_efgh_1 = _mm256_extractf128_ps(sum_4_5_6_7, 1);
+
+    const __m128 sum_abcd = _mm_add_ps(sum_abcd_0, sum_abcd_1);
+    const __m128 sum_efgh = _mm_add_ps(sum_efgh_0, sum_efgh_1);
+
+    const __m256 total = _mm256_insertf128_ps(_mm256_castps128_ps256(sum_abcd), sum_efgh, 1);
+
+    __m256* v_output = (__m256*) output;
+    *v_output = _mm256_add_ps(*v_output, total);
+  }
+};
+
 template <size_t N>
 inline float dot_product(const float* a, const float* b) {
-  return binary_reduction_overload_set<dot_product_32_type<N>, dot_product_16_type<N>, dot_product_8_type<N> >::f(a, b);
+  return overload_set<dot_product_32_type<N>, dot_product_16_type<N>, dot_product_8_type<N> >::f(a, b);
+}
+
+template <size_t dim0, size_t dim1>
+inline void matrix_vector_product(const float* matrix, const float* input, float* output) {
+  return overload_set<matrix_vector_product_optimized_type<dim0, dim1>, matrix_vector_product_fallback_type<dim0, dim1>>::f(matrix, input, output);
 }
 
 #elif defined(__SSE__)
@@ -402,7 +480,7 @@ struct dot_product_16_type {
 
 template <size_t N>
 inline float dot_product(const float* a, const float* b) {
-  return binary_reduction_overload_set<dot_product_16_type<N>, dot_product_8_type<N> >::f(a, b);
+  return overload_set<dot_product_16_type<N>, dot_product_8_type<N> >::f(a, b);
 }
 
 #endif
