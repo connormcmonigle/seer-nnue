@@ -65,13 +65,6 @@ struct overload_set<T> {
   }
 };
 
-template <size_t N, typename T>
-inline T dot_product(const T* a, const T* b) {
-  T sum{};
-  for (size_t i = 0; i < N; ++i) { sum += a[i] * b[i]; }
-  return sum;
-}
-
 template <size_t dim0, size_t dim1, typename T>
 inline void matrix_vector_product(const T* matrix, const T* input, T* output) {
   for (size_t i(0); i < dim1; ++i) {
@@ -109,7 +102,8 @@ struct matrix_vector_product_x8_x8 {
 
   static inline void f(const float* matrix, const float* input, float* output) {
     __m256* v_output = (__m256*)output;
-    for (size_t i(0); i < dim1; i += num_units, ++v_output) {
+    constexpr size_t output_step = num_units / per_unit<float>;
+    for (size_t i(0); i < dim1; i += num_units, v_output += output_step) {
       __m256 sum_0 = _mm256_setzero_ps();
       __m256 sum_1 = _mm256_setzero_ps();
       __m256 sum_2 = _mm256_setzero_ps();
@@ -187,7 +181,8 @@ struct matrix_vector_product_x4_x8 {
 
   static inline void f(const float* matrix, const float* input, float* output) {
     __m128* v_output = (__m128*)output;
-    for (size_t i(0); i < dim1; i += num_units, v_output += 2) {
+    constexpr size_t output_step = num_units / per_unit<float>;
+    for (size_t i(0); i < dim1; i += num_units, v_output += output_step) {
       __m128 sum_0 = _mm_setzero_ps();
       __m128 sum_1 = _mm_setzero_ps();
       __m128 sum_2 = _mm_setzero_ps();
