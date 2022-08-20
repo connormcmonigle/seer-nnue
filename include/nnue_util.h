@@ -76,8 +76,6 @@ struct stack_vector {
     return *this;
   }
 
-  inline T dot(const T* other) const { return simd::dot_product<dim>(data, other); }
-
   inline T item() const {
     static_assert(dim == 1, "called item() on vector with dim != 1");
     return data[0];
@@ -151,7 +149,7 @@ struct stack_affine {
 
   inline stack_vector<T, dim1> forward(const stack_vector<T, dim0>& x) const {
     auto result = stack_vector<T, dim1>::from(b);
-    for (size_t i = 0; i < dim1; ++i) { result.data[i] += x.dot(W + i * dim0); }
+    simd::matrix_vector_product<dim0, dim1>(W, x.data, result.data);
     return result;
   }
 
