@@ -28,6 +28,37 @@
 namespace nnue {
 
 template <typename T>
+struct dot_type_impl {};
+
+template <>
+struct dot_type_impl<float> {
+  using type = float;
+};
+
+template <>
+struct dot_type_impl<double> {
+  using type = double;
+};
+
+template <>
+struct dot_type_impl<std::int8_t> {
+  using type = std::int16_t;
+};
+
+template <>
+struct dot_type_impl<std::int16_t> {
+  using type = std::int32_t;
+};
+
+template <>
+struct dot_type_impl<std::int32_t> {
+  using type = std::int64_t;
+};
+
+template <typename T>
+using dot_type = typename dot_type_impl<T>::type;
+
+template <typename T>
 constexpr T relu(const T& x) {
   return std::max(x, T{0});
 }
@@ -143,20 +174,30 @@ struct stack_affine {
   static constexpr size_t b_numel = dim1;
 
   alignas(simd::alignment) T W[W_numel];
-  alignas(simd::alignment) T b[b_numel];
+  alignas(simd::alignment) dot_type<T> b[b_numel];
 
   constexpr size_t num_parameters() const { return W_numel + b_numel; }
 
-  inline stack_vector<T, dim1> forward(const stack_vector<T, dim0>& x) const {
-    auto result = stack_vector<T, dim1>::from(b);
+  inline stack_vector<dot_type<T>, dim1> forward(const stack_vector<T, dim0>& x) const {
+    auto result = stack_vector<dot_type<T>, dim1>::from(b);
     simd::matrix_vector_product<dim0, dim1>(W, x.data, result.data);
     return result;
   }
 
   template <typename streamer_type>
   stack_affine<T, dim0, dim1>& load_(streamer_type& ws) {
-    ws.template stream<T>(W, W_numel).template stream<T>(b, b_numel);
+    ws.template stream<T>(W, W_numel).template stream<dot_type<T>>(b, b_numel);
     return *this;
+  }
+
+  template <typename U>
+  stack_affine<U, dim0, dim1> quantized(const T& weight_scale, const T& bias_scale) const {
+    static_assert(std::is_floating_point_v<T> && std::is_integral_v<U>);
+    stack_affine<U, dim0, dim1> result{};
+#pragma omp simd
+    for (size_t i = 0; i < W_numel; ++i) { result.W[i] = static_cast<U>(std::round(weight_scale * W[i])); }
+    for (size_t i = 0; i < b_numel; ++i) { result.b[i] = static_cast<dot_type<U>>(std::round(bias_scale * b[i])); }
+    return result;
   }
 };
 
