@@ -832,7 +832,7 @@ struct board {
   }
 
   template <color c, typename T>
-  void feature_move_delta(const move& mv, T& sided_set) const {
+  void do_feature_move_delta(const move& mv, T& sided_set) const {
     namespace h_ka = feature::half_ka;
     if (mv.is_castle_oo<c>() || mv.is_castle_ooo<c>()) {
       forward_<c>(mv).feature_full_refresh(sided_set);
@@ -866,15 +866,55 @@ struct board {
     }
   }
 
-  template <typename T>
-  T apply_update(const move& mv, const T& sided_set) const {
-    T copy = sided_set;
-    if (turn()) {
-      feature_move_delta<color::white>(mv, copy);
-    } else {
-      feature_move_delta<color::black>(mv, copy);
+  template <color c, typename T>
+  void undo_feature_move_delta(const move& mv, T& sided_set) const {
+    namespace h_ka = feature::half_ka;
+    if (mv.is_castle_oo<c>() || mv.is_castle_ooo<c>() || mv.piece() == piece_type::king) {
+      feature_full_refresh(sided_set);
+      return;
     }
-    return copy;
+
+    const square their_king = man_.them<c>().king().item();
+    const square our_king = man_.us<c>().king().item();
+
+    sided_set.template us<c>().insert(h_ka::index<c, c>(our_king, mv.piece(), mv.from()));
+    sided_set.template them<c>().insert(h_ka::index<opponent<c>, c>(their_king, mv.piece(), mv.from()));
+
+    if (mv.is_promotion<c>()) {
+      sided_set.template us<c>().erase(h_ka::index<c, c>(our_king, mv.promotion(), mv.to()));
+      sided_set.template them<c>().erase(h_ka::index<opponent<c>, c>(their_king, mv.promotion(), mv.to()));
+    } else {
+      sided_set.template us<c>().erase(h_ka::index<c, c>(our_king, mv.piece(), mv.to()));
+      sided_set.template them<c>().erase(h_ka::index<opponent<c>, c>(their_king, mv.piece(), mv.to()));
+    }
+
+    if (mv.is_enpassant()) {
+      sided_set.template them<c>().insert(h_ka::index<opponent<c>, opponent<c>>(their_king, piece_type::pawn, mv.enpassant_sq()));
+      sided_set.template us<c>().insert(h_ka::index<c, opponent<c>>(our_king, piece_type::pawn, mv.enpassant_sq()));
+    }
+
+    if (mv.is_capture()) {
+      sided_set.template them<c>().insert(h_ka::index<opponent<c>, opponent<c>>(their_king, mv.captured(), mv.to()));
+      sided_set.template us<c>().insert(h_ka::index<c, opponent<c>>(our_king, mv.captured(), mv.to()));
+    }
+  }
+
+  template <typename T>
+  void do_update(const move& mv, T& sided_set) const {
+    if (turn()) {
+      do_feature_move_delta<color::white>(mv, sided_set);
+    } else {
+      do_feature_move_delta<color::black>(mv, sided_set);
+    }
+  }
+
+  template <typename T>
+  void undo_update(const move& mv, T& sided_set) const {
+    if (turn()) {
+      undo_feature_move_delta<color::white>(mv, sided_set);
+    } else {
+      undo_feature_move_delta<color::black>(mv, sided_set);
+    }
   }
 
   std::tuple<position_history, board> after_uci_moves(const std::string& moves) const {

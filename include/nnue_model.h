@@ -126,40 +126,4 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
   eval(const weights* src) : weights_{src}, white{&src->quantized_shared}, black{&src->quantized_shared} {}
 };
 
-struct eval_node {
-  struct context {
-    eval_node* parent_node_{nullptr};
-    const chess::board* parent_board_{nullptr};
-    const chess::move move_{chess::move::null()};
-  };
-
-  bool dirty_;
-
-  union {
-    context context_;
-    eval eval_;
-  } data_;
-
-  bool dirty() const { return dirty_; }
-
-  const eval& evaluator() {
-    if (!dirty_) { return data_.eval_; }
-    dirty_ = false;
-    const context ctxt = data_.context_;
-    data_.eval_ = ctxt.parent_board_->apply_update(ctxt.move_, ctxt.parent_node_->evaluator());
-    return data_.eval_;
-  }
-
-  eval_node dirty_child(const chess::board* bd, const chess::move& mv) { return eval_node::dirty_node(context{this, bd, mv}); }
-
-  static eval_node dirty_node(const context& context) { return eval_node{true, {context}}; }
-
-  static eval_node clean_node(const eval& eval) {
-    eval_node result{};
-    result.dirty_ = false;
-    result.data_.eval_ = eval;
-    return result;
-  }
-};
-
 }  // namespace nnue
