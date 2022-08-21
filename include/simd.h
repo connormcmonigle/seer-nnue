@@ -179,7 +179,8 @@ struct int16_matrix_vector_product_x16_x8 {
       const __m256i sum_0123 = _mm256_hadd_epi32(sum_01, sum_23);
       const __m256i sum_4567 = _mm256_hadd_epi32(sum_45, sum_67);
 
-      const __m256i sum_01234567 = _mm256_add_epi32(_mm256_permute2f128_si256(sum_0123, sum_4567, 0x20), _mm256_permute2f128_si256(sum_0123, sum_4567, 0x31));
+      const __m256i sum_01234567 =
+          _mm256_add_epi32(_mm256_permute2f128_si256(sum_0123, sum_4567, 0x20), _mm256_permute2f128_si256(sum_0123, sum_4567, 0x31));
 
       *v_output = _mm256_add_epi32(*v_output, sum_01234567);
     }
