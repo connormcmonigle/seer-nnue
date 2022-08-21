@@ -34,10 +34,10 @@ struct weights {
   using parameter_type = float;
   using quantized_parameter_type = std::int16_t;
 
-  static constexpr parameter_type base_quantization_scale = static_cast<parameter_type>(768);
-  static constexpr parameter_type weight_quantization_scale = base_quantization_scale;
-  static constexpr parameter_type bias_quantization_scale = base_quantization_scale * base_quantization_scale;
-  static constexpr parameter_type dequantization_scale = static_cast<parameter_type>(1) / (base_quantization_scale * base_quantization_scale);
+  static constexpr parameter_type shared_quantization_scale = static_cast<parameter_type>(512);
+  static constexpr parameter_type fc0_weight_quantization_scale = static_cast<parameter_type>(2048);
+  static constexpr parameter_type fc0_bias_quantization_scale = shared_quantization_scale * fc0_weight_quantization_scale;
+  static constexpr parameter_type dequantization_scale = static_cast<parameter_type>(1) / (shared_quantization_scale * fc0_weight_quantization_scale);
 
   static constexpr size_t base_dim = 384;
 
@@ -67,8 +67,8 @@ struct weights {
     fc3.load_(ws);
     signature_ = ws.signature();
 
-    quantized_shared = shared.quantized<quantized_parameter_type>(base_quantization_scale);
-    quantized_fc0 = fc0.quantized<quantized_parameter_type>(weight_quantization_scale, bias_quantization_scale);
+    quantized_shared = shared.quantized<quantized_parameter_type>(shared_quantization_scale);
+    quantized_fc0 = fc0.quantized<quantized_parameter_type>(fc0_weight_quantization_scale, fc0_bias_quantization_scale);
 
     return *this;
   }
