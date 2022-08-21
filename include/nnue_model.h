@@ -35,7 +35,7 @@ struct weights {
   using quantized_parameter_type = std::int16_t;
 
   static constexpr parameter_type shared_quantization_scale = static_cast<parameter_type>(512);
-  static constexpr parameter_type fc0_weight_quantization_scale = static_cast<parameter_type>(2048);
+  static constexpr parameter_type fc0_weight_quantization_scale = static_cast<parameter_type>(1024);
   static constexpr parameter_type fc0_bias_quantization_scale = shared_quantization_scale * fc0_weight_quantization_scale;
   static constexpr parameter_type dequantization_scale = static_cast<parameter_type>(1) / (shared_quantization_scale * fc0_weight_quantization_scale);
 
