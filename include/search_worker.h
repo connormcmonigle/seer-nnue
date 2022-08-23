@@ -377,10 +377,6 @@ struct search_worker {
 
     if (prob_prune) { return make_result(beta, chess::move::null()); }
 
-    const bool threatened_failure_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth <= 4 && maybe->bound() == bound_type::upper &&
-                                       threatened.is_member(maybe->best_move().from()) && maybe->score() + 128 < alpha;
-    if (threatened_failure_prune) { return make_result(alpha, chess::move::null()); }
-
     // step 9. null move pruning
     const bool try_nmp =
         !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
@@ -538,6 +534,10 @@ struct search_worker {
       }();
 
       if (score < beta && (mv.is_quiet() || !bd.see_gt(mv, 0))) { moves_tried.add_(mv); }
+
+      const bool threatened_failure_prune = maybe.has_value() && !ss.has_excluded() && mv == maybe->best_move() && threatened.is_member(mv.from()) &&
+                                            score + 128 <= alpha && depth <= 5;
+      if (threatened_failure_prune) { return make_result(alpha, chess::move::null()); }
 
       if (score > best_score) {
         best_score = score;
