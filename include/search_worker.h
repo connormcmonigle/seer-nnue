@@ -535,8 +535,8 @@ struct search_worker {
 
       if (score < beta && (mv.is_quiet() || !bd.see_gt(mv, 0))) { moves_tried.add_(mv); }
 
-      const bool threatened_failure_prune = maybe.has_value() && !ss.has_excluded() && mv == maybe->best_move() && threatened.is_member(mv.from()) &&
-                                            score + 128 <= alpha && depth <= 5;
+      const bool threatened_failure_prune =
+          maybe.has_value() && !ss.has_excluded() && mv == maybe->best_move() && threatened.is_member(mv.from()) && score <= alpha && depth <= 5;
       if (threatened_failure_prune) { return make_result(alpha, chess::move::null()); }
 
       if (score > best_score) {
