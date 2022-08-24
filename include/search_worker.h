@@ -78,6 +78,11 @@ struct internal_state {
     return (nodes & bit_pattern) == bit_pattern;
   }
 
+  inline score_type sample_draw_score() const {
+    constexpr size_t bit_pattern = 1;
+    return draw_score + 1 - 2 * (nodes & bit_pattern);
+  }
+
   void reset() {
     stack = search_stack{chess::position_history{}, chess::board::start_pos()};
     hh.clear();
@@ -183,8 +188,8 @@ struct search_worker {
     ++internal.nodes;
     const bool is_check = bd.is_check();
 
-    if (ss.is_two_fold(bd.hash())) { return draw_score; }
-    if (bd.is_trivially_drawn()) { return draw_score; }
+    if (ss.is_two_fold(bd.hash())) { return internal.sample_draw_score(); }
+    if (bd.is_trivially_drawn()) { return internal.sample_draw_score(); }
 
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
@@ -301,10 +306,10 @@ struct search_worker {
     // step 2. check if node is terminal
     const bool is_check = bd.is_check();
 
-    if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(draw_score, chess::move::null()); }
-    if (!is_root && bd.is_trivially_drawn()) { return make_result(draw_score, chess::move::null()); }
+    if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(internal.sample_draw_score(), chess::move::null()); }
+    if (!is_root && bd.is_trivially_drawn()) { return make_result(internal.sample_draw_score(), chess::move::null()); }
     if (!is_root && bd.is_rule50_draw() && (!is_check || bd.generate_moves<chess::generation_mode::all>().size() != 0)) {
-      return make_result(draw_score, chess::move::null());
+      return make_result(internal.sample_draw_score(), chess::move::null());
     }
 
     if constexpr (is_root) {
@@ -327,7 +332,7 @@ struct search_worker {
 
       switch (result.wdl) {
         case syzygy::wdl_type::loss: return make_result(ss.loss_score(), chess::move::null());
-        case syzygy::wdl_type::draw: return make_result(draw_score, chess::move::null());
+        case syzygy::wdl_type::draw: return make_result(internal.sample_draw_score(), chess::move::null());
         case syzygy::wdl_type::win: return make_result(ss.win_score(), chess::move::null());
       }
     }
@@ -550,7 +555,7 @@ struct search_worker {
     }
 
     if (legal_count == 0 && is_check) { return make_result(ss.loss_score(), chess::move::null()); }
-    if (legal_count == 0) { return make_result(draw_score, chess::move::null()); }
+    if (legal_count == 0) { return make_result(internal.sample_draw_score(), chess::move::null()); }
 
     // step 14. update histories if appropriate and maybe insert a new transposition_table_entry
     if (loop.keep_going() && !ss.has_excluded()) {

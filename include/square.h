@@ -123,24 +123,24 @@ struct square_set_iterator {
 
   std::uint64_t remaining;
 
-  square_set_iterator& operator++() {
+  constexpr square_set_iterator& operator++() {
     remaining &= (remaining - static_cast<std::uint64_t>(1));
     return *this;
   }
 
-  square_set_iterator operator++(int) {
+  constexpr square_set_iterator operator++(int) {
     auto retval = *this;
     ++(*this);
     return retval;
   }
 
-  bool operator==(const square_set_iterator& other) const { return other.remaining == remaining; }
+  constexpr bool operator==(const square_set_iterator& other) const { return other.remaining == remaining; }
 
-  bool operator!=(const square_set_iterator& other) const { return !(*this == other); }
+  constexpr bool operator!=(const square_set_iterator& other) const { return !(*this == other); }
 
-  square operator*() const { return square{remaining & ~(remaining - static_cast<std::uint64_t>(1))}; }
+  constexpr square operator*() const { return square{remaining & ~(remaining - static_cast<std::uint64_t>(1))}; }
 
-  square_set_iterator(std::uint64_t set) : remaining{set} {}
+  constexpr square_set_iterator(std::uint64_t set) : remaining{set} {}
 };
 
 struct square_set {
@@ -215,16 +215,16 @@ struct square_set {
   }
 
   constexpr square_set() : data{0} {}
-  constexpr square_set(std::uint64_t set) : data{set} {}
+  constexpr square_set(const std::uint64_t& set) : data{set} {}
 };
 
-square_set operator~(const square_set& ss) { return square_set(~ss.data); }
+constexpr square_set operator~(const square_set& ss) { return square_set(~ss.data); }
 
-square_set operator&(const square_set& a, const square_set& b) { return square_set(a.data & b.data); }
+constexpr square_set operator&(const square_set& a, const square_set& b) { return square_set(a.data & b.data); }
 
-square_set operator|(const square_set& a, const square_set& b) { return square_set(a.data | b.data); }
+constexpr square_set operator|(const square_set& a, const square_set& b) { return square_set(a.data | b.data); }
 
-square_set operator^(const square_set& a, const square_set& b) { return square_set(a.data ^ b.data); }
+constexpr square_set operator^(const square_set& a, const square_set& b) { return square_set(a.data ^ b.data); }
 
 std::ostream& operator<<(std::ostream& ostr, const square_set& ss) {
   std::cout << "square_set(data=" << ss.data << ")\n";
