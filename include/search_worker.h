@@ -79,8 +79,8 @@ struct internal_state {
   }
 
   inline score_type sample_draw_score() const {
-    constexpr size_t bit_pattern = 1;
-    return draw_score + 1 - 2 * (nodes & bit_pattern);
+    constexpr size_t bit_pattern = 2;
+    return draw_score + 1 - (nodes & bit_pattern);
   }
 
   void reset() {
