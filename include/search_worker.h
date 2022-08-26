@@ -394,7 +394,7 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const bool try_multicut = !is_pv && !is_multi && !ss.has_excluded() && !maybe.has_value() && depth >= 8 && static_value >= beta + 16 * depth;
+    const bool try_multicut = !is_pv && !is_multi && !ss.has_excluded() && !maybe.has_value() && depth >= 8 && static_value >= beta + 32 * depth;
     if (try_multicut) {
       const depth_type multicut_depth = (depth / 2) - 1;
       const int multicut_factor = 2;
