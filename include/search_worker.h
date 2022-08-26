@@ -452,6 +452,10 @@ struct search_worker {
         const bool history_prune = mv.is_quiet() && history_value <= external.constants->history_prune_threshold(depth);
 
         if (history_prune) { continue; }
+
+        const bool capture_history_prune = mv.is_capture() && !bd.see_gt(mv, 0) && history_value <= -2048 * depth * depth;
+
+        if (capture_history_prune) { continue; }
       }
 
       external.tt->prefetch(bd_.hash());
