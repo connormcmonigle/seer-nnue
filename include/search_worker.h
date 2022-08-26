@@ -394,12 +394,14 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const bool try_multicut = !is_pv && !is_multi && !ss.has_excluded() && !maybe.has_value() && depth >= 8 && static_value >= beta + 32 * depth;
+    const bool try_multicut = !is_pv && !is_multi && !ss.has_excluded() && !maybe.has_value() && depth >= 8 && static_value >= beta + 48 * depth;
     if (try_multicut) {
       const depth_type multicut_depth = (depth / 2) - 1;
+      const score_type multicut_beta = beta + 8 * depth;
       const int multicut_factor = 2;
-      const score_type multicut_score = pv_search<false>(ss, eval_node, bd, beta - 1, beta, multicut_depth, reducer, multicut_factor);
-      if (multicut_score >= beta) { return make_result(multicut_score, chess::move::null()); }
+      const score_type multicut_score =
+          pv_search<false>(ss, eval_node, bd, multicut_beta - 1, multicut_beta, multicut_depth, reducer, multicut_factor);
+      if (multicut_score >= multicut_beta) { return make_result(multicut_score, chess::move::null()); }
       maybe = external.tt->find(bd.hash());
     }
 
