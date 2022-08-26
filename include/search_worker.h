@@ -281,7 +281,8 @@ struct search_worker {
       score_type alpha,
       const score_type& beta,
       depth_type depth,
-      const chess::player_type& reducer) -> pv_search_result_t<is_root> {
+      const chess::player_type& reducer,
+      const int& required_cutoffs = 1) -> pv_search_result_t<is_root> {
     auto make_result = [](const score_type& score, const chess::move& mv) {
       if constexpr (is_root) { return pv_search_result_t<is_root>{score, mv}; }
       if constexpr (!is_root) { return score; }
@@ -289,6 +290,7 @@ struct search_worker {
 
     static_assert(!is_root || is_pv);
     assert(depth >= 0);
+    const bool is_multi = required_cutoffs > 1;
 
     // callback on entering search function
     const bool should_update = loop.keep_going() && (is_root || internal.one_of<nodes_per_update>());
@@ -313,7 +315,7 @@ struct search_worker {
 
     const score_type original_alpha = alpha;
 
-    const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
+    std::optional<transposition_table_entry> maybe = (!ss.has_excluded() && !is_multi) ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = !is_pv && entry.depth() >= depth &&
@@ -333,7 +335,7 @@ struct search_worker {
     }
 
     // step 3. internal iterative reductions
-    const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
+    const bool should_iir = !maybe.has_value() && !is_multi && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
     // step 4. compute static eval and adjust appropriately if there's a tt hit
@@ -364,13 +366,13 @@ struct search_worker {
     const chess::square_set threatened = bd.them_threat_mask();
 
     // step 7. static null move pruning
-    const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
+    const bool snm_prune = !is_pv && !is_multi && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
                            value > beta + external.constants->snmp_margin(improving, threatened.any(), depth) && value > ss.loss_score();
 
     if (snm_prune) { return make_result(value, chess::move::null()); }
 
     // step 8. prob pruning
-    const bool prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
+    const bool prob_prune = !is_pv && !is_multi && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
                             maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
                             maybe->score() > beta + external.constants->prob_prune_margin() &&
                             maybe->depth() + external.constants->prob_prune_depth_margin(improving) >= depth;
@@ -379,7 +381,7 @@ struct search_worker {
 
     // step 9. null move pruning
     const bool try_nmp =
-        !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
+        !is_pv && !is_multi && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
         bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
         (!maybe.has_value() || (maybe->bound() == bound_type::lower && bd.is_legal<chess::generation_mode::all>(maybe->best_move()) &&
                                 !bd.see_gt(maybe->best_move(), external.constants->nmp_see_threshold())));
@@ -390,6 +392,15 @@ struct search_worker {
       const score_type nmp_score =
           -pv_search<false>(ss.next(), eval_node, bd.forward(chess::move::null()), -beta, -beta + 1, adjusted_depth, chess::player_from(!bd.turn()));
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
+    }
+
+    const bool try_multicut = !is_pv && !is_multi && !ss.has_excluded() && !maybe.has_value() && depth >= 8 && static_value >= beta + 16 * depth;
+    if (try_multicut) {
+      const depth_type multicut_depth = (depth / 2) - 1;
+      const int multicut_factor = 2;
+      const score_type multicut_score = pv_search<false>(ss, eval_node, bd, beta - 1, beta, multicut_depth, reducer, multicut_factor);
+      if (multicut_score >= beta) { return make_result(multicut_score, chess::move::null()); }
+      maybe = external.tt->find(bd.hash());
     }
 
     // step 10. initialize move orderer (setting tt move first if applicable)
@@ -411,6 +422,7 @@ struct search_worker {
 
     bool did_double_extend{false};
     int legal_count{0};
+    int cutoff_count{0};
 
     for (const auto& [idx, mv] : orderer) {
       assert((mv != chess::move::null()));
@@ -461,8 +473,8 @@ struct search_worker {
       // step 12. extensions
       bool multicut = false;
       const depth_type extension = [&, mv = mv] {
-        const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
-                                  mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
+        const bool try_singular = !is_root && !is_multi && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() &&
+                                  maybe.has_value() && mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
                                   maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
 
         if (try_singular) {
@@ -484,7 +496,7 @@ struct search_worker {
         return 0;
       }();
 
-      if (!is_root && multicut) { return make_result(beta, chess::move::null()); }
+      if (!is_root && !is_multi && multicut) { return make_result(beta, chess::move::null()); }
 
       const score_type score = [&, this, idx = idx, mv = mv] {
         const depth_type next_depth = depth + extension - 1;
@@ -546,7 +558,8 @@ struct search_worker {
 
       if constexpr (is_root) { internal.node_distribution[mv] += (internal.nodes.load(std::memory_order_relaxed) - nodes_before); }
 
-      if (best_score >= beta) { break; }
+      if (score >= beta) { ++cutoff_count; }
+      if (cutoff_count >= required_cutoffs) { break; }
     }
 
     if (legal_count == 0 && is_check) { return make_result(ss.loss_score(), chess::move::null()); }
@@ -568,6 +581,9 @@ struct search_worker {
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);
       external.tt->insert(entry);
     }
+
+    // fail hard if proving multiple cutoffs
+    if (is_multi) { return cutoff_count < required_cutoffs ? make_result(alpha, best_move) : make_result(beta, best_move); }
 
     return make_result(best_score, best_move);
   }
