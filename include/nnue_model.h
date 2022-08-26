@@ -114,13 +114,14 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
     constexpr parameter_type one = static_cast<parameter_type>(1.0);
     constexpr parameter_type mg = static_cast<parameter_type>(1.1);
     constexpr parameter_type eg = static_cast<parameter_type>(0.7);
+    constexpr search::score_type tempo_bonus = 16;
 
     const parameter_type prediction = propagate(pov);
     const parameter_type eval = phase * mg * prediction + (one - phase) * eg * prediction;
 
     const parameter_type value =
         search::logit_scale<parameter_type> * std::clamp(eval, search::min_logit<parameter_type>, search::max_logit<parameter_type>);
-    return static_cast<search::score_type>(value);
+    return static_cast<search::score_type>(value) + tempo_bonus;
   }
 
   eval(const weights* src) : weights_{src}, white{&src->quantized_shared}, black{&src->quantized_shared} {}
