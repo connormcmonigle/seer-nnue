@@ -112,8 +112,8 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
 
   inline search::score_type evaluate(const bool pov, const parameter_type& phase) const {
     constexpr parameter_type one = static_cast<parameter_type>(1.0);
-    constexpr parameter_type mg = static_cast<parameter_type>(1.1);
-    constexpr parameter_type eg = static_cast<parameter_type>(0.7);
+    constexpr parameter_type mg = static_cast<parameter_type>(1.0);
+    constexpr parameter_type eg = static_cast<parameter_type>(0.75);
 
     const parameter_type prediction = propagate(pov);
     const parameter_type eval = phase * mg * prediction + (one - phase) * eg * prediction;
