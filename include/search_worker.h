@@ -75,12 +75,13 @@ struct internal_state {
   inline bool one_of() const {
     static_assert((N != 0) && ((N & (N - 1)) == 0), "N must be a power of 2");
     constexpr size_t bit_pattern = N - 1;
-    return (nodes & bit_pattern) == bit_pattern;
+    return (nodes.load(std::memory_order_relaxed) & bit_pattern) == bit_pattern;
   }
 
   inline score_type sample_draw_score() const {
     constexpr size_t bit_pattern = 1;
-    return draw_score + 4 - 8 * (nodes & bit_pattern);
+    constexpr score_type radius = 4;
+    return draw_score + radius - 2 * radius * (nodes.load(std::memory_order_relaxed) & bit_pattern);
   }
 
   void reset() {
