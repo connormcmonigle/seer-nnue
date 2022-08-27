@@ -369,6 +369,9 @@ struct search_worker {
 
     if (snm_prune) { return make_result(value, chess::move::null()); }
 
+    const bool fail_prune = !is_pv && !ss.has_excluded() && !maybe.has_value() && threatened.any() && depth <= 3 && value + 8192 < alpha;
+    if (fail_prune) { return make_result(alpha, chess::move::null()); }
+
     // step 8. null move pruning
     const bool try_nmp =
         !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
