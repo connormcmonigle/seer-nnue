@@ -80,7 +80,7 @@ struct internal_state {
 
   inline score_type sample_draw_score() const {
     constexpr size_t bit_pattern = 1;
-    constexpr score_type radius = 4;
+    constexpr score_type radius = 1;
     return draw_score + radius - 2 * radius * (nodes.load(std::memory_order_relaxed) & bit_pattern);
   }
 
