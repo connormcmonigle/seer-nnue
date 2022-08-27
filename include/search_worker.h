@@ -369,16 +369,7 @@ struct search_worker {
 
     if (snm_prune) { return make_result(value, chess::move::null()); }
 
-    /*
-    // step 8. prob pruning
-    const bool prob_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->prob_prune_depth() &&
-                            maybe->best_move().is_capture() && maybe->bound() == bound_type::lower &&
-                            maybe->score() > beta + external.constants->prob_prune_margin() &&
-                            maybe->depth() + external.constants->prob_prune_depth_margin(improving) >= depth;
-
-    if (prob_prune) { return make_result(beta, chess::move::null()); }*/
-
-    // step 9. null move pruning
+    // step 8. null move pruning
     const bool try_nmp =
         !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
         bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
@@ -393,7 +384,7 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    // step 10. initialize move orderer (setting tt move first if applicable)
+    // step 9. initialize move orderer (setting tt move first if applicable)
     const chess::move killer = ss.killer();
     const chess::move follow = ss.follow();
     const chess::move counter = ss.counter();
@@ -429,7 +420,7 @@ struct search_worker {
 
       const bool try_pruning = !is_root && idx >= 2 && best_score > max_mate_score;
 
-      // step 11. pruning
+      // step 10. pruning
       if (try_pruning) {
         const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
@@ -459,7 +450,7 @@ struct search_worker {
       internal.cache.prefetch(bd_.hash());
       nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
 
-      // step 12. extensions
+      // step 11. extensions
       bool multicut = false;
       const depth_type extension = [&, mv = mv] {
         const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
@@ -502,7 +493,7 @@ struct search_worker {
         depth_type lmr_depth;
         score_type zw_score;
 
-        // step 13. late move reductions
+        // step 12. late move reductions
         const bool try_lmr = !is_check && (mv.is_quiet() || !bd.see_ge(mv, 0)) && idx >= 2 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           depth_type reduction = external.constants->reduction(depth, idx);
@@ -553,7 +544,7 @@ struct search_worker {
     if (legal_count == 0 && is_check) { return make_result(ss.loss_score(), chess::move::null()); }
     if (legal_count == 0) { return make_result(draw_score, chess::move::null()); }
 
-    // step 14. update histories if appropriate and maybe insert a new transposition_table_entry
+    // step 13. update histories if appropriate and maybe insert a new transposition_table_entry
     if (loop.keep_going() && !ss.has_excluded()) {
       const bound_type bound = [&] {
         if (best_score >= beta) { return bound_type::lower; }
