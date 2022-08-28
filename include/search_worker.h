@@ -369,6 +369,14 @@ struct search_worker {
 
     if (snm_prune) { return make_result(value, chess::move::null()); }
 
+    const bool try_reverse_razor = !is_pv && !ss.has_excluded() && !maybe.has_value() && !is_check && !threatened.any() && depth <= 3;
+
+    if (try_reverse_razor) {
+      const score_type reverse_razor_margin = 192;
+      const score_type reverse_razor_score = q_search<is_pv>(ss, eval_node, bd, beta + reverse_razor_margin - 1, beta + reverse_razor_margin, 0);
+      if (reverse_razor_score >= beta + reverse_razor_margin) { return make_result(beta, chess::move::null()); }
+    }
+
     // step 8. null move pruning
     const bool try_nmp =
         !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
