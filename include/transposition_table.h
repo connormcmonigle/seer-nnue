@@ -94,12 +94,23 @@ struct alignas(cache_line_size) bucket {
   }
 
   transposition_table_entry* to_replace(const transposition_table_entry::gen_type& gen, const zobrist::hash_type& key) {
+    auto priority = [](const bound_type& bound) {
+      switch (bound) {
+        case bound_type::lower: return 0;
+        case bound_type::upper: return 1;
+        case bound_type::exact: return 2;
+        default: return 0;
+      }
+    };
+
     auto worst = std::begin(data);
     for (auto iter = std::begin(data); iter != std::end(data); ++iter) {
       if (iter->key() == key) { return iter; }
 
-      const bool is_worse = (!iter->is_current(gen) && worst->is_current(gen)) || (iter->is_empty() && !worst->is_empty()) ||
-                            ((iter->is_current(gen) == worst->is_current(gen)) && (iter->depth() < worst->depth()));
+      const bool is_worse = (iter->is_empty() && !worst->is_empty()) || (!iter->is_current(gen) && worst->is_current(gen)) ||
+                            ((iter->is_current(gen) == worst->is_current(gen)) && (iter->depth() < worst->depth())) ||
+                            ((iter->is_current(gen) == worst->is_current(gen)) && (iter->depth() == worst->depth()) && (priority(iter->bound()) < priority(worst->bound())));
+
 
       if (is_worse) { worst = iter; }
     }
