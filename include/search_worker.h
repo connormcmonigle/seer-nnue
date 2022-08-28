@@ -369,7 +369,7 @@ struct search_worker {
 
     if (snm_prune) { return make_result(value, chess::move::null()); }
 
-    const bool fail_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && maybe->bound() == bound_type::upper && depth <= 3 && maybe->score() + 1024 <= alpha;
+    const bool fail_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && maybe->bound() == bound_type::upper && threatened.any() && depth <= 3 && maybe->score() + 768 <= alpha;
     if (fail_prune) { return make_result(alpha, chess::move::null()); }
 
     // step 8. null move pruning
