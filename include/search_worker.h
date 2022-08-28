@@ -320,6 +320,9 @@ struct search_worker {
                              ((entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
                               (entry.bound() == bound_type::upper && entry.score() <= alpha));
       if (is_cutoff) { return make_result(entry.score(), entry.best_move()); }
+
+      const bool is_qs_cutoff = !is_pv && depth == 1 && entry.depth() == 0 && entry.bound() == bound_type::lower && entry.score() >= beta;
+      if (is_qs_cutoff) { return make_result(entry.score(), entry.best_move()); }
     }
 
     if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(bd); !is_root && result.success) {
