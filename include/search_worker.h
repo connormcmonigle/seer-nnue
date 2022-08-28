@@ -313,7 +313,7 @@ struct search_worker {
 
     const score_type original_alpha = alpha;
 
-    const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
+    std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = !is_pv && entry.depth() >= depth &&
@@ -375,6 +375,7 @@ struct search_worker {
       const score_type reverse_razor_margin = 192;
       const score_type reverse_razor_score = q_search<is_pv>(ss, eval_node, bd, beta + reverse_razor_margin - 1, beta + reverse_razor_margin, 0);
       if (reverse_razor_score >= beta + reverse_razor_margin) { return make_result(beta, chess::move::null()); }
+      maybe = external.tt->find(bd.hash());
     }
 
     // step 8. null move pruning
