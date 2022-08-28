@@ -294,13 +294,15 @@ struct search_worker {
     const bool should_update = loop.keep_going() && (is_root || internal.one_of<nodes_per_update>());
     if (should_update) { external.on_update(*this); }
 
+    // prevent dropping into qsearch when in check to minimize qsearch explosions
+    const bool is_check = bd.is_check();
+    if (is_check && depth == 0) { ++depth; }
+
     // step 1. drop into qsearch if depth reaches zero
     if (depth <= 0) { return make_result(q_search<is_pv>(ss, eval_node, bd, alpha, beta, 0), chess::move::null()); }
     ++internal.nodes;
 
     // step 2. check if node is terminal
-    const bool is_check = bd.is_check();
-
     if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(draw_score, chess::move::null()); }
     if (!is_root && bd.is_trivially_drawn()) { return make_result(draw_score, chess::move::null()); }
     if (!is_root && bd.is_rule50_draw() && (!is_check || bd.generate_moves<chess::generation_mode::all>().size() != 0)) {
