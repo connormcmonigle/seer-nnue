@@ -394,11 +394,12 @@ struct search_worker {
       for (const auto& [idx, mv] : orderer) {
         ss.set_played(mv);
         nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
-        const chess::board bd_ =  bd.forward(mv);
+        const chess::board bd_ = bd.forward(mv);
 
         score_type probcut_score = -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0);
         if (probcut_score >= probcut_beta) {
-          probcut_score = -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, chess::player_from(!bd.turn()));
+          probcut_score =
+              -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, chess::player_from(!bd.turn()));
         }
 
         if (probcut_score >= probcut_beta) { return make_result(probcut_score, mv); }
