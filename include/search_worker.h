@@ -384,10 +384,12 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const bool try_probcut = !is_pv && depth >= 5 && !ss.has_excluded() && !maybe.has_value();
+    const score_type probcut_beta = beta + 512;
+    const bool try_probcut =
+        !is_pv && depth >= 5 && !ss.has_excluded() &&
+        !(maybe.has_value() && (maybe->bound() == bound_type::upper || maybe->bound() == bound_type::exact) && maybe->score() < probcut_beta);
 
     if (try_probcut) {
-      const score_type probcut_beta = beta + 512;
       const depth_type probcut_depth = depth - 4;
       move_orderer<chess::generation_mode::noisy_and_check> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
 
