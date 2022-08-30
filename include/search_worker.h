@@ -392,6 +392,8 @@ struct search_worker {
       move_orderer<chess::generation_mode::noisy_and_check> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
 
       for (const auto& [idx, mv] : orderer) {
+        if (!bd.see_gt(mv, 0)) { break; }
+
         ss.set_played(mv);
         nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
         const chess::board bd_ = bd.forward(mv);
