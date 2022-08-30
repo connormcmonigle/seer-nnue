@@ -387,7 +387,7 @@ struct search_worker {
     const bool try_probcut = !is_pv && depth >= 5 && !ss.has_excluded() && !maybe.has_value();
 
     if (try_probcut) {
-      const score_type probcut_beta = beta + 512;
+      const score_type probcut_beta = beta + 384;
       const depth_type probcut_depth = depth - 4;
       move_orderer<chess::generation_mode::noisy_and_check> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
 
