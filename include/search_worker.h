@@ -384,6 +384,27 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
+    const bool try_probcut = !is_pv && depth >= 5 && !ss.has_excluded();
+
+    if (try_probcut) {
+      const score_type probcut_beta = beta + 512;
+      const depth_type probcut_depth = depth - 4;
+      move_orderer<chess::generation_mode::noisy_and_check> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
+
+      for (const auto& [idx, mv] : orderer) {
+        ss.set_played(mv);
+        nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+        const chess::board bd_ =  bd.forward(mv);
+
+        score_type probcut_score = -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0);
+        if (probcut_score >= probcut_beta) {
+          probcut_score = -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, chess::player_from(!bd.turn()));
+        }
+
+        if (probcut_score >= probcut_beta) { return make_result(probcut_score, mv); }
+      }
+    }
+
     // step 9. initialize move orderer (setting tt move first if applicable)
     const chess::move killer = ss.killer();
     const chess::move follow = ss.follow();
