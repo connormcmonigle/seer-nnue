@@ -180,12 +180,19 @@ struct tuning_search_constants : fixed_search_constants {
   depth_type reduce_depth_{3};
   double lmr_tbl_bias_{0.75};
   double lmr_tbl_div_{2.25};
+  int snmp_margin_depth_multiplier_{288};
+  int snmp_margin_bias_{128};
 
   depth_type reduce_depth() const { return reduce_depth_; }
 
   depth_type reduction(const depth_type& depth, const int& move_idx) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
+  }
+
+  score_type snmp_margin(const bool& improving, const bool& threats, const depth_type& depth) const {
+    assert(depth > 0);
+    return snmp_margin_depth_multiplier_ * static_cast<score_type>(depth - (improving && !threats)) + (threats ? snmp_margin_bias_ : 0);
   }
 
   tuning_search_constants& update_(const size_t& thread_count) {
@@ -200,22 +207,31 @@ struct tuning_search_constants : fixed_search_constants {
 
   auto options() {
     using namespace engine;
+    constexpr double lmr_scale_factor = 100.0;
+
+    auto to_lmr_value = [lmr_scale_factor](const int& d) { return static_cast<double>(d) / lmr_scale_factor; };
+    auto from_lmr_value = [lmr_scale_factor](const double& d) { return static_cast<int>(d * lmr_scale_factor); };
+
+    auto option_snmp_margin_depth_multiplier = option_callback(
+        spin_option("snmp_margin_depth_multiplier_", snmp_margin_depth_multiplier_), [this](const int d) { snmp_margin_depth_multiplier_ = d; });
+
+    auto option_snmp_margin_bias =
+        option_callback(spin_option("snmp_margin_bias_", snmp_margin_bias_), [this](const int d) { snmp_margin_bias_ = d; });
+
     auto option_reduce_depth =
         option_callback(spin_option("reduce_depth_", reduce_depth_, spin_range{2, 8}), [this](const int d) { reduce_depth_ = d; });
 
-    auto option_lmr_tbl_bias = option_callback(string_option("lmr_tbl_bias_", std::to_string(lmr_tbl_bias_)), [this](const std::string d) {
-      std::istringstream ss(d);
-      ss >> lmr_tbl_bias_;
+    auto option_lmr_tbl_bias = option_callback(spin_option("lmr_tbl_bias_", from_lmr_value(lmr_tbl_bias_)), [&, this](const int d) {
+      lmr_tbl_bias_ = to_lmr_value(d);
       update_(thread_count_);
     });
 
-    auto option_lmr_tbl_div = option_callback(string_option("lmr_tbl_div_", std::to_string(lmr_tbl_div_)), [this](const std::string d) {
-      std::istringstream ss(d);
-      ss >> lmr_tbl_div_;
+    auto option_lmr_tbl_div = option_callback(spin_option("lmr_tbl_div_", from_lmr_value(lmr_tbl_div_)), [&, this](const int d) {
+      lmr_tbl_div_ = to_lmr_value(d);
       update_(thread_count_);
     });
 
-    return uci_options(option_reduce_depth, option_lmr_tbl_bias, option_lmr_tbl_div);
+    return uci_options(option_snmp_margin_depth_multiplier, option_snmp_margin_bias, option_reduce_depth, option_lmr_tbl_bias, option_lmr_tbl_div);
   }
 
   tuning_search_constants(const size_t& thread_count = 1) { update_(thread_count); }
