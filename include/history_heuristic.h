@@ -46,6 +46,7 @@ struct context {
   chess::move follow;
   chess::move counter;
   chess::square_set threatened;
+  score_type static_value;
 };
 
 value_type formula(const value_type& x, const value_type& gain) {
@@ -75,6 +76,21 @@ struct threatened_info {
     const size_t from = static_cast<size_t>(mv.from().index());
     const size_t to = static_cast<size_t>(mv.to().index());
     return from * constants::num_squares + to;
+  }
+};
+
+struct static_value_info {
+  static constexpr size_t N = 3 * constants::num_squares * constants::num_squares;
+
+  static constexpr bool is_applicable(const context&, const chess::move& mv) { return mv.is_quiet(); }
+
+  static constexpr size_t compute_index(const context& ctxt, const chess::move& mv) {
+    constexpr score_type static_value_radius = 512;
+    const int sign_of_static_value = std::clamp(ctxt.static_value / static_value_radius, static_cast<score_type>(-1), static_cast<score_type>(1));
+    const size_t static_value_index = static_cast<size_t>(1 + sign_of_static_value);
+    const size_t from = static_cast<size_t>(mv.from().index());
+    const size_t to = static_cast<size_t>(mv.to().index());
+    return static_value_index * constants::num_squares * constants::num_squares + from * constants::num_squares + to;
   }
 };
 
@@ -169,8 +185,13 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic =
-    history::combined<history::butterfly_info, history::threatened_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic = history::combined<
+    history::butterfly_info,
+    history::threatened_info,
+    history::static_value_info,
+    history::counter_info,
+    history::follow_info,
+    history::capture_info>;
 
 struct sided_history_heuristic : chess::sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;

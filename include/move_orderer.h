@@ -44,6 +44,8 @@ struct move_orderer_data {
 
   chess::square_set threatened{};
 
+  score_type static_value{};
+
   const chess::board* bd;
   const history_heuristic* hh;
 
@@ -69,6 +71,11 @@ struct move_orderer_data {
 
   move_orderer_data& set_threatened(const chess::square_set& mask) {
     threatened = mask;
+    return *this;
+  }
+
+  move_orderer_data& set_static_value(const score_type& score) {
+    static_value = score;
     return *this;
   }
 
@@ -126,7 +133,7 @@ struct move_orderer_stepper {
   }
 
   move_orderer_stepper& initialize(const move_orderer_data& data, const chess::move_list& list) {
-    const history::context ctxt{data.follow, data.counter, data.threatened};
+    const history::context ctxt{data.follow, data.counter, data.threatened, data.static_value};
 
     end_ = std::transform(list.begin(), list.end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
       if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see_gt(mv, 0), data.hh->compute_value(ctxt, mv)); }
