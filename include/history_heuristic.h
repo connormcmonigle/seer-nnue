@@ -34,6 +34,7 @@ namespace search {
 namespace history {
 
 using value_type = search::counter_type;
+using table_type = std::int16_t;
 
 namespace constants {
 
@@ -123,14 +124,14 @@ struct capture_info {
 
 template <typename T>
 struct table {
-  std::array<value_type, T::N> data_{};
+  std::array<table_type, T::N> data_{};
 
   constexpr bool is_applicable(const context& ctxt, const chess::move& mv) const { return T::is_applicable(ctxt, mv); }
 
-  constexpr const value_type& at(const context& ctxt, const chess::move& mv) const { return data_[T::compute_index(ctxt, mv)]; }
-  constexpr value_type& at(const context& ctxt, const chess::move& mv) { return data_[T::compute_index(ctxt, mv)]; }
+  constexpr const table_type& at(const context& ctxt, const chess::move& mv) const { return data_[T::compute_index(ctxt, mv)]; }
+  constexpr table_type& at(const context& ctxt, const chess::move& mv) { return data_[T::compute_index(ctxt, mv)]; }
 
-  constexpr void clear() { data_.fill(value_type{}); }
+  constexpr void clear() { data_.fill(table_type{}); }
 };
 
 template <typename... Ts>
