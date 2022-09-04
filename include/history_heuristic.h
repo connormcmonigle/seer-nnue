@@ -186,7 +186,6 @@ struct combined {
 }  // namespace history
 
 using history_heuristic = history::combined<
-    history::butterfly_info,
     history::threatened_info,
     history::static_value_info,
     history::counter_info,
