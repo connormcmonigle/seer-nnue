@@ -164,7 +164,7 @@ struct square_set {
 
   constexpr size_t count() const { return pop_count(data); }
 
-  constexpr size_t any() const { return data != 0; }
+  constexpr bool any() const { return data != 0; }
 
   constexpr square item() const { return square{data}; }
 

@@ -384,7 +384,7 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const bool try_probcut = !is_pv && depth >= 5 && !ss.has_excluded() && !maybe.has_value();
+    const bool try_probcut = !is_pv && !is_check && !ss.has_excluded() && !maybe.has_value() && depth >= 5;
 
     if (try_probcut) {
       const score_type probcut_beta = beta + 512;
