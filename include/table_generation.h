@@ -171,14 +171,14 @@ struct castle_info_<color::white> {
     constexpr delta ooo_delta{1, 0};
     constexpr delta oo_delta{-1, 0};
     for (auto sq = start_king_tbl.add(oo_delta); true; sq = sq.add(oo_delta)) {
-      oo_mask.add_(sq);
+      oo_mask.insert(sq);
       if (sq == after_oo_king_tbl) { break; }
     }
     for (auto sq = start_king_tbl.add(ooo_delta); true; sq = sq.add(ooo_delta)) {
-      ooo_danger_mask.add_(sq);
+      ooo_danger_mask.insert(sq);
       if (sq == after_ooo_king_tbl) { break; }
     }
-    for (auto sq = start_king_tbl.add(ooo_delta); sq != ooo_rook_tbl; sq = sq.add(ooo_delta)) { ooo_occ_mask.add_(sq); }
+    for (auto sq = start_king_tbl.add(ooo_delta); sq != ooo_rook_tbl; sq = sq.add(ooo_delta)) { ooo_occ_mask.insert(sq); }
   }
 };
 
@@ -218,14 +218,14 @@ struct castle_info_<color::black> {
     constexpr delta ooo_delta{1, 0};
     constexpr delta oo_delta{-1, 0};
     for (auto sq = start_king_tbl.add(oo_delta); true; sq = sq.add(oo_delta)) {
-      oo_mask.add_(sq);
+      oo_mask.insert(sq);
       if (sq == after_oo_king_tbl) { break; }
     }
     for (auto sq = start_king_tbl.add(ooo_delta); true; sq = sq.add(ooo_delta)) {
-      ooo_danger_mask.add_(sq);
+      ooo_danger_mask.insert(sq);
       if (sq == after_ooo_king_tbl) { break; }
     }
-    for (auto sq = start_king_tbl.add(ooo_delta); sq != ooo_rook_tbl; sq = sq.add(ooo_delta)) { ooo_occ_mask.add_(sq); }
+    for (auto sq = start_king_tbl.add(ooo_delta); sq != ooo_rook_tbl; sq = sq.add(ooo_delta)) { ooo_occ_mask.insert(sq); }
   }
 };
 
@@ -242,7 +242,7 @@ struct stepper_attack_tbl {
 
   template <typename D>
   constexpr stepper_attack_tbl(piece_type pt, const D& deltas) : type{pt} {
-    over_all_step_attacks(deltas, [this](const tbl_square& from, const tbl_square& to) { data[from.index()].add_(to); });
+    over_all_step_attacks(deltas, [this](const tbl_square& from, const tbl_square& to) { data[from.index()].insert(to); });
   }
 };
 
@@ -260,13 +260,13 @@ struct passer_tbl_ {
   constexpr passer_tbl_() {
     over_all([this](const tbl_square& sq) {
       for (auto left = sq.add(pawn_delta<c>::attack[0]); left.is_valid(); left = left.add(pawn_delta<c>::step)) {
-        data[sq.index()].add_(left.to_square());
+        data[sq.index()].insert(left.to_square());
       }
       for (auto center = sq.add(pawn_delta<c>::step); center.is_valid(); center = center.add(pawn_delta<c>::step)) {
-        data[sq.index()].add_(center.to_square());
+        data[sq.index()].insert(center.to_square());
       }
       for (auto right = sq.add(pawn_delta<c>::attack[1]); right.is_valid(); right = right.add(pawn_delta<c>::step)) {
-        data[sq.index()].add_(right.to_square());
+        data[sq.index()].insert(right.to_square());
       }
     });
   }
@@ -293,11 +293,11 @@ struct pawn_push_tbl_ {
 
   constexpr pawn_push_tbl_() {
     over_all([this](const tbl_square& from) {
-      if (const tbl_square to = from.add(pawn_delta<c>::step); to.is_valid()) { data[from.index()].add_(to); }
+      if (const tbl_square to = from.add(pawn_delta<c>::step); to.is_valid()) { data[from.index()].insert(to); }
     });
     over_rank(pawn_delta<c>::start_rank_idx, [this](const tbl_square& from) {
       const tbl_square to = from.add(pawn_delta<c>::step).add(pawn_delta<c>::step);
-      if (to.is_valid()) { data[from.index()].add_(to); }
+      if (to.is_valid()) { data[from.index()].insert(to); }
     });
   }
 };
@@ -326,7 +326,7 @@ struct slider_mask_tbl {
 
   template <typename D>
   constexpr slider_mask_tbl(const piece_type pt, const D& deltas) : type{pt} {
-    over_all_slide_masks(deltas, [this](const tbl_square& from, const tbl_square& to) { data[from.index()].add_(to); });
+    over_all_slide_masks(deltas, [this](const tbl_square& from, const tbl_square& to) { data[from.index()].insert(to); });
   }
 };
 
@@ -360,7 +360,7 @@ struct slider_attack_tbl {
     square_set result{};
     for (delta d : deltas) {
       for (auto to = from.add(d); to.is_valid(); to = to.add(d)) {
-        result.add_(to);
+        result.insert(to);
         if (blocker.occ(to.index())) { break; }
       }
     }
