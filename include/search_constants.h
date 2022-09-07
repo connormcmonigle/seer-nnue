@@ -93,7 +93,6 @@ struct fixed_search_constants {
   constexpr depth_type noisy_see_prune_depth() const { return 6; }
   constexpr depth_type singular_extension_depth() const { return 6; }
   constexpr depth_type iir_depth() const { return 4; }
-  constexpr depth_type prob_prune_depth() const { return 4; }
 
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
@@ -115,10 +114,6 @@ struct fixed_search_constants {
   }
 
   constexpr score_type singular_double_extension_margin() const { return 160; }
-
-  constexpr depth_type prob_prune_depth_margin(const bool& improving) const { return improving ? 3 : 2; }
-
-  constexpr score_type prob_prune_margin() const { return 768; }
 
   constexpr score_type futility_margin(const depth_type& depth) const {
     assert(depth > 0);
