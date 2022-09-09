@@ -26,16 +26,16 @@
 
 namespace chess {
 
-constexpr std::uint64_t pop_count(std::uint64_t x) { return static_cast<std::uint64_t>(__builtin_popcountll(x)); }
+constexpr std::uint64_t pop_count(const std::uint64_t& x) { return static_cast<std::uint64_t>(__builtin_popcountll(x)); }
 
-constexpr std::uint64_t count_trailing_zeros(std::uint64_t x) { return static_cast<std::uint64_t>(__builtin_ctzll(x)); }
+constexpr std::uint64_t count_trailing_zeros(const std::uint64_t& x) { return static_cast<std::uint64_t>(__builtin_ctzll(x)); }
 
 struct square_set;
 
 struct square {
   std::uint64_t data;
 
-  constexpr std::uint64_t bit_board() const { return data; }
+  constexpr const std::uint64_t& bit_board() const { return data; }
 
   constexpr int index() const {
     assert((data != 0));
@@ -45,9 +45,9 @@ struct square {
   constexpr int file() const { return index() % 8; }
   constexpr int rank() const { return index() / 8; }
 
-  bool operator==(const square& other) const { return other.data == data; }
+  constexpr bool operator==(const square& other) const { return other.data == data; }
 
-  bool operator!=(const square& other) const { return !(*this == other); }
+  constexpr bool operator!=(const square& other) const { return !(*this == other); }
 
   std::string name() const {
     constexpr std::array<char, 8> n_of_file = {'h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'};
@@ -56,12 +56,12 @@ struct square {
   }
 
   template <typename I>
-  constexpr static square from_index(const I index) {
+  constexpr static square from_index(const I& index) {
     static_assert(std::is_integral_v<I>, "square index must be of integral type");
     return square(static_cast<std::uint64_t>(1) << static_cast<std::uint64_t>(index));
   }
 
-  constexpr square(std::uint64_t bb) : data{bb} {}
+  constexpr square(const std::uint64_t& bb) : data{bb} {}
 };
 
 std::ostream& operator<<(std::ostream& ostr, const square& sq) {
@@ -140,7 +140,7 @@ struct square_set_iterator {
 
   constexpr square operator*() const { return square{remaining & ~(remaining - static_cast<std::uint64_t>(1))}; }
 
-  constexpr square_set_iterator(std::uint64_t set) : remaining{set} {}
+  constexpr square_set_iterator(const std::uint64_t& set) : remaining{set} {}
 };
 
 struct square_set {
@@ -148,23 +148,23 @@ struct square_set {
   using iterator = square_set_iterator;
   std::uint64_t data;
 
-  iterator begin() const { return square_set_iterator(data); }
+  constexpr iterator begin() const { return square_set_iterator(data); }
 
-  iterator end() const { return square_set_iterator(static_cast<std::uint64_t>(0)); }
+  constexpr iterator end() const { return square_set_iterator(static_cast<std::uint64_t>(0)); }
 
-  constexpr square_set& add_(const tbl_square& tbl_sq) {
+  constexpr square_set& insert(const tbl_square& tbl_sq) {
     data |= one << static_cast<std::uint64_t>(tbl_sq.index());
     return *this;
   }
 
-  constexpr square_set& add_(const square& sq) {
+  constexpr square_set& insert(const square& sq) {
     data |= sq.bit_board();
     return *this;
   }
 
   constexpr size_t count() const { return pop_count(data); }
 
-  constexpr size_t any() const { return data != 0; }
+  constexpr bool any() const { return data != 0; }
 
   constexpr square item() const { return square{data}; }
 
@@ -258,13 +258,13 @@ constexpr void over_file(int file, F&& f) {
 
 constexpr square_set gen_rank(int rank) {
   square_set ss{};
-  over_rank(rank, [&ss](tbl_square& sq) { ss.add_(sq); });
+  over_rank(rank, [&ss](tbl_square& sq) { ss.insert(sq); });
   return ss;
 }
 
 constexpr square_set gen_file(int file) {
   square_set ss{};
-  over_file(file, [&ss](tbl_square& sq) { ss.add_(sq); });
+  over_file(file, [&ss](tbl_square& sq) { ss.insert(sq); });
   return ss;
 }
 

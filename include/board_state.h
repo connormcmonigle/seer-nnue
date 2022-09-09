@@ -189,7 +189,7 @@ struct latent {
     static_assert(is_square_v<S>, "at must be of square type");
     clear_ep_mask();
     hash_ ^= zobrist_src_->get_ep_mask(at);
-    ep_mask_.add_(at);
+    ep_mask_.insert(at);
     return *this;
   }
 

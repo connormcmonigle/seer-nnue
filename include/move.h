@@ -148,9 +148,9 @@ struct move {
   constexpr static move null() { return move{0}; }
 };
 
-inline bool operator==(const move& a, const move& b) { return a.data == b.data; }
+constexpr bool operator==(const move& a, const move& b) { return a.data == b.data; }
 
-inline bool operator!=(const move& a, const move& b) { return !(a == b); }
+constexpr bool operator!=(const move& a, const move& b) { return !(a == b); }
 
 std::ostream& operator<<(std::ostream& ostr, const move& mv) {
   ostr << "move(from=" << mv.from().name() << ", to=" << mv.to().name() << ", piece=" << piece_name(mv.piece()) << ", is_capture=" << mv.is_capture()
@@ -182,7 +182,7 @@ struct move_list {
   move& operator[](const size_t& idx) { return data[idx]; }
   const move& operator[](const size_t& idx) const { return data[idx]; }
 
-  move_list& add_(const move& mv) {
+  move_list& push(const move& mv) {
     constexpr size_t last_idx = max_branching_factor - 1;
     data[size_] = mv;
     ++size_;
@@ -191,21 +191,21 @@ struct move_list {
   }
 
   template <typename... Ts>
-  move_list& add_(const Ts&... ts) {
-    return add_(move(ts...));
+  move_list& push(const Ts&... ts) {
+    return push(move(ts...));
   }
 
   template <typename... Ts>
-  move_list& add_queen_promotion_(const Ts&... ts) {
+  move_list& push_queen_promotion(const Ts&... ts) {
     assert((move(ts...).piece() == piece_type::pawn));
-    add_(move(ts...).set_field_<move::promotion_>(piece_type::queen));
+    push(move(ts...).set_field_<move::promotion_>(piece_type::queen));
     return *this;
   }
 
   template <typename... Ts>
-  move_list& add_under_promotions_(const Ts&... ts) {
+  move_list& push_under_promotions(const Ts&... ts) {
     assert((move(ts...).piece() == piece_type::pawn));
-    for (const auto& pt : under_promotion_types) { add_(move(ts...).set_field_<move::promotion_>(pt)); }
+    for (const auto& pt : under_promotion_types) { push(move(ts...).set_field_<move::promotion_>(pt)); }
     return *this;
   }
 };
