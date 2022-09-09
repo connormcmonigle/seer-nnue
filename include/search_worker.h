@@ -401,7 +401,6 @@ struct search_worker {
     score_type best_score = ss.loss_score();
     chess::move best_move = chess::move::null();
 
-    bool did_double_extend{false};
     int legal_count{0};
 
     for (const auto& [idx, mv] : orderer) {
@@ -464,10 +463,7 @@ struct search_worker {
           const score_type excluded_score = pv_search<false>(ss, eval_node, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
           ss.set_excluded(chess::move::null());
 
-          if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) {
-            did_double_extend = true;
-            return 2;
-          }
+          if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) { return 2; }
           if (excluded_score < singular_beta) { return 1; }
 
           if (excluded_score >= beta) { multicut = true; }
@@ -503,7 +499,6 @@ struct search_worker {
           if (bd.is_passed_push(mv)) { --reduction; }
           if (improving) { --reduction; }
           if (!is_pv) { ++reduction; }
-          if (did_double_extend) { ++reduction; }
           if (!bd.see_ge(mv, 0) && mv.is_quiet()) { ++reduction; }
 
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
