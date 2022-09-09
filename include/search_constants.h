@@ -99,8 +99,8 @@ struct fixed_search_constants {
     return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
   }
 
-  constexpr depth_type nmp_reduction(const depth_type& depth, const score_type& beta, const score_type& value) const {
-    return 4 + depth / 6 + std::min(3, (value - beta) / 256);
+  constexpr depth_type nmp_reduction(const depth_type& depth, const score_type& beta, const score_type& value, const bool& threats) const {
+    return 4 + depth / 6 + std::min(3, (value - beta) / 256) + static_cast<depth_type>(!threats);
   }
 
   constexpr see_type nmp_see_threshold() const { return 200; }

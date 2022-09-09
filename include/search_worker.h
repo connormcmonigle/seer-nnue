@@ -378,7 +378,7 @@ struct search_worker {
 
     if (try_nmp) {
       ss.set_played(chess::move::null());
-      const depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth, beta, value));
+      const depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth, beta, value, threatened.any()));
       const score_type nmp_score =
           -pv_search<false>(ss.next(), eval_node, bd.forward(chess::move::null()), -beta, -beta + 1, adjusted_depth, chess::player_from(!bd.turn()));
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
