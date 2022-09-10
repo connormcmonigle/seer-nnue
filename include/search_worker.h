@@ -384,28 +384,35 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const chess::square_set attacked = bd.us_threat_mask();
-    const bool try_probcut = !is_pv && depth >= 5 && !ss.has_excluded() && !maybe.has_value() && attacked.any();
+    const bool try_probcut = !is_pv && depth >= 5 && !ss.has_excluded();
 
     if (try_probcut) {
       const score_type probcut_beta = beta + 512;
       const depth_type probcut_depth = depth - 4;
-      move_orderer<chess::generation_mode::noisy_and_check> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
+      if (maybe.has_value()) {
+        const transposition_table_entry entry = maybe.value();
+        const bool is_probcutoff = entry.depth() >= probcut_depth && entry.score() >= probcut_beta &&
+                                   (entry.bound() == bound_type::lower || entry.bound() == bound_type::exact) &&
+                                   bd.is_legal<chess::generation_mode::noisy_and_check>(entry.best_move()) && bd.see_gt(entry.best_move(), 0);
 
-      for (const auto& [idx, mv] : orderer) {
-        if (!bd.see_gt(mv, 0)) { break; }
+        if (is_probcutoff) { return make_result(entry.score(), entry.best_move()); }
+      } else {
+        move_orderer<chess::generation_mode::noisy_and_check> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
 
-        ss.set_played(mv);
-        nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
-        const chess::board bd_ = bd.forward(mv);
+        for (const auto& [idx, mv] : orderer) {
+          if (!bd.see_gt(mv, 0)) { break; }
+          ss.set_played(mv);
+          nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+          const chess::board bd_ = bd.forward(mv);
 
-        score_type probcut_score = -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0);
-        if (probcut_score >= probcut_beta) {
-          probcut_score =
-              -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, chess::player_from(!bd.turn()));
+          score_type probcut_score = -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0);
+          if (probcut_score >= probcut_beta) {
+            probcut_score =
+                -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, chess::player_from(!bd.turn()));
+          }
+
+          if (probcut_score >= probcut_beta) { return make_result(probcut_score, mv); }
         }
-
-        if (probcut_score >= probcut_beta) { return make_result(probcut_score, mv); }
       }
     }
 
