@@ -79,9 +79,8 @@ struct internal_state {
   }
 
   inline score_type sample_draw_score() const {
-    constexpr size_t bit_pattern = 1;
-    constexpr score_type radius = 1;
-    return draw_score + radius - 2 * radius * (nodes.load(std::memory_order_relaxed) & bit_pattern);
+    constexpr size_t bit_pattern = 0x3;
+    return draw_score + 2 - (nodes.load(std::memory_order_relaxed) & bit_pattern);
   }
 
   void reset() {
@@ -189,8 +188,8 @@ struct search_worker {
     ++internal.nodes;
     const bool is_check = bd.is_check();
 
-    if (ss.is_two_fold(bd.hash())) { return internal.sample_draw_score(); }
-    if (bd.is_trivially_drawn()) { return internal.sample_draw_score(); }
+    if (ss.is_two_fold(bd.hash())) { return draw_score; }
+    if (bd.is_trivially_drawn()) { return draw_score; }
 
     const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
     if (maybe.has_value()) {
