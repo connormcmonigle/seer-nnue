@@ -62,7 +62,7 @@ struct transposition_table_entry {
 
   bool is_current(const gen_type& gen) const { return gen == gen_::get(value_); }
 
-  std::int32_t replacement_score() const {
+  std::int32_t replacement_priority() const {
     const std::int32_t depth_score = static_cast<std::int32_t>(depth_::get(value_));
     const std::int32_t bound_score = 3 * static_cast<std::int32_t>(bound_::get(value_) == bound_type::exact);
     return depth_score + bound_score;
@@ -105,7 +105,7 @@ struct alignas(cache_line_size) bucket {
       if (iter->key() == key) { return iter; }
 
       const bool is_worse = (!iter->is_current(gen) && worst->is_current(gen)) || (iter->is_empty() && !worst->is_empty()) ||
-                            ((iter->is_current(gen) == worst->is_current(gen)) && (iter->replacement_score() < worst->replacement_score()));
+                            ((iter->is_current(gen) == worst->is_current(gen)) && (iter->replacement_priority() < worst->replacement_priority()));
 
       if (is_worse) { worst = iter; }
     }
