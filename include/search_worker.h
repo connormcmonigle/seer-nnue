@@ -369,6 +369,12 @@ struct search_worker {
 
     if (snm_prune) { return make_result(value, chess::move::null()); }
 
+    const bool try_razor_prune = !is_pv && !is_check && depth <= 3 && value + 768 * depth < alpha;
+    if (try_razor_prune) {
+      const search::score_type razor_score = q_search<is_pv>(ss, eval_node, bd, alpha, alpha + 1, 0);
+      if (razor_score <= alpha) { return make_result(razor_score, chess::move::null()); }
+    }
+
     // step 8. null move pruning
     const bool try_nmp =
         !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
