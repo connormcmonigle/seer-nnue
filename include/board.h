@@ -165,6 +165,40 @@ struct board {
   }
 
   template <color c>
+  bool creates_threat_(const move& mv) const {
+    if (mv.piece() == piece_type::king && mv.piece() == piece_type::queen) { return false; }
+    const square_set occ = man_.white.all() | man_.black.all();
+
+    auto attacks = [&occ](const piece_type& piece, const square& sq) {
+      switch (piece) {
+        case piece_type::pawn: return pawn_attack_tbl<c>.look_up(sq);
+        case piece_type::knight: return knight_attack_tbl.look_up(sq);
+        case piece_type::bishop: return bishop_attack_tbl.look_up(sq, occ);
+        case piece_type::rook: return rook_attack_tbl.look_up(sq, occ);
+        default: return square_set{};
+      }
+    };
+
+    const square_set current_attacks = attacks(mv.piece(), mv.from());
+    const square_set next_attacks = attacks(mv.piece(), mv.to());
+    const square_set new_attacks = next_attacks & ~current_attacks;
+
+    const square_set vulnerable = [&, this] {
+      switch (mv.piece()) {
+        case piece_type::pawn: return man_.them<c>().all() & ~(man_.them<c>().pawn() | man_.them<c>().king());
+        case piece_type::knight: return man_.them<c>().rook() | man_.them<c>().queen();
+        case piece_type::bishop: return man_.them<c>().rook() | man_.them<c>().queen();
+        case piece_type::rook: return man_.them<c>().queen();
+        default: return square_set{};
+      }
+    }();
+
+    return (new_attacks & vulnerable).any();
+  }
+
+  bool creates_threat(const move& mv) const { return turn() ? creates_threat_<color::white>(mv) : creates_threat_<color::black>(mv); }
+
+  template <color c>
   square_set king_danger() const {
     const square_set occ = (man_.white.all() | man_.black.all()) & ~man_.us<c>().king();
     square_set k_danger{};
