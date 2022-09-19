@@ -166,9 +166,7 @@ struct board {
 
   template <color c>
   bool creates_threat_(const move& mv) const {
-    if (mv.piece() == piece_type::king && mv.piece() == piece_type::queen) { return false; }
     const square_set occ = man_.white.all() | man_.black.all();
-
     auto attacks = [&occ](const piece_type& piece, const square& sq) {
       switch (piece) {
         case piece_type::pawn: return pawn_attack_tbl<c>.look_up(sq);
