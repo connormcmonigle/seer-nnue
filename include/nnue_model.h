@@ -39,7 +39,7 @@ struct weights {
   static constexpr parameter_type fc0_bias_quantization_scale = shared_quantization_scale * fc0_weight_quantization_scale;
   static constexpr parameter_type dequantization_scale = static_cast<parameter_type>(1) / (shared_quantization_scale * fc0_weight_quantization_scale);
 
-  static constexpr size_t base_dim = 384;
+  static constexpr size_t base_dim = 512;
 
   weights_streamer::signature_type signature_{0};
   big_affine<parameter_type, feature::half_ka::numel, base_dim> shared{};
