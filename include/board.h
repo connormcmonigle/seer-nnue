@@ -767,10 +767,14 @@ struct board {
   template <typename T>
   T phase() const {
     static_assert(std::is_floating_point_v<T>);
-    constexpr T start_pos_value = static_cast<T>(24);
-    T value{};
-    over_types([&](const piece_type& pt) { value += phase_value<T>(pt) * (man_.white.get_plane(pt) | man_.black.get_plane(pt)).count(); });
-    return std::min(value, start_pos_value) / start_pos_value;
+    constexpr T start_pos_value = static_cast<T>(12);
+    T white_value{};
+    T black_value{};
+
+    over_types([&](const piece_type& pt) { white_value += phase_value<T>(pt) * (man_.white.get_plane(pt)).count(); });
+    over_types([&](const piece_type& pt) { black_value += phase_value<T>(pt) * (man_.black.get_plane(pt)).count(); });
+
+    return std::min(std::max(black_value, white_value), start_pos_value) / start_pos_value;
   }
 
   template <color c>
