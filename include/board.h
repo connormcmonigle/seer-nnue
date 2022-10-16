@@ -909,6 +909,29 @@ struct board {
     return copy;
   }
 
+  template <color c>
+  size_t half_material_permutation_index_() const {
+    namespace mp = feature::material_permutation;
+
+    const size_t pawn_index = man_.us<c>().pawn().count();
+    const size_t knight_index = mp::pawn_numel * man_.us<c>().knight().count();
+    const size_t bishop_index = mp::knight_numel * mp::pawn_numel * mp::bishop_index<c>(man_.us<c>().bishop());
+    const size_t rook_index = mp::bishop_numel * mp::knight_numel * mp::pawn_numel * man_.us<c>().rook().count();
+    const size_t queen_index = mp::rook_numel * mp::bishop_numel * mp::knight_numel * mp::pawn_numel * man_.us<c>().queen().count();
+
+    return std::min(mp::half_max_index, pawn_index + knight_index + bishop_index + rook_index + queen_index);
+  }
+
+  template <color c>
+  size_t material_permutation_index_() const {
+    namespace mp = feature::material_permutation;
+    return mp::half_numel * half_material_permutation_index_<c>() + half_material_permutation_index_<opponent<c>>();
+  }
+
+  size_t material_permutation_index() const {
+    return turn() ? material_permutation_index_<color::white>() : material_permutation_index_<color::black>();
+  }
+
   std::tuple<position_history, board> after_uci_moves(const std::string& moves) const {
     position_history history{};
     auto bd = *this;

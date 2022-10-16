@@ -81,4 +81,29 @@ constexpr size_t index(const chess::square& ks, const chess::piece_type& pt, con
 }
 
 }  // namespace half_ka
+
+namespace material_permutation {
+
+constexpr size_t pawn_numel = 9;
+constexpr size_t knight_numel = 3;
+constexpr size_t bishop_numel = 4;
+constexpr size_t rook_numel = 3;
+constexpr size_t queen_numel = 2;
+
+constexpr size_t half_numel = pawn_numel * knight_numel * bishop_numel * rook_numel * queen_numel;
+constexpr size_t half_max_index = half_numel - 1;
+constexpr size_t numel = half_numel * half_numel;
+
+template <chess::color c>
+constexpr size_t bishop_index(const chess::square_set& bishop_set) {
+  constexpr chess::square_set square_mask = (c == chess::color::white) ? chess::light_squares() : chess::dark_squares();
+  switch (bishop_set.count()) {
+    case 0: return static_cast<size_t>(0);
+    case 1: return square_mask.is_member(bishop_set.item()) ? static_cast<size_t>(1) : static_cast<size_t>(2);
+    default: return static_cast<size_t>(3);
+  }
+}
+
+}  // namespace material_permutation
+
 }  // namespace feature

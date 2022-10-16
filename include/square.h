@@ -256,16 +256,26 @@ constexpr void over_file(int file, F&& f) {
   for (auto sq = tbl_square{file, 0}; sq.is_valid(); sq = sq.add(delta{0, 1})) { f(sq); }
 }
 
-constexpr square_set gen_rank(int rank) {
+constexpr square_set gen_rank(const int& rank) {
   square_set ss{};
   over_rank(rank, [&ss](tbl_square& sq) { ss.insert(sq); });
   return ss;
 }
 
-constexpr square_set gen_file(int file) {
+constexpr square_set gen_file(const int& file) {
   square_set ss{};
   over_file(file, [&ss](tbl_square& sq) { ss.insert(sq); });
   return ss;
 }
+
+constexpr square_set light_squares() {
+  square_set ss{};
+  over_all([&ss](const tbl_square& sq) {
+    if ((sq.rank + sq.file) % 2 == 0) { ss.insert(sq); }
+  });
+  return ss;
+}
+
+constexpr square_set dark_squares() { return ~light_squares(); }
 
 }  // namespace chess
