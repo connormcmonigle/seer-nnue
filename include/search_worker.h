@@ -488,7 +488,8 @@ struct search_worker {
           return -pv_search<false>(ss.next(), eval_node_, bd_, -alpha - 1, -alpha, zw_depth, next_reducer);
         };
 
-        if (is_pv && idx == 0) { return full_width(); }
+        const bool probable_fail_low = is_pv && maybe.has_value() && maybe->bound() == bound_type::upper && maybe->score() <= alpha && maybe->depth() >= depth;
+        if (is_pv && !probable_fail_low && idx == 0) { return full_width(); }
 
         depth_type lmr_depth;
         score_type zw_score;
