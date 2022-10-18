@@ -20,6 +20,7 @@
 #include <bench.h>
 #include <board.h>
 #include <book.h>
+#include <draw.h>
 #include <embedded_weights.h>
 #include <move.h>
 #include <option_parser.h>
@@ -221,8 +222,8 @@ struct uci {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     auto evaluator = nnue::eval(&weights_);
     position.feature_full_refresh(evaluator);
-    os << "phase: " << position.phase<nnue::weights::parameter_type>() << std::endl;
-    os << "score(phase): " << evaluator.evaluate(position.turn(), position.phase<nnue::weights::parameter_type>()) << std::endl;
+    std::cout << "draw_probability: " << draw_model::model[position.material_permutation_index()] << std::endl;
+    os << "score(draw_probability): " << evaluator.evaluate(position.turn(), position.material_permutation_index()) << std::endl;
   }
 
   void probe() {

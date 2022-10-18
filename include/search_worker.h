@@ -199,7 +199,7 @@ struct search_worker {
       const score_type static_value = is_check ? ss.loss_score() :
                                       !is_pv && maybe_eval.has_value() ?
                                                  maybe_eval.value() :
-                                                 eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+                                                 eval_node.evaluator().evaluate(bd.turn(), bd.material_permutation_index());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
@@ -342,7 +342,7 @@ struct search_worker {
       const score_type static_value = is_check ? ss.loss_score() :
                                       !is_pv && maybe_eval.has_value() ?
                                                  maybe_eval.value() :
-                                                 eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+                                                 eval_node.evaluator().evaluate(bd.turn(), bd.material_permutation_index());
 
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 

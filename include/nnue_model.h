@@ -18,6 +18,7 @@
 
 #include <board.h>
 #include <chess_types.h>
+#include <draw.h>
 #include <feature_util.h>
 #include <nnue_util.h>
 #include <search_constants.h>
@@ -110,13 +111,14 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
     return weights_->fc3.forward(x3).item();
   }
 
-  inline search::score_type evaluate(const bool pov, const parameter_type& phase) const {
+  inline search::score_type evaluate(const bool pov, const size_t& material_permutation_index) const {
     constexpr parameter_type one = static_cast<parameter_type>(1.0);
-    constexpr parameter_type mg = static_cast<parameter_type>(1.1);
-    constexpr parameter_type eg = static_cast<parameter_type>(0.7);
+    constexpr parameter_type drawish_scale = static_cast<parameter_type>(0.7);
+    constexpr parameter_type decisive_scale = static_cast<parameter_type>(1.1);
 
+    const parameter_type draw_probability = draw_model::model[material_permutation_index];
     const parameter_type prediction = propagate(pov);
-    const parameter_type eval = phase * mg * prediction + (one - phase) * eg * prediction;
+    const parameter_type eval = draw_probability * drawish_scale * prediction + (one - draw_probability) * decisive_scale * prediction;
 
     const parameter_type value =
         search::logit_scale<parameter_type> * std::clamp(eval, search::min_logit<parameter_type>, search::max_logit<parameter_type>);
