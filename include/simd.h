@@ -109,7 +109,7 @@ struct int16_add_x128 {
 };
 
 template <size_t dim>
-void add(std::int16_t* a, const std::int16_t* b) {
+inline void add(std::int16_t* a, const std::int16_t* b) {
   return overload_set<int16_add_x128<dim>>::f(a, b);
 }
 
@@ -136,7 +136,7 @@ struct int16_sub_x128 {
 };
 
 template <size_t dim>
-void sub(std::int16_t* a, const std::int16_t* b) {
+inline void sub(std::int16_t* a, const std::int16_t* b) {
   return overload_set<int16_sub_x128<dim>>::f(a, b);
 }
 
