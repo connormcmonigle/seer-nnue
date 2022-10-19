@@ -332,6 +332,16 @@ struct search_worker {
       }
     }
 
+    const bool probable_fail_high = !is_root && is_pv && maybe.has_value() && maybe->bound() == bound_type::lower && maybe->score() >= beta &&
+                                    maybe->depth() >= depth && bd.is_legal<chess::generation_mode::all>(maybe->best_move());
+    if (probable_fail_high) {
+      const chess::board bd_ = bd.forward(maybe->best_move());
+      nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, maybe->best_move());
+
+      const score_type score = -pv_search<false>(ss.next(), eval_node_, bd_, -beta, -beta + 1, depth - 1, chess::player_from(!bd.turn()));
+      if (score >= beta) { return make_result(score, maybe->best_move()); }
+    }
+
     // step 3. internal iterative reductions
     const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
