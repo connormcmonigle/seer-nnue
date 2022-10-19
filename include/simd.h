@@ -66,6 +66,19 @@ struct overload_set<T> {
   }
 };
 
+template <size_t dim, typename T>
+inline void add(T* a, const T* b) {
+#pragma omp simd
+  for (size_t i = 0; i < dim; ++i) { a[i] += b[i]; }
+}
+
+template <size_t dim, typename T>
+inline void sub(T* a, const T* b) {
+#pragma omp simd
+  for (size_t i = 0; i < dim; ++i) { a[i] -= b[i]; }
+}
+
+
 template <size_t dim0, size_t dim1, typename T0, typename T1>
 inline void matrix_vector_product(const T0* matrix, const T0* input, T1* output) {
   for (size_t i(0); i < dim1; ++i) {
@@ -74,6 +87,45 @@ inline void matrix_vector_product(const T0* matrix, const T0* input, T1* output)
 }
 
 #if defined(__AVX2__)
+template <size_t dim>
+struct int16_add_x128 {
+  static constexpr size_t num_units = 8;
+  static constexpr bool available = divides<dim, num_units * per_unit<std::int16_t>>;
+    
+  static inline void f(std::int16_t* a, const std::int16_t* b) {
+    for (size_t i(0); i < dim; i += num_units * per_unit<std::int16_t>) {
+      __m256i* a_0 = (__m256i*)(a + i + 0 * per_unit<std::int16_t>);
+      *a_0 = _mm256_add_epi16(*a_0, _mm256_load_si256((__m256i*)(b + i + 0 * per_unit<std::int16_t>)));
+
+      __m256i* a_1 = (__m256i*)(a + i + 1 * per_unit<std::int16_t>);
+      *a_1 = _mm256_add_epi16(*a_1, _mm256_load_si256((__m256i*)(b + i + 1 * per_unit<std::int16_t>)));
+      
+      __m256i* a_2 = (__m256i*)(a + i + 2 * per_unit<std::int16_t>);
+      *a_2 = _mm256_add_epi16(*a_2, _mm256_load_si256((__m256i*)(b + i + 2 * per_unit<std::int16_t>)));
+
+      __m256i* a_3 = (__m256i*)(a + i + 3 * per_unit<std::int16_t>);
+      *a_3 = _mm256_add_epi16(*a_3, _mm256_load_si256((__m256i*)(b + i + 3 * per_unit<std::int16_t>)));
+
+      __m256i* a_4 = (__m256i*)(a + i + 4 * per_unit<std::int16_t>);
+      *a_4 = _mm256_add_epi16(*a_4, _mm256_load_si256((__m256i*)(b + i + 4 * per_unit<std::int16_t>)));
+
+      __m256i* a_5 = (__m256i*)(a + i + 5 * per_unit<std::int16_t>);
+      *a_5 = _mm256_add_epi16(*a_5, _mm256_load_si256((__m256i*)(b + i + 5 * per_unit<std::int16_t>)));
+
+      __m256i* a_6 = (__m256i*)(a + i + 6 * per_unit<std::int16_t>);
+      *a_6 = _mm256_add_epi16(*a_6, _mm256_load_si256((__m256i*)(b + i + 6 * per_unit<std::int16_t>)));
+
+      __m256i* a_7 = (__m256i*)(a + i + 7 * per_unit<std::int16_t>);
+      *a_7 = _mm256_add_epi16(*a_7, _mm256_load_si256((__m256i*)(b + i + 7 * per_unit<std::int16_t>)));
+    }
+  }
+};
+
+/*template <size_t dim>
+void add(std::int16_t* a, const std::int16_t* b) {
+  return overload_set<int16_add_x128<dim>>::f(a, b);
+}*/
+
 template <size_t dim0, size_t dim1>
 struct float_matrix_vector_product_x8_x1 {
   static constexpr bool available = divides<dim0, per_unit<float>>;
