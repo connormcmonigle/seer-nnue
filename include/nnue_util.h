@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <type_traits>
 #include <utility>
@@ -92,12 +93,12 @@ struct stack_vector {
   }
 
   inline stack_vector<T, dim>& add_(const T* other) {
-    for (size_t i = 0; i < dim; ++i) { data[i] += other[i]; }
+    simd::add<dim>(data, other);
     return *this;
   }
 
   inline stack_vector<T, dim>& sub_(const T* other) {
-    for (size_t i = 0; i < dim; ++i) { data[i] -= other[i]; }
+    simd::sub<dim>(data, other);
     return *this;
   }
 
@@ -251,7 +252,7 @@ struct big_affine {
   }
 
   big_affine(const big_affine<T, dim0, dim1>& other) {
-    W = new T[W_numel];
+    W = static_cast<T*>(std::aligned_alloc(simd::alignment, sizeof(T) * W_numel));
 #pragma omp simd
     for (size_t i = 0; i < W_numel; ++i) { W[i] = other.W[i]; }
     for (size_t i = 0; i < b_numel; ++i) { b[i] = other.b[i]; }
@@ -262,9 +263,9 @@ struct big_affine {
     std::swap(b, other.b);
   }
 
-  big_affine() { W = new T[W_numel]; }
+  big_affine() { W = static_cast<T*>(std::aligned_alloc(simd::alignment, sizeof(T) * W_numel)); }
   ~big_affine() {
-    if (W != nullptr) { delete[] W; }
+    if (W != nullptr) { std::free(W); }
   }
 };
 
