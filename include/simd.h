@@ -87,7 +87,7 @@ inline void matrix_vector_product(const T0* matrix, const T0* input, T1* output)
 
 #if defined(__AVX2__)
 template <size_t dim>
-struct int16_add_x128 {
+struct int16_add_x64 {
   static constexpr size_t num_units = 4;
   static constexpr bool available = divides<dim, num_units * per_unit<std::int16_t>>;
 
@@ -110,11 +110,11 @@ struct int16_add_x128 {
 
 template <size_t dim>
 inline void add(std::int16_t* a, const std::int16_t* b) {
-  return overload_set<int16_add_x128<dim>>::f(a, b);
+  return overload_set<int16_add_x64<dim>>::f(a, b);
 }
 
 template <size_t dim>
-struct int16_sub_x128 {
+struct int16_sub_x64 {
   static constexpr size_t num_units = 4;
   static constexpr bool available = divides<dim, num_units * per_unit<std::int16_t>>;
 
@@ -137,7 +137,7 @@ struct int16_sub_x128 {
 
 template <size_t dim>
 inline void sub(std::int16_t* a, const std::int16_t* b) {
-  return overload_set<int16_sub_x128<dim>>::f(a, b);
+  return overload_set<int16_sub_x64<dim>>::f(a, b);
 }
 
 template <size_t dim0, size_t dim1>
