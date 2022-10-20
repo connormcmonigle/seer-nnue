@@ -19,13 +19,13 @@
 
 #include <bench.h>
 #include <board.h>
-#include <book.h>
 #include <embedded_weights.h>
 #include <move.h>
 #include <option_parser.h>
 #include <search_constants.h>
 #include <search_stack.h>
 #include <search_worker.h>
+#include <search_worker_orchestrator.h>
 #include <syzygy.h>
 #include <time_manager.h>
 #include <version.h>
@@ -47,20 +47,16 @@ struct uci {
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 16;
   static constexpr std::string_view default_weight_path = "EMBEDDED";
-  static constexpr bool default_own_book = false;
   static constexpr bool default_ponder = false;
 
   chess::position_history history{};
   chess::board position = chess::board::start_pos();
 
   nnue::weights weights_{};
-  search::worker_pool pool_;
-  chess::book book_{};
+  search::worker_orchestrator orchestrator_;
 
   std::atomic_bool ponder_{false};
-  std::atomic_bool own_book_{false};
   std::atomic_bool should_quit_{false};
-  std::atomic_bool is_searching_{false};
 
   time_manager manager_;
   simple_timer<std::chrono::milliseconds> timer_;
@@ -69,16 +65,10 @@ struct uci {
   std::ostream& os = std::cout;
 
   bool should_quit() const { return should_quit_.load(); }
-  bool is_searching() const { return is_searching_.load(); }
 
   void weights_info_string() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     os << "info string loaded weights with signature 0x" << std::hex << weights_.signature() << std::dec << std::endl;
-  }
-
-  void book_info_string() {
-    std::lock_guard<std::mutex> os_lk(os_mutex_);
-    os << "info string loaded " << book_.size() << " book positions" << std::endl;
   }
 
   auto options() {
@@ -94,32 +84,25 @@ struct uci {
 
     auto hash_size = option_callback(spin_option("Hash", default_hash_size, spin_range{1, 262144}), [this](const int size) {
       const auto new_size = static_cast<size_t>(size);
-      pool_.tt_->resize(new_size);
+      orchestrator_.shared_state_.tt->resize(new_size);
     });
 
     auto thread_count = option_callback(spin_option("Threads", default_thread_count, spin_range{1, 512}), [this](const int count) {
       const auto new_count = static_cast<size_t>(count);
-      pool_.resize(new_count);
+      orchestrator_.resize(new_count);
     });
 
     auto ponder = option_callback(check_option("Ponder", default_ponder), [this](const bool& value) { ponder_.store(value); });
 
-    auto own_book = option_callback(check_option("OwnBook", default_own_book), [this](const bool& value) { own_book_.store(value); });
-
-    auto book_path = option_callback(string_option("BookPath"), [this](const std::string& path) {
-      book_.load(path);
-      book_info_string();
-    });
-
     auto syzygy_path = option_callback(string_option("SyzygyPath"), [](const std::string& path) { syzygy::init(path); });
 
-    return uci_options(weight_path, hash_size, thread_count, ponder, own_book, book_path, syzygy_path);
+    return uci_options(weight_path, hash_size, thread_count, ponder, syzygy_path);
   }
 
   void uci_new_game() {
     history.clear();
     position = chess::board::start_pos();
-    pool_.reset();
+    orchestrator_.reset();
   }
 
   void set_position(const std::string& line) {
@@ -151,51 +134,46 @@ struct uci {
   void info_string(const T& worker) {
     constexpr search::score_type raw_multiplier = 288;
     constexpr search::score_type raw_divisor = 1024;
-    constexpr search::score_type eval_limit = 256 * 100;
 
     std::lock_guard<std::mutex> os_lk(os_mutex_);
 
     const search::score_type raw_score = worker.score();
-    const search::score_type scaled_score = raw_score * raw_multiplier / raw_divisor;
-    const int score = std::min(std::max(scaled_score, -eval_limit), eval_limit);
+    const search::score_type score = raw_score * raw_multiplier / raw_divisor;
 
-    const int depth = worker.depth();
+    const search::depth_type depth = worker.depth();
     const size_t elapsed_ms = timer_.elapsed().count();
-    const size_t nodes = pool_.nodes();
-    const size_t tb_hits = pool_.tb_hits();
+    const size_t nodes = orchestrator_.nodes();
+    const size_t tb_hits = orchestrator_.tb_hits();
     const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
-    if (is_searching() && depth < search::max_depth) {
+    
+    const bool should_report = orchestrator_.is_searching() && depth < search::max_depth;
+    if (should_report) {
       os << "info depth " << depth << " seldepth " << worker.internal.stack.sel_depth() << " score cp " << score << " nodes " << nodes << " nps "
          << nps << " time " << elapsed_ms << " tbhits " << tb_hits << " pv " << worker.internal.stack.pv_string() << std::endl;
     }
   }
 
   void go(const std::string& line) {
-    if (const auto book_move = book_.find(position.hash());
-        own_book_.load() && book_move.has_value() && position.generate_moves<>().has(book_move.value())) {
-      best_move(book_move.value());
-    } else {
-      is_searching_.store(true);
-      manager_.init(position.turn(), line);
-      timer_.lap();
-      pool_.go(history, position);
-    }
+    manager_.init(position.turn(), line);
+    timer_.lap();
+    orchestrator_.go(history, position);
   }
 
   void ponder_hit() { manager_.ponder_hit(); }
 
   void stop() {
-    is_searching_.store(false);
-    pool_.stop();
-    best_move(pool_.primary_worker().best_move(), pool_.primary_worker().ponder_move());
-  }
-
-  void best_move(const chess::move& mv, const chess::move& ponder = chess::move::null()) {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    os << "bestmove " << mv.name(position.turn()) << [&] {
-      if (!position.forward(mv).generate_moves<>().has(ponder)) { return std::string{}; }
-      return std::string(" ponder ") + ponder.name(position.forward(mv).turn());
-    }() << std::endl;
+    orchestrator_.stop([this] {
+      const chess::move best_move = orchestrator_.primary_worker().best_move();
+      const chess::move ponder_move = orchestrator_.primary_worker().ponder_move();
+      
+      const std::string ponder_move_string = [&] {
+        if (!position.forward(best_move).is_legal<chess::generation_mode::all>(ponder_move)) { return std::string{}; }
+        return std::string(" ponder ") + ponder_move.name(position.forward(best_move).turn());
+      }();
+
+      os << "bestmove " << best_move.name(position.turn()) << ponder_move_string << std::endl;
+    });
   }
 
   void ready() {
@@ -208,7 +186,8 @@ struct uci {
     os << "id name " << version::engine_name << " " << version::major << '.' << version::minor << '.' << version::patch << std::endl;
     os << "id author " << version::author_name << std::endl;
     os << options();
-    if constexpr (search::search_constants::tuning) { os << (pool_.constants_->options()); }
+    if constexpr (search::search_constants::tuning) { os << orchestrator_.shared_state_.constants->options(); }
+
     os << "uciok" << std::endl;
   }
 
@@ -243,19 +222,6 @@ struct uci {
     }
   }
 
-  void see() {
-    std::lock_guard<std::mutex> os_lk(os_mutex_);
-    for (const chess::move& mv : position.generate_moves<>()) {
-      os << mv.name(position.turn()) << ": " << position.see<search::see_type>(mv) << std::endl;
-    }
-  }
-
-  void threats() {
-    std::lock_guard<std::mutex> os_lk(os_mutex_);
-    os << "us:\n" << position.us_threat_mask() << std::endl;
-    os << "them:\n" << position.them_threat_mask() << std::endl;
-  }
-
   void perft(const std::string& line) {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
     const std::regex perft_with_depth("perft ([0-9]+)");
@@ -272,56 +238,53 @@ struct uci {
     const std::regex go_rgx("go(.*)");
     const std::regex perft_rgx("perft(.*)");
 
-    if (!is_searching() && line == "uci") {
+    const bool is_searching = orchestrator_.is_searching();
+    if (!is_searching && line == "uci") {
       id_info();
     } else if (line == "isready") {
       ready();
-    } else if (!is_searching() && line == "ucinewgame") {
+    } else if (!is_searching && line == "ucinewgame") {
       uci_new_game();
-    } else if (is_searching() && line == "stop") {
+    } else if (is_searching && line == "stop") {
       stop();
-    } else if (is_searching() && line == "ponderhit") {
+    } else if (is_searching && line == "ponderhit") {
       ponder_hit();
     } else if (line == "_internal_board") {
       os << position << std::endl;
-    } else if (!is_searching() && line == "bench") {
+    } else if (!is_searching && line == "bench") {
       bench();
-    } else if (!is_searching() && line == "eval") {
+    } else if (!is_searching && line == "eval") {
       eval();
-    } else if (!is_searching() && line == "see") {
-      see();
-    } else if (!is_searching() && line == "threats") {
-      threats();
-    } else if (!is_searching() && line == "probe") {
+    } else if (!is_searching && line == "probe") {
       probe();
-    } else if (!is_searching() && std::regex_match(line, perft_rgx)) {
+    } else if (!is_searching && std::regex_match(line, perft_rgx)) {
       perft(line);
-    } else if (!is_searching() && std::regex_match(line, go_rgx)) {
+    } else if (!is_searching && std::regex_match(line, go_rgx)) {
       go(line);
-    } else if (!is_searching() && std::regex_match(line, position_rgx)) {
+    } else if (!is_searching && std::regex_match(line, position_rgx)) {
       set_position(line);
     } else if (line == "quit") {
       quit();
-    } else if (!is_searching()) {
+    } else if (!is_searching) {
       options().update(line);
-      if constexpr (search::search_constants::tuning) { (pool_.constants_->options()).update(line); }
+      if constexpr (search::search_constants::tuning) { orchestrator_.shared_state_.constants->options().update(line); }
     }
   }
 
   uci()
-      : pool_(
+      : orchestrator_(
             &weights_,
             default_hash_size,
             [this](const auto& worker) {
               info_string(worker);
-              if (manager_.should_stop_on_iter(iter_info{worker.depth(), worker.best_move_percent_()})) { stop(); }
+              if (manager_.should_stop_on_iter(iter_info{worker.depth(), worker.best_move_percent()})) { stop(); }
             },
             [this](const auto& worker) {
               if (manager_.should_stop_on_update(update_info{worker.nodes()})) { stop(); }
             }) {
     nnue::embedded_weight_streamer embedded(embed::weights_file_data);
     weights_.load(embedded);
-    pool_.resize(default_thread_count);
+    orchestrator_.resize(default_thread_count);
   }
 };
 
