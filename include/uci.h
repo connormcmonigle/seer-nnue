@@ -145,7 +145,7 @@ struct uci {
     const size_t nodes = orchestrator_.nodes();
     const size_t tb_hits = orchestrator_.tb_hits();
     const size_t nps = std::chrono::milliseconds(std::chrono::seconds(1)).count() * nodes / (1 + elapsed_ms);
-    
+
     const bool should_report = orchestrator_.is_searching() && depth < search::max_depth;
     if (should_report) {
       os << "info depth " << depth << " seldepth " << worker.internal.stack.sel_depth() << " score cp " << score << " nodes " << nodes << " nps "
@@ -162,11 +162,10 @@ struct uci {
   void ponder_hit() { manager_.ponder_hit(); }
 
   void stop() {
-    std::lock_guard<std::mutex> os_lk(os_mutex_);
     orchestrator_.stop([this] {
       const chess::move best_move = orchestrator_.primary_worker().best_move();
       const chess::move ponder_move = orchestrator_.primary_worker().ponder_move();
-      
+
       const std::string ponder_move_string = [&] {
         if (!position.forward(best_move).is_legal<chess::generation_mode::all>(ponder_move)) { return std::string{}; }
         return std::string(" ponder ") + ponder_move.name(position.forward(best_move).turn());
