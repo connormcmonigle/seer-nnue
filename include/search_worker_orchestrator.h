@@ -21,7 +21,7 @@ enum class worker_orchestrator_loop_state {
 
 struct worker_orchestrator_loop_data {
   worker_orchestrator_loop_state state{worker_orchestrator_loop_state::waiting};
-  std::function<void()> on_stop{[] {}};
+  std::function<void()> on_stopped{[] {}};
   std::mutex cv_mutex{};
   std::condition_variable cv{};
 };
@@ -67,9 +67,10 @@ struct worker_orchestrator {
     loop_data_.cv.notify_one();
   }
 
-  void stop(std::function<void()> on_stop = [] {}) {
+  void stop(std::function<void()> on_stopped = [] {}) {
     std::lock_guard cv_lock(loop_data_.cv_mutex);
-    loop_data_.on_stop = on_stop;
+    loop_data_.on_stopped = on_stopped;
+    workers_[primary_id]->stop();
     loop_data_.state = worker_orchestrator_loop_state::stopping;
     loop_data_.cv.notify_one();
   }
@@ -108,8 +109,8 @@ struct worker_orchestrator {
           std::for_each(workers_.begin(), workers_.end(), [](auto& worker) { worker->stop(); });
           std::for_each(threads_.begin(), threads_.end(), [](auto& thread) { thread.join(); });
           threads_.clear();
-          loop_data_.on_stop();
-          loop_data_.on_stop = [] {};
+          loop_data_.on_stopped();
+          loop_data_.on_stopped = [] {};
 
           loop_data_.state = worker_orchestrator_loop_state::waiting;
           break;
