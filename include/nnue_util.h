@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <type_traits>
 #include <utility>
@@ -59,10 +60,44 @@ struct dot_type_impl<std::int32_t> {
 template <typename T>
 using dot_type = typename dot_type_impl<T>::type;
 
-template <typename T>
-constexpr T relu(const T& x) {
-  return std::max(x, T{0});
-}
+template <typename T, size_t dim>
+struct aligned_slice {
+  T* data;
+
+  template <size_t out_dim, size_t offset = 0>
+  aligned_slice<T, out_dim> slice() {
+    static_assert(offset + out_dim <= dim);
+    return aligned_slice<T, out_dim>{data + offset};
+  }
+
+  aligned_slice<T, dim>& copy_from(const T* other) {
+    std::memcpy(data, other, sizeof(T) * dim);
+    return *this;
+  }
+
+  aligned_slice<T, dim>& operator=(aligned_slice<T, dim>&& other) {
+    data = other.data;
+    return *this;
+  }
+  
+  aligned_slice<T, dim>& operator=(const aligned_slice<T, dim>& other) = delete;
+
+  aligned_slice(const aligned_slice<T, dim>& other) = delete;
+  aligned_slice(aligned_slice<T, dim>&& other) { data = other.data; }
+  aligned_slice(T* data) : data{data} {}
+
+};
+
+template <typename T, size_t scratchpad_size>
+struct stack_scratchpad {
+  alignas(simd::alignment) T data[scratchpad_size];
+
+  template <size_t dim>
+  aligned_slice<T, dim> get_nth_slice(const size_t& n) {
+    static_assert(scratchpad_size % dim == 0);
+    return aligned_slice<T, dim>(data + n * dim);
+  }
+};
 
 template <typename T, size_t dim>
 struct stack_vector {
@@ -107,6 +142,8 @@ struct stack_vector {
     for (size_t i = 0; i < dim; ++i) { data[i] = other[i]; }
     return *this;
   }
+
+  inline aligned_slice<T, dim> as_slice() { return aligned_slice<T, dim>(data); }
 
   inline T item() const {
     static_assert(dim == 1, "called item() on vector with dim != 1");
@@ -170,7 +207,7 @@ inline stack_vector<T, dim0 + dim1> splice(const stack_vector<T, dim0>& a, const
 }
 
 template <typename T, size_t dim0, size_t dim1>
-struct stack_affine {
+struct stack_relu_affine {
   static constexpr size_t W_numel = dim0 * dim1;
   static constexpr size_t b_numel = dim1;
 
@@ -181,20 +218,38 @@ struct stack_affine {
 
   inline stack_vector<dot_type<T>, dim1> forward(const stack_vector<T, dim0>& x) const {
     auto result = stack_vector<dot_type<T>, dim1>::from(b);
-    simd::matrix_vector_product<dim0, dim1>(W, x.data, result.data);
+    simd::relu_matrix_vector_product<dim0, dim1>(W, x.data, result.data);
+    return result;
+  }
+
+  inline stack_vector<dot_type<T>, dim1> forward(const aligned_slice<T, dim0>& x) const {
+    auto result = stack_vector<dot_type<T>, dim1>::from(b);
+    simd::relu_matrix_vector_product<dim0, dim1>(W, x.data, result.data);
     return result;
   }
 
   template <typename streamer_type>
-  stack_affine<T, dim0, dim1>& load_(streamer_type& ws) {
+  stack_relu_affine<T, dim0, dim1>& load_(streamer_type& ws) {
     ws.template stream<T>(W, W_numel).template stream<dot_type<T>>(b, b_numel);
     return *this;
   }
 
+  stack_relu_affine<T, dim0, dim1> half_input_flipped() const {
+    static_assert(dim0 % 2 == 0);
+    constexpr size_t half_dim0 = dim0 / 2;
+
+    stack_relu_affine<T, dim0, dim1> result = *this;
+    for (size_t i(0); i < W_numel; i += dim0) {
+      for (size_t j(0); j < half_dim0; ++j) { std::iter_swap(result.W + i + j, result.W + half_dim0 + i + j); }
+    }
+
+    return result;
+  }
+
   template <typename U>
-  stack_affine<U, dim0, dim1> quantized(const T& weight_scale, const T& bias_scale) const {
+  stack_relu_affine<U, dim0, dim1> quantized(const T& weight_scale, const T& bias_scale) const {
     static_assert(std::is_floating_point_v<T> && std::is_integral_v<U>);
-    stack_affine<U, dim0, dim1> result{};
+    stack_relu_affine<U, dim0, dim1> result{};
 #pragma omp simd
     for (size_t i = 0; i < W_numel; ++i) { result.W[i] = static_cast<U>(std::round(weight_scale * W[i])); }
     for (size_t i = 0; i < b_numel; ++i) { result.b[i] = static_cast<dot_type<U>>(std::round(bias_scale * b[i])); }
@@ -212,14 +267,14 @@ struct big_affine {
 
   constexpr size_t num_parameters() const { return W_numel + b_numel; }
 
-  void insert_idx(const size_t idx, stack_vector<T, b_numel>& x) const {
+  void insert_idx(const size_t idx, aligned_slice<T, b_numel> x) const {
     const T* mem_region = W + idx * dim1;
-    x.add_(mem_region);
+    simd::add<b_numel>(x.data, mem_region);
   }
 
-  void erase_idx(const size_t idx, stack_vector<T, b_numel>& x) const {
+  void erase_idx(const size_t idx, aligned_slice<T, b_numel> x) const {
     const T* mem_region = W + idx * dim1;
-    x.sub_(mem_region);
+    simd::sub<b_numel>(x.data, mem_region);
   }
 
   template <typename streamer_type>

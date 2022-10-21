@@ -79,9 +79,9 @@ inline void sub(T* a, const T* b) {
 }
 
 template <size_t dim0, size_t dim1, typename T0, typename T1>
-inline void matrix_vector_product(const T0* matrix, const T0* input, T1* output) {
+inline void relu_matrix_vector_product(const T0* matrix, const T0* input, T1* output) {
   for (size_t i(0); i < dim1; ++i) {
-    for (size_t j(0); j < dim0; ++j) { output[i] += static_cast<T1>(input[j]) * static_cast<T1>((matrix + i * dim0)[j]); }
+    for (size_t j(0); j < dim0; ++j) { output[i] += static_cast<T1>(std::max(input[j], T0{0})) * static_cast<T1>((matrix + i * dim0)[j]); }
   }
 }
 
@@ -141,15 +141,16 @@ inline void sub(std::int16_t* a, const std::int16_t* b) {
 }
 
 template <size_t dim0, size_t dim1>
-struct float_matrix_vector_product_x8_x1 {
+struct float_relu_matrix_vector_product_x8_x1 {
   static constexpr bool available = divides<dim0, per_unit<float>>;
 
   static inline void f(const float* matrix, const float* input, float* output) {
+    const __m256 zero = _mm256_setzero_ps();
     for (size_t i(0); i < dim1; ++i) {
       __m256 sum = _mm256_setzero_ps();
 
       for (size_t j(0); j < dim0; j += per_unit<float>) {
-        const __m256 input_region = _mm256_load_ps(input + j);
+        const __m256 input_region = _mm256_max_ps(zero, _mm256_load_ps(input + j));
         sum = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + i * dim0 + j), input_region), sum);
       }
 
@@ -163,11 +164,12 @@ struct float_matrix_vector_product_x8_x1 {
 };
 
 template <size_t dim0, size_t dim1>
-struct float_matrix_vector_product_x8_x8 {
+struct float_relu_matrix_vector_product_x8_x8 {
   static constexpr size_t num_units = 8;
   static constexpr bool available = divides<dim1, num_units> && divides<dim0, per_unit<float>>;
 
   static inline void f(const float* matrix, const float* input, float* output) {
+    const __m256 zero = _mm256_setzero_ps();
     __m256* v_output = (__m256*)output;
     constexpr size_t output_step = num_units / per_unit<float>;
     for (size_t i(0); i < dim1; i += num_units, v_output += output_step) {
@@ -181,7 +183,7 @@ struct float_matrix_vector_product_x8_x8 {
       __m256 sum_7 = _mm256_setzero_ps();
 
       for (size_t j(0); j < dim0; j += per_unit<float>) {
-        const __m256 input_region = _mm256_load_ps(input + j);
+        const __m256 input_region = _mm256_max_ps(zero, _mm256_load_ps(input + j));
         sum_0 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 0) * dim0 + j), input_region), sum_0);
         sum_1 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 1) * dim0 + j), input_region), sum_1);
         sum_2 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 2) * dim0 + j), input_region), sum_2);
@@ -208,11 +210,12 @@ struct float_matrix_vector_product_x8_x8 {
 };
 
 template <size_t dim0, size_t dim1>
-struct int16_matrix_vector_product_x16_x8 {
+struct int16_relu_matrix_vector_product_x16_x8 {
   static constexpr size_t num_units = 8;
   static constexpr bool available = divides<dim1, num_units> && divides<dim0, per_unit<std::int16_t>>;
 
   static inline void f(const std::int16_t* matrix, const std::int16_t* input, std::int32_t* output) {
+    const __m256i zero = _mm256_setzero_si256();
     __m256i* v_output = (__m256i*)output;
     constexpr size_t output_step = num_units / per_unit<std::int32_t>;
     for (size_t i(0); i < dim1; i += num_units, v_output += output_step) {
@@ -226,7 +229,7 @@ struct int16_matrix_vector_product_x16_x8 {
       __m256i sum_7 = _mm256_setzero_si256();
 
       for (size_t j(0); j < dim0; j += per_unit<std::int16_t>) {
-        const __m256i input_region = _mm256_load_si256((__m256i*)(input + j));
+        const __m256i input_region = _mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + j)));
         sum_0 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_load_si256((__m256i*)(matrix + (i + 0) * dim0 + j)), input_region), sum_0);
         sum_1 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_load_si256((__m256i*)(matrix + (i + 1) * dim0 + j)), input_region), sum_1);
         sum_2 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_load_si256((__m256i*)(matrix + (i + 2) * dim0 + j)), input_region), sum_2);
@@ -254,30 +257,32 @@ struct int16_matrix_vector_product_x16_x8 {
 };
 
 template <size_t dim0, size_t dim1>
-inline void matrix_vector_product(const float* matrix, const float* input, float* output) {
-  return overload_set<float_matrix_vector_product_x8_x8<dim0, dim1>, float_matrix_vector_product_x8_x1<dim0, dim1>>::f(matrix, input, output);
+inline void relu_matrix_vector_product(const float* matrix, const float* input, float* output) {
+  return overload_set<float_relu_matrix_vector_product_x8_x8<dim0, dim1>, float_relu_matrix_vector_product_x8_x1<dim0, dim1>>::f(
+      matrix, input, output);
 }
 
 template <size_t dim0, size_t dim1>
-inline void matrix_vector_product(const std::int16_t* matrix, const std::int16_t* input, std::int32_t* output) {
-  return overload_set<int16_matrix_vector_product_x16_x8<dim0, dim1>>::f(matrix, input, output);
+inline void relu_matrix_vector_product(const std::int16_t* matrix, const std::int16_t* input, std::int32_t* output) {
+  return overload_set<int16_relu_matrix_vector_product_x16_x8<dim0, dim1>>::f(matrix, input, output);
 }
 
 #elif defined(__SSE__)
 template <size_t dim0, size_t dim1>
-struct float_matrix_vector_product_x8_x1 {
+struct float_relu_matrix_vector_product_x8_x1 {
   static constexpr size_t num_units = 2;
   static constexpr size_t per_iteration = per_unit<float> * num_units;
   static constexpr bool available = divides<dim0, per_iteration>;
 
   static inline void f(const float* matrix, const float* input, float* output) {
+    const __m128 zero = _mm_setzero_ps();
     for (size_t i(0); i < dim1; ++i) {
       __m128 sum_0 = _mm_setzero_ps();
       __m128 sum_1 = _mm_setzero_ps();
 
       for (size_t j(0); j < dim0; j += per_iteration) {
-        const __m128 input_region_0 = _mm_load_ps(input + j + 0 * per_unit<float>);
-        const __m128 input_region_1 = _mm_load_ps(input + j + 1 * per_unit<float>);
+        const __m128 input_region_0 = _mm_max_ps(zero, _mm_load_ps(input + j + 0 * per_unit<float>));
+        const __m128 input_region_1 = _mm_max_ps(zero, _mm_load_ps(input + j + 1 * per_unit<float>));
 
         sum_0 = _mm_add_ps(_mm_mul_ps(_mm_load_ps(matrix + i * dim0 + j + 0 * per_unit<float>), input_region_0), sum_0);
         sum_1 = _mm_add_ps(_mm_mul_ps(_mm_load_ps(matrix + i * dim0 + j + 1 * per_unit<float>), input_region_1), sum_1);
@@ -292,11 +297,12 @@ struct float_matrix_vector_product_x8_x1 {
 };
 
 template <size_t dim0, size_t dim1>
-struct float_matrix_vector_product_x4_x8 {
+struct float_relu_matrix_vector_product_x4_x8 {
   static constexpr size_t num_units = 8;
   static constexpr bool available = divides<dim1, num_units> && divides<dim0, per_unit<float>>;
 
   static inline void f(const float* matrix, const float* input, float* output) {
+    const __m128 zero = _mm_setzero_ps();
     __m128* v_output = (__m128*)output;
     constexpr size_t output_step = num_units / per_unit<float>;
     for (size_t i(0); i < dim1; i += num_units, v_output += output_step) {
@@ -310,7 +316,7 @@ struct float_matrix_vector_product_x4_x8 {
       __m128 sum_7 = _mm_setzero_ps();
 
       for (size_t j(0); j < dim0; j += per_unit<float>) {
-        const __m128 input_region = _mm_load_ps(input + j);
+        const __m128 input_region = _mm_max_ps(zero, _mm_load_ps(input + j));
         sum_0 = _mm_add_ps(_mm_mul_ps(_mm_load_ps(matrix + (i + 0) * dim0 + j), input_region), sum_0);
         sum_1 = _mm_add_ps(_mm_mul_ps(_mm_load_ps(matrix + (i + 1) * dim0 + j), input_region), sum_1);
         sum_2 = _mm_add_ps(_mm_mul_ps(_mm_load_ps(matrix + (i + 2) * dim0 + j), input_region), sum_2);
@@ -336,8 +342,9 @@ struct float_matrix_vector_product_x4_x8 {
 };
 
 template <size_t dim0, size_t dim1>
-inline void matrix_vector_product(const float* matrix, const float* input, float* output) {
-  return overload_set<float_matrix_vector_product_x4_x8<dim0, dim1>, float_matrix_vector_product_x8_x1<dim0, dim1>>::f(matrix, input, output);
+inline void relu_matrix_vector_product(const float* matrix, const float* input, float* output) {
+  return overload_set<float_relu_matrix_vector_product_x4_x8<dim0, dim1>, float_relu_matrix_vector_product_x8_x1<dim0, dim1>>::f(
+      matrix, input, output);
 }
 
 #endif
