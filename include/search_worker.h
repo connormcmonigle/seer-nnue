@@ -58,6 +58,7 @@ struct search_worker;
 
 struct internal_state {
   search_stack stack{chess::position_history{}, chess::board::start_pos()};
+  nnue::eval::scratchpad_type scratchpad{};
   sided_history_heuristic hh{};
   eval_cache cache{};
   std::unordered_map<chess::move, size_t, chess::move_hash> node_distribution{};
@@ -515,7 +516,7 @@ struct search_worker {
 
   void iterative_deepening_loop() {
     nnue::eval_node root_node = nnue::eval_node::clean_node([this] {
-      nnue::eval result(external.weights);
+      nnue::eval result(external.weights, &internal.scratchpad, 0);
       internal.stack.root_pos().feature_full_refresh(result);
       return result;
     }());

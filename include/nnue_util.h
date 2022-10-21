@@ -75,17 +75,7 @@ struct aligned_slice {
     return *this;
   }
 
-  aligned_slice<T, dim>& operator=(aligned_slice<T, dim>&& other) {
-    data = other.data;
-    return *this;
-  }
-  
-  aligned_slice<T, dim>& operator=(const aligned_slice<T, dim>& other) = delete;
-
-  aligned_slice(const aligned_slice<T, dim>& other) = delete;
-  aligned_slice(aligned_slice<T, dim>&& other) { data = other.data; }
   aligned_slice(T* data) : data{data} {}
-
 };
 
 template <typename T, size_t scratchpad_size>
