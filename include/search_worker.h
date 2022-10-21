@@ -584,7 +584,7 @@ struct search_worker {
 
   score_type score() const { return internal.score.load(); }
 
-  void go(const chess::position_history& hist, const chess::board& bd, const depth_type& start_depth = 1) {
+  void go(const chess::position_history& hist, const chess::board& bd, const depth_type& start_depth) {
     internal.go.store(true);
     internal.node_distribution.clear();
     internal.nodes.store(0);

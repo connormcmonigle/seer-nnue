@@ -84,7 +84,7 @@ struct uci {
 
     auto hash_size = option_callback(spin_option("Hash", default_hash_size, spin_range{1, 262144}), [this](const int size) {
       const auto new_size = static_cast<size_t>(size);
-      orchestrator_.shared_state_.tt->resize(new_size);
+      orchestrator_.tt_->resize(new_size);
     });
 
     auto thread_count = option_callback(spin_option("Threads", default_thread_count, spin_range{1, 512}), [this](const int count) {
@@ -162,17 +162,18 @@ struct uci {
   void ponder_hit() { manager_.ponder_hit(); }
 
   void stop() {
-    orchestrator_.stop([this] {
-      const chess::move best_move = orchestrator_.primary_worker().best_move();
-      const chess::move ponder_move = orchestrator_.primary_worker().ponder_move();
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
 
-      const std::string ponder_move_string = [&] {
-        if (!position.forward(best_move).is_legal<chess::generation_mode::all>(ponder_move)) { return std::string{}; }
-        return std::string(" ponder ") + ponder_move.name(position.forward(best_move).turn());
-      }();
+    orchestrator_.stop();
+    const chess::move best_move = orchestrator_.primary_worker().best_move();
+    const chess::move ponder_move = orchestrator_.primary_worker().ponder_move();
 
-      os << "bestmove " << best_move.name(position.turn()) << ponder_move_string << std::endl;
-    });
+     const std::string ponder_move_string = [&] {
+      if (!position.forward(best_move).is_legal<chess::generation_mode::all>(ponder_move)) { return std::string{}; }
+      return std::string(" ponder ") + ponder_move.name(position.forward(best_move).turn());
+    }();
+
+    os << "bestmove " << best_move.name(position.turn()) << ponder_move_string << std::endl;
   }
 
   void ready() {
@@ -185,7 +186,7 @@ struct uci {
     os << "id name " << version::engine_name << " " << version::major << '.' << version::minor << '.' << version::patch << std::endl;
     os << "id author " << version::author_name << std::endl;
     os << options();
-    if constexpr (search::search_constants::tuning) { os << orchestrator_.shared_state_.constants->options(); }
+    if constexpr (search::search_constants::tuning) { os << orchestrator_.constants_->options(); }
 
     os << "uciok" << std::endl;
   }
@@ -266,7 +267,7 @@ struct uci {
       quit();
     } else if (!is_searching) {
       options().update(line);
-      if constexpr (search::search_constants::tuning) { orchestrator_.shared_state_.constants->options().update(line); }
+      if constexpr (search::search_constants::tuning) { orchestrator_.constants_->options().update(line); }
     }
   }
 
