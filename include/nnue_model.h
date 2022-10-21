@@ -84,28 +84,35 @@ struct weights {
 template <typename T>
 struct feature_transformer {
   const big_affine<T, feature::half_ka::numel, weights::base_dim>* weights_;
-  stack_vector<T, weights::base_dim> active_;
-  constexpr stack_vector<T, weights::base_dim> active() const { return active_; }
+  aligned_slice<T, weights::base_dim> slice_;
 
-  void clear() { active_.set_(weights_->b); }
-  void insert(const size_t& idx) { weights_->insert_idx(idx, active_.as_slice()); }
-  void erase(const size_t& idx) { weights_->erase_idx(idx, active_.as_slice()); }
+  void clear() { slice_.copy_from(weights_->b); }
+  void insert(const size_t& idx) { weights_->insert_idx(idx, slice_); }
+  void erase(const size_t& idx) { weights_->erase_idx(idx, slice_); }
 
-  feature_transformer(const big_affine<T, feature::half_ka::numel, weights::base_dim>* src) : weights_{src} { clear(); }
+  feature_transformer(const big_affine<T, feature::half_ka::numel, weights::base_dim>* src, aligned_slice<T, weights::base_dim>&& slice)
+      : weights_{src}, slice_{slice} {}
 };
 
 struct eval : chess::sided<eval, feature_transformer<weights::quantized_parameter_type>> {
+  static constexpr size_t feature_transformer_dim = 2 * weights::base_dim;
+  static constexpr size_t scratchpad_depth = 256;
+
   using parameter_type = weights::parameter_type;
   using quantized_parameter_type = weights::quantized_parameter_type;
+  using scratchpad_type = stack_scratchpad<quantized_parameter_type, scratchpad_depth * feature_transformer_dim>;
 
   const weights* weights_;
+  scratchpad_type* scratchpad_;
+
+  size_t scratchpad_idx_;
+  aligned_slice<quantized_parameter_type, feature_transformer_dim> base_;
   feature_transformer<quantized_parameter_type> white;
   feature_transformer<quantized_parameter_type> black;
 
   inline parameter_type propagate(const bool pov) const {
-    const auto x0 = splice(white.active(), black.active());
     const auto x1 = (pov ? weights_->white_quantized_fc0 : weights_->black_quantized_fc0)
-                        .forward(x0)
+                        .forward(base_)
                         .dequantized<parameter_type>(weights::dequantization_scale);
 
     const auto x2 = splice(x1, weights_->fc1.forward(x1));
@@ -126,7 +133,19 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
     return static_cast<search::score_type>(value);
   }
 
-  eval(const weights* src) : weights_{src}, white{&src->quantized_shared}, black{&src->quantized_shared} {}
+  eval next_child() const {
+    const size_t next_scratchpad_idx = scratchpad_idx_ + 1;
+    scratchpad_->get_nth_slice<feature_transformer_dim>(next_scratchpad_idx).copy_from(base_.data);
+    return eval(weights_, scratchpad_, next_scratchpad_idx);
+  }
+
+  eval(const weights* src, scratchpad_type* scratchpad, const size_t& scratchpad_idx)
+      : weights_{src},
+        scratchpad_{scratchpad},
+        scratchpad_idx_{scratchpad_idx},
+        base_(scratchpad_->get_nth_slice<feature_transformer_dim>(scratchpad_idx_)),
+        white{&src->quantized_shared, base_.slice<weights::base_dim>()},
+        black{&src->quantized_shared, base_.slice<weights::base_dim, weights::base_dim>()} {}
 };
 
 struct eval_node {
@@ -149,7 +168,8 @@ struct eval_node {
     if (!dirty_) { return data_.eval_; }
     dirty_ = false;
     const context ctxt = data_.context_;
-    data_.eval_ = ctxt.parent_board_->apply_update(ctxt.move_, ctxt.parent_node_->evaluator());
+    data_.eval_ = ctxt.parent_node_->evaluator().next_child();
+    ctxt.parent_board_->feature_move_delta(ctxt.move_, data_.eval_);
     return data_.eval_;
   }
 

@@ -818,7 +818,7 @@ struct board {
   }
 
   template <color c, typename T>
-  void feature_move_delta(const move& mv, T& sided_set) const {
+  void feature_move_delta_(const move& mv, T& sided_set) const {
     namespace h_ka = feature::half_ka;
     if (mv.is_castle_oo<c>() || mv.is_castle_ooo<c>()) {
       forward_<c>(mv).feature_full_refresh(sided_set);
@@ -853,14 +853,12 @@ struct board {
   }
 
   template <typename T>
-  T apply_update(const move& mv, const T& sided_set) const {
-    T copy = sided_set;
+  void feature_move_delta(const move& mv, T& sided_set) const {
     if (turn()) {
-      feature_move_delta<color::white>(mv, copy);
+      feature_move_delta_<color::white>(mv, sided_set);
     } else {
-      feature_move_delta<color::black>(mv, copy);
+      feature_move_delta_<color::black>(mv, sided_set);
     }
-    return copy;
   }
 
   std::tuple<position_history, board> after_uci_moves(const std::string& moves) const {
