@@ -34,23 +34,24 @@ struct weights {
   using parameter_type = float;
   using quantized_parameter_type = std::int16_t;
 
+  static constexpr size_t base_dim = 512;
+
   static constexpr parameter_type shared_quantization_scale = static_cast<parameter_type>(512);
   static constexpr parameter_type fc0_weight_quantization_scale = static_cast<parameter_type>(1024);
   static constexpr parameter_type fc0_bias_quantization_scale = shared_quantization_scale * fc0_weight_quantization_scale;
   static constexpr parameter_type dequantization_scale = static_cast<parameter_type>(1) / (shared_quantization_scale * fc0_weight_quantization_scale);
 
-  static constexpr size_t base_dim = 512;
-
   weights_streamer::signature_type signature_{0};
   big_affine<parameter_type, feature::half_ka::numel, base_dim> shared{};
   big_affine<quantized_parameter_type, feature::half_ka::numel, base_dim> quantized_shared{};
 
-  stack_affine<parameter_type, 2 * base_dim, 8> fc0{};
-  stack_affine<quantized_parameter_type, 2 * base_dim, 8> quantized_fc0{};
+  stack_relu_affine<parameter_type, 2 * base_dim, 8> fc0{};
+  stack_relu_affine<quantized_parameter_type, 2 * base_dim, 8> white_quantized_fc0{};
+  stack_relu_affine<quantized_parameter_type, 2 * base_dim, 8> black_quantized_fc0{};
 
-  stack_affine<parameter_type, 8, 8> fc1{};
-  stack_affine<parameter_type, 16, 8> fc2{};
-  stack_affine<parameter_type, 24, 1> fc3{};
+  stack_relu_affine<parameter_type, 8, 8> fc1{};
+  stack_relu_affine<parameter_type, 16, 8> fc2{};
+  stack_relu_affine<parameter_type, 24, 1> fc3{};
 
   size_t signature() const { return signature_; }
 
@@ -68,7 +69,8 @@ struct weights {
     signature_ = ws.signature();
 
     quantized_shared = shared.quantized<quantized_parameter_type>(shared_quantization_scale);
-    quantized_fc0 = fc0.quantized<quantized_parameter_type>(fc0_weight_quantization_scale, fc0_bias_quantization_scale);
+    white_quantized_fc0 = fc0.quantized<quantized_parameter_type>(fc0_weight_quantization_scale, fc0_bias_quantization_scale);
+    black_quantized_fc0 = white_quantized_fc0.half_input_flipped();
 
     return *this;
   }
@@ -86,8 +88,8 @@ struct feature_transformer {
   constexpr stack_vector<T, weights::base_dim> active() const { return active_; }
 
   void clear() { active_.set_(weights_->b); }
-  void insert(const size_t idx) { weights_->insert_idx(idx, active_); }
-  void erase(const size_t idx) { weights_->erase_idx(idx, active_); }
+  void insert(const size_t& idx) { weights_->insert_idx(idx, active_.as_slice()); }
+  void erase(const size_t& idx) { weights_->erase_idx(idx, active_.as_slice()); }
 
   feature_transformer(const big_affine<T, feature::half_ka::numel, weights::base_dim>* src) : weights_{src} { clear(); }
 };
@@ -101,12 +103,13 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
   feature_transformer<quantized_parameter_type> black;
 
   inline parameter_type propagate(const bool pov) const {
-    const auto w_x = white.active();
-    const auto b_x = black.active();
-    const auto x0 = pov ? splice(w_x, b_x).apply_(relu<quantized_parameter_type>) : splice(b_x, w_x).apply_(relu<quantized_parameter_type>);
-    const auto x1 = weights_->quantized_fc0.forward(x0).dequantized<parameter_type>(weights::dequantization_scale).apply_(relu<parameter_type>);
-    const auto x2 = splice(x1, weights_->fc1.forward(x1).apply_(relu<parameter_type>));
-    const auto x3 = splice(x2, weights_->fc2.forward(x2).apply_(relu<parameter_type>));
+    const auto x0 = splice(white.active(), black.active());
+    const auto x1 = (pov ? weights_->white_quantized_fc0 : weights_->black_quantized_fc0)
+                        .forward(x0)
+                        .dequantized<parameter_type>(weights::dequantization_scale);
+
+    const auto x2 = splice(x1, weights_->fc1.forward(x1));
+    const auto x3 = splice(x2, weights_->fc2.forward(x2));
     return weights_->fc3.forward(x3).item();
   }
 
