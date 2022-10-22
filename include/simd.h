@@ -20,10 +20,27 @@
 #include <x86intrin.h>
 
 #include <cstdint>
+#include <cstdlib>
 #include <type_traits>
 #include <utility>
 
 namespace simd {
+
+void* aligned_alloc(size_t alignment, size_t size) {
+#if defined(_WIN32)
+  return _mm_malloc(size, alignment);
+#else
+  return std::aligned_alloc(alignment, size);
+#endif
+}
+
+void aligned_free(void* ptr) {
+#if defined(_WIN32)
+  _mm_free(ptr);
+#else
+  free(ptr);
+#endif
+}
 
 #if defined(__AVX2__)
 constexpr size_t alignment = 32;
