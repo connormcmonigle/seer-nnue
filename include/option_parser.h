@@ -38,13 +38,9 @@ struct string_option {
 
   std::optional<std::string> maybe_read(const std::string& cmd) const {
     std::regex regex("setoption name " + name_ + " value (.*)");
-    if (auto matches = std::smatch{}; std::regex_search(cmd, matches, regex)) {
+    if (std::smatch matches{}; std::regex_search(cmd, matches, regex)) {
       std::string match = matches.str(1);
-      if (match == "") {
-        return default_;
-      } else {
-        return match;
-      }
+      return match.empty() ? default_ : match;
     }
     return std::nullopt;
   }
@@ -71,11 +67,7 @@ struct spin_option {
     std::regex regex("setoption name " + name_ + " value (-?[0-9]+)");
     if (auto matches = std::smatch{}; std::regex_search(cmd, matches, regex)) {
       const int raw = std::stoi(matches.str(1));
-      if (range_.has_value()) {
-        return range_.value().clamp(raw);
-      } else {
-        return raw;
-      }
+      return range_.has_value() ? range_.value().clamp(raw) : raw;
     }
     return std::nullopt;
   }
@@ -91,11 +83,7 @@ struct button_option {
   std::string name_;
 
   std::optional<bool> maybe_read(const std::string& cmd) const {
-    if (cmd == (std::string("setoption name ") + name_)) {
-      return true;
-    } else {
-      return std::nullopt;
-    }
+    return (cmd == (std::string("setoption name ") + name_)) ? std::optional(true) : std::nullopt;
   }
 
   button_option(const std::string_view& name) : name_{name} {}

@@ -47,6 +47,7 @@ struct uci {
   static constexpr size_t default_thread_count = 1;
   static constexpr size_t default_hash_size = 16;
   static constexpr std::string_view default_weight_path = "EMBEDDED";
+  static constexpr std::string_view default_syzygy_path = "<empty>";
   static constexpr bool default_ponder = false;
 
   chess::position_history history{};
@@ -94,7 +95,7 @@ struct uci {
 
     auto ponder = option_callback(check_option("Ponder", default_ponder), [this](const bool& value) { ponder_.store(value); });
 
-    auto syzygy_path = option_callback(string_option("SyzygyPath"), [](const std::string& path) { syzygy::init(path); });
+    auto syzygy_path = option_callback(string_option("SyzygyPath", std::string(default_syzygy_path)), [](const std::string& path) { syzygy::init(path); });
 
     return uci_options(weight_path, hash_size, thread_count, ponder, syzygy_path);
   }
