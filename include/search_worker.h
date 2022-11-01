@@ -443,7 +443,7 @@ struct search_worker {
         score_type zw_score;
 
         // step 12. late move reductions
-        const bool try_lmr = !is_check && (mv.is_quiet() || !bd.see_ge(mv, 0)) && idx >= 2 && (depth >= external.constants->reduce_depth());
+        const bool try_lmr = !is_check && (mv.is_quiet() || !bd.see_gt(mv, 0)) && idx >= 2 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           depth_type reduction = external.constants->reduction(depth, idx);
 
