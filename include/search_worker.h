@@ -443,7 +443,7 @@ struct search_worker {
         score_type zw_score;
 
         // step 12. late move reductions
-        const bool try_lmr = !is_check && (mv.is_quiet() || !bd.see_ge(mv, 0)) && idx >= 2 && (depth >= external.constants->reduce_depth());
+        const bool try_lmr = !is_check && mv.is_quiet() && idx >= 2 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           depth_type reduction = external.constants->reduction(depth, idx);
 
@@ -454,7 +454,7 @@ struct search_worker {
           if (bd.creates_threat(mv)) { --reduction; }
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
-          if (!bd.see_ge(mv, 0) && mv.is_quiet()) { ++reduction; }
+          if (!bd.see_ge(mv, 0)) { ++reduction; }
 
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
           // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
