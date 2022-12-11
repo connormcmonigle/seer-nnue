@@ -266,10 +266,9 @@ struct search_worker {
       std::optional<transposition_table_entry> result = external.tt->find(bd.hash());
       if (result.has_value()) { return result; }
 
-      if (depth >= 8) {
-        const score_type reduced_score = pv_search<false>(ss, eval_node, bd, alpha, alpha + 1, depth - 3, reducer);
+      if (is_pv && depth >= 8) {
+        [[maybe_unused]] const score_type reduced_score = pv_search<false>(ss, eval_node, bd, alpha, alpha + 1, depth - 3, reducer);
         result = external.tt->find(bd.hash());
-        if (reduced_score <= alpha) { depth -= 2; }
       } else if (depth >= external.constants->iir_depth()) {
         --depth;
       }
