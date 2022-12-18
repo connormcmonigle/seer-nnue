@@ -20,6 +20,7 @@
 #include <board.h>
 #include <eval_cache.h>
 #include <history_heuristic.h>
+#include <mcts.h>
 #include <move.h>
 #include <move_orderer.h>
 #include <nnue_model.h>
@@ -584,6 +585,26 @@ struct search_worker {
   chess::move ponder_move() const { return chess::move{internal.ponder_move.load()}; }
 
   score_type score() const { return internal.score.load(); }
+
+  mcts::probability_type win_percentage() const {
+    const mcts::probability_type logit = static_cast<mcts::probability_type>(internal.score.load());
+    return nnue::sigmoid(logit); 
+  }
+
+  std::vector<mcts::probability_type> policy() const {
+    constexpr mcts::probability_type zero = static_cast<mcts::probability_type>(0);
+    const mcts::probability_type z = static_cast<mcts::probability_type>(internal.nodes.load());
+
+    const chess::move_list root_moves = internal.stack.root_pos().generate_moves<chess::generation_mode::all>();
+    std::vector<mcts::probability_type> policy{};
+
+    std::transform(root_moves.begin(), root_moves.end(), std::back_inserter(policy), [this, &z](const chess::move& mv){
+      const auto iter = internal.node_distribution.find(mv);
+      return iter != internal.node_distribution.end() ? static_cast<mcts::probability_type>(iter->second) / z : zero;
+    });
+
+    return policy;
+  }
 
   void go(const chess::position_history& hist, const chess::board& bd, const depth_type& start_depth) {
     internal.go.store(true);

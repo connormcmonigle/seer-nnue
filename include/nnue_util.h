@@ -59,6 +59,13 @@ struct dot_type_impl<std::int32_t> {
 template <typename T>
 using dot_type = typename dot_type_impl<T>::type;
 
+
+template <typename T>
+T sigmoid(const T& x) {
+  constexpr T one = static_cast<T>(1);
+  return one / (one + std::exp(x));
+}
+
 template <typename T, size_t dim>
 struct aligned_slice {
   T* data;
