@@ -20,7 +20,6 @@
 #include <board.h>
 #include <eval_cache.h>
 #include <history_heuristic.h>
-#include <mcts.h>
 #include <move.h>
 #include <move_orderer.h>
 #include <nnue_model.h>
@@ -586,21 +585,23 @@ struct search_worker {
 
   score_type score() const { return internal.score.load(); }
 
-  mcts::probability_type win_percentage() const {
-    const mcts::probability_type logit = static_cast<mcts::probability_type>(internal.score.load());
-    return nnue::sigmoid(logit); 
+  template <typename T>
+  T expected_outcome() const {
+    const T logit = static_cast<T>(internal.score.load()) / logit_scale<T>;
+    return nnue::sigmoid(logit);
   }
 
-  std::vector<mcts::probability_type> policy() const {
-    constexpr mcts::probability_type zero = static_cast<mcts::probability_type>(0);
-    const mcts::probability_type z = static_cast<mcts::probability_type>(internal.nodes.load());
+  template <typename T>
+  std::vector<T> policy() const {
+    constexpr T zero = static_cast<T>(0);
+    const T z = static_cast<T>(internal.nodes.load());
 
     const chess::move_list root_moves = internal.stack.root_pos().generate_moves<chess::generation_mode::all>();
-    std::vector<mcts::probability_type> policy{};
+    std::vector<T> policy{};
 
-    std::transform(root_moves.begin(), root_moves.end(), std::back_inserter(policy), [this, &z](const chess::move& mv){
+    std::transform(root_moves.begin(), root_moves.end(), std::back_inserter(policy), [this, &z](const chess::move& mv) {
       const auto iter = internal.node_distribution.find(mv);
-      return iter != internal.node_distribution.end() ? static_cast<mcts::probability_type>(iter->second) / z : zero;
+      return iter != internal.node_distribution.end() ? static_cast<T>(iter->second) / z : zero;
     });
 
     return policy;

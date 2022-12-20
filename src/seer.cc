@@ -16,19 +16,35 @@
 */
 
 #include <uci.h>
+#include <mcts.h>
 
 #include <chrono>
 #include <iostream>
 #include <string>
 
-int main(int argc, char* argv[]) {
-  engine::uci uci{};
+int main() {
+  auto constants = std::make_shared<search::search_constants>();
+  auto tt = std::make_shared<search::transposition_table>(128);
+  auto weights = std::make_shared<nnue::weights>();
+  nnue::embedded_weight_streamer embedded(embed::weights_file_data);
+  weights->load(embedded);
 
-  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if (perform_bench) {
-    uci.bench();
-    return 0;
+  auto walker = std::make_unique<mcts::tree_walker>(weights.get(), tt, constants);
+
+  std::string fen{};
+  std::getline(std::cin, fen);
+  const auto state = chess::board::parse_fen(fen);
+  const auto history = chess::position_history{};
+
+  walker->worker_.go(history, state, mcts::parameters::ab_search_start_depth);
+  walker->worker_.iterative_deepening_loop();
+
+  mcts::tree_node tree(nullptr, mcts::index_type{}, walker->worker_.policy<mcts::probability_type>());
+
+  const chess::move_list list = state.generate_moves<chess::generation_mode::all>();
+  for (size_t i(0); i < 8192; ++i) {
+    walker->walk(history, state, &tree); 
+    std::cout << list[tree.best_index()].name(state.turn()) << std::endl;
+    std::cout << tree.q_value() << std::endl;
   }
-
-  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
 }
