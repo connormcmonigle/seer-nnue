@@ -130,7 +130,7 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
 
     const parameter_type value =
         search::logit_scale<parameter_type> * std::clamp(eval, search::min_logit<parameter_type>, search::max_logit<parameter_type>);
-    return static_cast<search::score_type>(value);
+    return static_cast<search::score_type>(std::round(value));
   }
 
   eval next_child() const {
