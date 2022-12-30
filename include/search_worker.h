@@ -453,11 +453,12 @@ struct search_worker {
           depth_type reduction = external.constants->reduction(depth, idx);
 
           // adjust reduction
+          if (improving) { --reduction; }
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
-          if (improving) { --reduction; }
           if (bd.creates_threat(mv)) { --reduction; }
           if (mv == killer || mv == parent_killer) { --reduction; }
+
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
           if (!bd.see_ge(mv, 0) && mv.is_quiet()) { ++reduction; }
