@@ -37,6 +37,7 @@ constexpr std::uint32_t make_positive(const std::int32_t& x) {
 }
 
 struct move_orderer_data {
+  chess::move parent_killer{chess::move::null()};
   chess::move killer{chess::move::null()};
   chess::move follow{chess::move::null()};
   chess::move counter{chess::move::null()};
@@ -49,6 +50,11 @@ struct move_orderer_data {
 
   move_orderer_data& set_killer(const chess::move& mv) {
     killer = mv;
+    return *this;
+  }
+
+  move_orderer_data& set_parent_killer(const chess::move& mv) {
+    parent_killer = mv;
     return *this;
   }
 
@@ -77,9 +83,9 @@ struct move_orderer_data {
 
 struct move_orderer_entry {
   using value_ = bit::range<std::uint32_t, 0, 32>;
-  using killer_ = bit::next_flag<value_>;
+  using parent_killer_ = bit::next_flag<value_>;
+  using killer_ = bit::next_flag<parent_killer_>;
   using positive_noisy_ = bit::next_flag<killer_>;
-  using first_ = bit::next_flag<positive_noisy_>;
 
   chess::move mv;
   std::uint64_t data_;
@@ -87,18 +93,22 @@ struct move_orderer_entry {
   const std::uint64_t& sort_key() const { return data_; }
 
   move_orderer_entry() = default;
-  move_orderer_entry(const chess::move& mv_, bool is_positive_noisy, bool is_killer, std::int32_t value) : mv{mv_}, data_{0} {
+  move_orderer_entry(
+      const chess::move& mv_, const bool& is_positive_noisy, const bool& is_killer, const bool& is_parent_killer, const std::int32_t& value)
+      : mv{mv_}, data_{0} {
     positive_noisy_::set(data_, is_positive_noisy);
     killer_::set(data_, is_killer);
+    parent_killer_::set(data_, is_parent_killer);
     value_::set(data_, make_positive(value));
   }
 
   static inline move_orderer_entry make_noisy(const chess::move& mv, const bool positive_noisy, const std::int32_t& history_value) {
-    return move_orderer_entry(mv, positive_noisy, false, positive_noisy ? mv.mvv_lva_key<std::int32_t>() : history_value);
+    return move_orderer_entry(mv, positive_noisy, false, false, positive_noisy ? mv.mvv_lva_key<std::int32_t>() : history_value);
   }
 
-  static inline move_orderer_entry make_quiet(const chess::move& mv, const chess::move& killer, const std::int32_t& history_value) {
-    return move_orderer_entry(mv, false, mv == killer, history_value);
+  static inline move_orderer_entry make_quiet(
+      const chess::move& mv, const chess::move& killer, const chess::move& parent_killer, const std::int32_t& history_value) {
+    return move_orderer_entry(mv, false, mv == killer, mv == parent_killer, history_value);
   }
 };
 
@@ -130,7 +140,7 @@ struct move_orderer_stepper {
 
     end_ = std::transform(list.begin(), list.end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
       if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see_gt(mv, 0), data.hh->compute_value(ctxt, mv)); }
-      return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
+      return move_orderer_entry::make_quiet(mv, data.killer, data.parent_killer, data.hh->compute_value(ctxt, mv));
     });
 
     end_ = std::remove_if(begin_, end_, [&data](const auto& entry) { return entry.mv == data.first; });

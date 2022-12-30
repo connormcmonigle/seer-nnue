@@ -111,6 +111,7 @@ struct stack_view {
   }
 
   chess::move killer() const { return view_->at(height_).killer_; }
+  chess::move parent_killer() const { return (height_ >= 2) ? view_->at(height_ - 2).killer_ : chess::move::null(); }
 
   chess::move excluded() const { return view_->at(height_).excluded_; }
 

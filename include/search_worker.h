@@ -334,12 +334,17 @@ struct search_worker {
     }
 
     // step 9. initialize move orderer (setting tt move first if applicable)
+    const chess::move parent_killer = ss.parent_killer();
     const chess::move killer = ss.killer();
     const chess::move follow = ss.follow();
     const chess::move counter = ss.counter();
 
-    move_orderer<chess::generation_mode::all> orderer(
-        move_orderer_data(&bd, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter).set_threatened(threatened));
+    move_orderer<chess::generation_mode::all> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn()))
+                                                          .set_parent_killer(parent_killer)
+                                                          .set_killer(killer)
+                                                          .set_follow(follow)
+                                                          .set_counter(counter)
+                                                          .set_threatened(threatened));
 
     if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
 
