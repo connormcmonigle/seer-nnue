@@ -457,6 +457,7 @@ struct search_worker {
           if (bd.is_passed_push(mv)) { --reduction; }
           if (improving) { --reduction; }
           if (bd.creates_threat(mv)) { --reduction; }
+          if (mv == killer || mv == parent_killer) { --reduction; }
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
           if (!bd.see_ge(mv, 0) && mv.is_quiet()) { ++reduction; }
