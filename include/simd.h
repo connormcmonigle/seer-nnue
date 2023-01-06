@@ -17,7 +17,9 @@
 
 #pragma once
 
+#if !defined(MAC_OS)
 #include <x86intrin.h>
+#endif // MACOS
 
 #include <cstdint>
 #include <cstdlib>

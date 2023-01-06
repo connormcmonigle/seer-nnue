@@ -12,7 +12,19 @@ INCBIN = ../incbin
 SYZYGY = ../syzygy
 
 CXXFLAGS += -std=c++$(CXXSTANDARD)
-CXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp
+CXXFLAGS += -O3 -g -DNDEBUG
+
+OS_SPECIFIC = -march=native -mtune=native -fopenmp
+
+ifneq ($(OS),Windows_NT)
+	UNAME_S := $(shell uname -s)
+endif
+
+ifeq ($(UNAME_S),Darwin)
+	OS_SPECIFIC = -mcpu=apple-a14 -DMAC_OS
+endif
+
+CXXFLAGS += $(OS_SPECIFIC)
 CXXFLAGS += -Wall -Wextra -Wpedantic
 CXXFLAGS += -fconstexpr-steps=$(OPSLIMIT)
 CXXFLAGS += -I$(INCLUDE) -I$(INCBIN) -I$(SYZYGY)
