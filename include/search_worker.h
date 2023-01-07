@@ -18,8 +18,8 @@
 #pragma once
 
 #include <board.h>
-#include <eval_cache.h>
 #include <history_heuristic.h>
+#include <local_cache.h>
 #include <move.h>
 #include <move_orderer.h>
 #include <nnue_model.h>
@@ -61,6 +61,7 @@ struct internal_state {
   nnue::eval::scratchpad_type scratchpad{};
   sided_history_heuristic hh{};
   eval_cache cache{};
+  multicut_cache mc_cache{};
   std::unordered_map<chess::move, size_t, chess::move_hash> node_distribution{};
 
   std::atomic_bool go{false};
@@ -260,6 +261,10 @@ struct search_worker {
       if (const syzygy::tb_dtz_result result = syzygy::probe_dtz(bd); result.success) { return make_result(result.score, result.move); }
     }
 
+    const std::optional<multicut_info> mc_info = internal.mc_cache.find(bd.hash());
+    const bool mc_cache_prune = !is_pv && !ss.has_excluded() && mc_info.has_value() && mc_info->depth >= depth && mc_info->score >= beta;
+    if (mc_cache_prune) { return make_result(beta, chess::move::null()); }
+
     const score_type original_alpha = alpha;
 
     const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
@@ -397,6 +402,7 @@ struct search_worker {
 
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
+      internal.mc_cache.prefetch(bd_.hash());
       nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
 
       // step 11. extensions
@@ -419,7 +425,10 @@ struct search_worker {
           }
           if (excluded_score < singular_beta) { return 1; }
 
-          if (excluded_score >= beta) { multicut = true; }
+          if (excluded_score >= beta) {
+            internal.mc_cache.insert(bd.hash(), multicut_info{excluded_score, depth});
+            multicut = true;
+          }
         }
 
         return 0;
@@ -452,7 +461,6 @@ struct search_worker {
           if (bd_.is_check()) { --reduction; }
           if (bd.is_passed_push(mv)) { --reduction; }
           if (bd.creates_threat(mv)) { --reduction; }
-          if (mv == killer) { --reduction; }
 
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
