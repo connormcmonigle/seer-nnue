@@ -262,7 +262,7 @@ struct search_worker {
     }
 
     const std::optional<multicut_info> mc_info = internal.mc_cache.find(bd.hash());
-    const bool mc_cache_prune = !is_pv && !ss.has_excluded() && mc_info.has_value() && mc_info->depth >= depth && mc_info->score >= beta;
+    const bool mc_cache_prune = !is_pv && !ss.has_excluded() && mc_info.has_value() && mc_info->depth >= depth + 1 && mc_info->score >= beta;
     if (mc_cache_prune) { return make_result(beta, chess::move::null()); }
 
     const score_type original_alpha = alpha;
