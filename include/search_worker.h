@@ -513,7 +513,8 @@ struct search_worker {
       external.tt->insert(entry);
     }
 
-    return make_result(best_score, best_move);
+    const score_type corrected_score = depth < external.constants->reduce_depth() ? std::max(static_value, best_score) : best_score;
+    return make_result(corrected_score, best_move);
   }
 
   void iterative_deepening_loop() {
