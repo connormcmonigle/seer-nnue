@@ -129,8 +129,8 @@ struct fixed_search_constants {
   }
 
   constexpr int lmp_count(const bool& improving, const depth_type& depth) const {
-    constexpr std::array<int, 8> improving_counts = {0, 5, 8, 12, 20, 30, 42, 65};
-    constexpr std::array<int, 8> worsening_counts = {0, 3, 4, 8, 10, 13, 21, 31};
+    constexpr std::array<int, 8> improving_counts = {0, 5, 7, 11, 19, 29, 41, 64};
+    constexpr std::array<int, 8> worsening_counts = {0, 3, 4, 7, 9, 11, 19, 29};
     return improving ? improving_counts[depth] : worsening_counts[depth];
   }
 
