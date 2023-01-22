@@ -372,7 +372,7 @@ struct search_worker {
 
       // step 10. pruning
       if (try_pruning) {
-        const bool lm_prune = depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { break; }
 
