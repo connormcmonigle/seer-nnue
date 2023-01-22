@@ -367,11 +367,12 @@ struct search_worker {
 
       const chess::board bd_ = bd.forward(mv);
 
-      const bool try_pruning = !is_root && idx >= 2 && best_score > max_mate_score;
+      const bool static_value_satisfied = maybe.has_value() || depth >= 6 || best_score + 512 >= static_value;
+      const bool try_pruning = !is_root && idx >= 2 && static_value_satisfied && best_score > max_mate_score;
 
       // step 10. pruning
       if (try_pruning) {
-        const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune = depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
         if (lm_prune) { break; }
 
