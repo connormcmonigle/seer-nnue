@@ -129,9 +129,7 @@ struct fixed_search_constants {
   }
 
   constexpr int lmp_count(const bool& improving, const depth_type& depth) const {
-    constexpr std::array<int, 8> improving_counts = {0, 5, 8, 12, 20, 30, 42, 65};
-    constexpr std::array<int, 8> worsening_counts = {0, 3, 4, 8, 10, 13, 21, 31};
-    return improving ? improving_counts[depth] : worsening_counts[depth];
+    return improving ? (1 + depth * depth) : (1 + depth * depth) / 2;
   }
 
   constexpr see_type quiet_see_prune_threshold(const depth_type& depth) const { return -50 * static_cast<see_type>(depth); }
