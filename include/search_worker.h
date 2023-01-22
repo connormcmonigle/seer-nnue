@@ -319,6 +319,8 @@ struct search_worker {
     if (snm_prune) { return make_result(value, chess::move::null()); }
 
     // step 8. null move pruning
+    bool failed_nmp_search{false};
+
     const bool try_nmp =
         !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
         bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
@@ -331,6 +333,7 @@ struct search_worker {
       const score_type nmp_score =
           -pv_search<false>(ss.next(), eval_node, bd.forward(chess::move::null()), -beta, -beta + 1, adjusted_depth, chess::player_from(!bd.turn()));
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
+      failed_nmp_search = true;
     }
 
     // step 9. initialize move orderer (setting tt move first if applicable)
@@ -421,6 +424,9 @@ struct search_worker {
 
           if (excluded_score >= beta) { multicut = true; }
         }
+
+        const bool is_important = failed_nmp_search && depth >= 8 && maybe.has_value() && mv == maybe->best_move() && maybe->depth() + 3 >= depth;
+        if (is_important) { return 1; }
 
         return 0;
       }();
