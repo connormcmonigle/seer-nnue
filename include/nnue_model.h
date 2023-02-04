@@ -39,19 +39,24 @@ struct weights {
   static constexpr parameter_type shared_quantization_scale = static_cast<parameter_type>(512);
   static constexpr parameter_type fc0_weight_quantization_scale = static_cast<parameter_type>(1024);
   static constexpr parameter_type fc0_bias_quantization_scale = shared_quantization_scale * fc0_weight_quantization_scale;
-  static constexpr parameter_type dequantization_scale = static_cast<parameter_type>(1) / (shared_quantization_scale * fc0_weight_quantization_scale);
+
+  static constexpr parameter_type pool_dequantization_scale = static_cast<parameter_type>(1) / shared_quantization_scale;
+  static constexpr parameter_type fc0_dequantization_scale =
+      static_cast<parameter_type>(1) / (shared_quantization_scale * fc0_weight_quantization_scale);
 
   weights_streamer::signature_type signature_{0};
   big_affine<parameter_type, feature::half_ka::numel, base_dim> shared{};
   big_affine<quantized_parameter_type, feature::half_ka::numel, base_dim> quantized_shared{};
 
+  relu_local_average_pool<quantized_parameter_type, 2 * base_dim, 8> pool{};
+
   stack_relu_affine<parameter_type, 2 * base_dim, 8> fc0{};
   stack_relu_affine<quantized_parameter_type, 2 * base_dim, 8> white_quantized_fc0{};
   stack_relu_affine<quantized_parameter_type, 2 * base_dim, 8> black_quantized_fc0{};
 
-  stack_relu_affine<parameter_type, 8, 8> fc1{};
-  stack_relu_affine<parameter_type, 16, 8> fc2{};
-  stack_relu_affine<parameter_type, 24, 1> fc3{};
+  stack_relu_affine<parameter_type, 16, 16> fc1{};
+  stack_relu_affine<parameter_type, 32, 16> fc2{};
+  stack_relu_affine<parameter_type, 48, 1> fc3{};
 
   size_t signature() const { return signature_; }
 
@@ -111,10 +116,14 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
   feature_transformer<quantized_parameter_type> black;
 
   inline parameter_type propagate(const bool pov) const {
-    const auto x1 = (pov ? weights_->white_quantized_fc0 : weights_->black_quantized_fc0)
-                        .forward(base_)
-                        .dequantized<parameter_type>(weights::dequantization_scale);
+    const auto x1_0 = (pov ? weights_->pool.forward(base_) : weights_->pool.forward(base_).half_swap_())
+                        .dequantized<parameter_type>(weights::pool_dequantization_scale);
 
+    const auto x1_1 = (pov ? weights_->white_quantized_fc0 : weights_->black_quantized_fc0)
+                        .forward(base_)
+                        .dequantized<parameter_type>(weights::fc0_dequantization_scale);
+
+    const auto x1 = splice(x1_0, x1_1);
     const auto x2 = splice(x1, weights_->fc1.forward(x1));
     const auto x3 = splice(x2, weights_->fc2.forward(x2));
     return weights_->fc3.forward(x3).item();

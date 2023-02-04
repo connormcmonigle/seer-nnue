@@ -116,6 +116,14 @@ struct stack_vector {
     return *this;
   }
 
+  inline stack_vector<T, dim>& half_swap_() {
+    static_assert(dim % 2 == 0);
+    constexpr size_t half_dim = dim / 2;
+#pragma omp simd
+    for (size_t i = 0; i < half_dim; ++i) { std::swap(data[i], data[i + half_dim]); }
+    return *this;
+  }
+
   inline stack_vector<T, dim>& add_(const T* other) {
     simd::add<dim>(data, other);
     return *this;
@@ -194,6 +202,26 @@ inline stack_vector<T, dim0 + dim1> splice(const stack_vector<T, dim0>& a, const
   for (size_t i = 0; i < dim1; ++i) { c.data[dim0 + i] = b.data[i]; }
   return c;
 }
+
+template <typename T, size_t dim0, size_t dim1>
+struct relu_local_average_pool {
+  static constexpr size_t N = dim0 / dim1;
+
+  static_assert(dim0 % dim1 == 0, "dim0 must divide dim1");
+  static_assert((N != 0) && ((N & (N - 1)) == 0), "N must be a power of 2");
+
+  inline stack_vector<dot_type<T>, dim1> forward(const stack_vector<T, dim0>& x) const {
+    stack_vector<dot_type<T>, dim1> result{};
+    simd::relu_local_average_pool<dim0, dim1>(x.data, result.data);
+    return result;
+  }
+
+  inline stack_vector<dot_type<T>, dim1> forward(const aligned_slice<T, dim0>& x) const {
+    stack_vector<dot_type<T>, dim1> result{};
+    simd::relu_local_average_pool<dim0, dim1>(x.data, result.data);
+    return result;
+  }
+};
 
 template <typename T, size_t dim0, size_t dim1>
 struct stack_relu_affine {

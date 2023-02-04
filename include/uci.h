@@ -206,6 +206,7 @@ struct uci {
 
     os << "phase: " << position.phase<nnue::weights::parameter_type>() << std::endl;
     os << "score(phase): " << evaluator.evaluate(position.turn(), position.phase<nnue::weights::parameter_type>()) << std::endl;
+    os << "propagate: " << evaluator.propagate(position.turn()) << std::endl;
   }
 
   void probe() {
@@ -287,7 +288,7 @@ struct uci {
               if (manager_.should_stop_on_update(update_info{worker.nodes()})) { stop(); }
             }) {
     nnue::embedded_weight_streamer embedded(embed::weights_file_data);
-    weights_.load(embedded);
+    options().update("setoption name Weights value ../../../seer-training/scripts/model/save.bin");
     orchestrator_.resize(default_thread_count);
   }
 };
