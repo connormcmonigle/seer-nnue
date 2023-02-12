@@ -477,7 +477,7 @@ struct search_worker {
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
       }();
 
-      if (score < beta && (mv.is_quiet() || !bd.see_gt(mv, 0))) { moves_tried.push(mv); }
+      if (!(maybe.has_value() && mv == maybe->best_move()) && score < beta && (mv.is_quiet() || !bd.see_gt(mv, 0))) { moves_tried.push(mv); }
 
       if (score > best_score) {
         best_score = score;
