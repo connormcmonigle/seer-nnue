@@ -519,9 +519,8 @@ struct search_worker {
       }();
 
       if (bound == bound_type::lower) {
-        if (best_move.is_quiet()) { ss.set_killer(best_move); }
-
         if (best_move.is_quiet() || !bd.see_gt(best_move, 0)) {
+          ss.set_killer(best_move);
           internal.regular_hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, regular_moves_tried, depth);
         } else {
           internal.special_hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, special_moves_tried, depth);
