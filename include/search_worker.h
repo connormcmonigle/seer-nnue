@@ -509,8 +509,13 @@ struct search_worker {
         ss.set_killer(best_move);
       }
 
-      const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);
+      const bool is_lossy =
+          !is_pv && maybe.has_value() && maybe->depth() + 1 >= depth && maybe->bound() == bound_type::lower && bound == bound_type::upper;
+
+      const chess::move move_to_persist = is_lossy ? maybe->best_move() : best_move;
+      const transposition_table_entry entry(bd.hash(), bound, best_score, move_to_persist, depth);
       external.tt->insert(entry);
+      
     }
 
     return make_result(best_score, best_move);
