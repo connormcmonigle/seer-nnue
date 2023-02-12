@@ -504,9 +504,11 @@ struct search_worker {
         return bound_type::upper;
       }();
 
-      if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
-        internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
-        ss.set_killer(best_move);
+      if (bound == bound_type::lower) {
+        if (best_move.is_quiet()) { ss.set_killer(best_move); }
+        if (best_move.is_quiet() || !bd.see_gt(best_move, 0)) {
+          internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
+        }
       }
 
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);
