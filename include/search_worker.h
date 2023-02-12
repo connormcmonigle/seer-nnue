@@ -59,7 +59,9 @@ struct search_worker;
 struct internal_state {
   search_stack stack{chess::position_history{}, chess::board::start_pos()};
   nnue::eval::scratchpad_type scratchpad{};
-  sided_history_heuristic hh{};
+  sided_history_heuristic<regular_history_heuristic> regular_hh{};
+  sided_history_heuristic<special_history_heuristic> special_hh{};
+
   eval_cache cache{};
   std::unordered_map<chess::move, size_t, chess::move_hash> node_distribution{};
 
@@ -84,7 +86,8 @@ struct internal_state {
 
   void reset() {
     stack = search_stack{chess::position_history{}, chess::board::start_pos()};
-    hh.clear();
+    regular_hh.clear();
+    special_hh.clear();
     cache.clear();
     node_distribution.clear();
 
@@ -164,7 +167,8 @@ struct search_worker {
     if (!is_check && value >= beta) { return value; }
     if (ss.reached_max_height()) { return value; }
 
-    move_orderer<chess::generation_mode::noisy_and_check> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
+    move_orderer<chess::generation_mode::noisy_and_check> orderer(
+        move_orderer_data(&bd, &internal.regular_hh.us(bd.turn()), &internal.special_hh.us(bd.turn())));
     if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
 
     alpha = std::max(alpha, value);
@@ -338,13 +342,17 @@ struct search_worker {
     const chess::move follow = ss.follow();
     const chess::move counter = ss.counter();
 
-    move_orderer<chess::generation_mode::all> orderer(
-        move_orderer_data(&bd, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter).set_threatened(threatened));
+    move_orderer<chess::generation_mode::all> orderer(move_orderer_data(&bd, &internal.regular_hh.us(bd.turn()), &internal.special_hh.us(bd.turn()))
+                                                          .set_killer(killer)
+                                                          .set_follow(follow)
+                                                          .set_counter(counter)
+                                                          .set_threatened(threatened));
 
     if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
 
     // list of attempted moves for updating histories
-    chess::move_list moves_tried{};
+    chess::move_list regular_moves_tried{};
+    chess::move_list special_moves_tried{};
 
     // move loop
     score_type best_score = ss.loss_score();
@@ -363,7 +371,7 @@ struct search_worker {
       const size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
       ss.set_played(mv);
 
-      const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
+      const counter_type history_value = internal.regular_hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
 
       const chess::board bd_ = bd.forward(mv);
 
@@ -477,7 +485,13 @@ struct search_worker {
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
       }();
 
-      if (score < beta && (mv.is_quiet() || !bd.see_gt(mv, 0))) { moves_tried.push(mv); }
+      if (score < beta) {
+        if (mv.is_quiet() || !bd.see_gt(mv, 0)) {
+          regular_moves_tried.push(mv);
+        } else {
+          special_moves_tried.push(mv);
+        }
+      }
 
       if (score > best_score) {
         best_score = score;
@@ -504,9 +518,14 @@ struct search_worker {
         return bound_type::upper;
       }();
 
-      if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
-        internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
-        ss.set_killer(best_move);
+      if (bound == bound_type::lower) {
+        if (best_move.is_quiet()) { ss.set_killer(best_move); }
+
+        if (best_move.is_quiet() || !bd.see_gt(best_move, 0)) {
+          internal.regular_hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, regular_moves_tried, depth);
+        } else {
+          internal.special_hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, special_moves_tried, depth);
+        }
       }
 
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);

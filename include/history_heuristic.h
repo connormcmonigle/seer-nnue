@@ -169,12 +169,15 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic =
+using regular_history_heuristic =
     history::combined<history::butterfly_info, history::threatened_info, history::counter_info, history::follow_info, history::capture_info>;
 
-struct sided_history_heuristic : chess::sided<sided_history_heuristic, history_heuristic> {
-  history_heuristic white;
-  history_heuristic black;
+using special_history_heuristic = history::combined<history::capture_info>;
+
+template <typename T>
+struct sided_history_heuristic : chess::sided<sided_history_heuristic<T>, T> {
+  T white;
+  T black;
 
   sided_history_heuristic& clear() {
     white.clear();
@@ -184,5 +187,7 @@ struct sided_history_heuristic : chess::sided<sided_history_heuristic, history_h
 
   sided_history_heuristic() : white{}, black{} {}
 };
+
+
 
 }  // namespace search
