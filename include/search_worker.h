@@ -497,6 +497,8 @@ struct search_worker {
     if (legal_count == 0) { return make_result(draw_score, chess::move::null()); }
 
     // step 13. update histories if appropriate and maybe insert a new transposition_table_entry
+    if constexpr (is_pv) { ++depth; }
+    
     if (internal.keep_going() && !ss.has_excluded()) {
       const bound_type bound = [&] {
         if (best_score >= beta) { return bound_type::lower; }
