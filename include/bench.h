@@ -102,9 +102,10 @@ std::ostream& operator<<(std::ostream& os, const bench_info& info) { return os <
 bench_info get_bench_info(const nnue::weights& weights) {
   using worker_type = search::search_worker;
   std::shared_ptr<search::search_constants> constants = std::make_shared<search::search_constants>(1);
-  std::shared_ptr<search::transposition_table> tt = std::make_shared<search::transposition_table>(bench_config::tt_mb_size);
+  std::shared_ptr<search::transposition_table> ub_tt = std::make_shared<search::transposition_table>(bench_config::tt_mb_size);
+  std::shared_ptr<search::transposition_table> lb_tt = std::make_shared<search::transposition_table>(bench_config::tt_mb_size);
 
-  std::unique_ptr<worker_type> worker = std::make_unique<worker_type>(&weights, tt, constants, [&](const auto& w) {
+  std::unique_ptr<worker_type> worker = std::make_unique<worker_type>(&weights, ub_tt, lb_tt, constants, [&](const auto& w) {
     if (w.depth() >= bench_config::bench_depth) { worker->stop(); }
   });
 

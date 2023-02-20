@@ -99,23 +99,33 @@ struct internal_state {
 
 struct external_state {
   const nnue::weights* weights;
-  std::shared_ptr<transposition_table> tt;
+  std::shared_ptr<transposition_table> ub_tt;
+  std::shared_ptr<transposition_table> lb_tt;
+
   std::shared_ptr<search_constants> constants;
   std::function<void(const search_worker&)> on_iter;
   std::function<void(const search_worker&)> on_update;
 
   external_state(
       const nnue::weights* weights_,
-      std::shared_ptr<transposition_table> tt_,
+      std::shared_ptr<transposition_table> ub_tt_,
+      std::shared_ptr<transposition_table> lb_tt_,
       std::shared_ptr<search_constants> constants_,
       std::function<void(const search_worker&)>& on_iter_,
       std::function<void(const search_worker&)> on_update_)
-      : weights{weights_}, tt{tt_}, constants{constants_}, on_iter{on_iter_}, on_update{on_update_} {}
+      : weights{weights_}, ub_tt{ub_tt_}, lb_tt{lb_tt_}, constants{constants_}, on_iter{on_iter_}, on_update{on_update_} {}
 };
 
 struct search_worker {
   external_state external;
   internal_state internal{};
+
+  std::optional<transposition_table_entry> select_entry(
+      const std::optional<transposition_table_entry>& a, const std::optional<transposition_table_entry>& b) const {
+    if (!a.has_value()) { return b; }
+    if (!b.has_value()) { return a; }
+    return a->depth() > b->depth() ? a : b;
+  }
 
   template <bool is_pv, bool use_tt = true>
   score_type q_search(
@@ -135,13 +145,24 @@ struct search_worker {
     if (ss.is_two_fold(bd.hash())) { return draw_score; }
     if (bd.is_trivially_drawn()) { return draw_score; }
 
-    const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
-    if (maybe.has_value()) {
-      const transposition_table_entry entry = maybe.value();
+    const std::optional<transposition_table_entry> ub_tte = external.ub_tt->find(bd.hash());
+    const std::optional<transposition_table_entry> lb_tte = external.lb_tt->find(bd.hash());
+
+    if (ub_tte.has_value()) {
+      const transposition_table_entry entry = ub_tte.value();
       const bool is_cutoff = (entry.bound() == bound_type::lower && entry.score() >= beta) || (entry.bound() == bound_type::exact) ||
                              (entry.bound() == bound_type::upper && entry.score() <= alpha);
       if (use_tt && is_cutoff) { return entry.score(); }
     }
+
+    if (lb_tte.has_value()) {
+      const transposition_table_entry entry = lb_tte.value();
+      const bool is_cutoff = (entry.bound() == bound_type::lower && entry.score() >= beta) || (entry.bound() == bound_type::exact) ||
+                             (entry.bound() == bound_type::upper && entry.score() <= alpha);
+      if (use_tt && is_cutoff) { return entry.score(); }
+    }
+
+    const std::optional<transposition_table_entry> maybe = select_entry(ub_tte, lb_tte);
 
     const auto [static_value, value] = [&] {
       const auto maybe_eval = internal.cache.find(bd.hash());
@@ -153,6 +174,7 @@ struct search_worker {
       if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
 
       score_type value = static_value;
+
       if (use_tt && maybe.has_value()) {
         if (maybe->bound() == bound_type::upper && static_value > maybe->score()) { value = maybe->score(); }
         if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
@@ -192,7 +214,9 @@ struct search_worker {
       ss.set_played(mv);
 
       const chess::board bd_ = bd.forward(mv);
-      external.tt->prefetch(bd_.hash());
+
+      external.ub_tt->prefetch(bd_.hash());
+      external.lb_tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
       nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
 
@@ -216,7 +240,12 @@ struct search_worker {
     if (use_tt && internal.keep_going()) {
       const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
-      external.tt->insert(entry);
+
+      if (bound == bound_type::lower) {
+        external.lb_tt->insert(entry);
+      } else {
+        external.ub_tt->insert(entry);
+      }
     }
 
     return best_score;
@@ -262,9 +291,19 @@ struct search_worker {
 
     const score_type original_alpha = alpha;
 
-    const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
-    if (maybe.has_value()) {
-      const transposition_table_entry entry = maybe.value();
+    const std::optional<transposition_table_entry> ub_tte = !ss.has_excluded() ? external.ub_tt->find(bd.hash()) : std::nullopt;
+    const std::optional<transposition_table_entry> lb_tte = !ss.has_excluded() ? external.lb_tt->find(bd.hash()) : std::nullopt;
+
+    if (ub_tte.has_value()) {
+      const transposition_table_entry entry = ub_tte.value();
+      const bool is_cutoff = !is_pv && entry.depth() >= depth &&
+                             ((entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
+                              (entry.bound() == bound_type::upper && entry.score() <= alpha));
+      if (is_cutoff) { return make_result(entry.score(), entry.best_move()); }
+    }
+
+    if (lb_tte.has_value()) {
+      const transposition_table_entry entry = lb_tte.value();
       const bool is_cutoff = !is_pv && entry.depth() >= depth &&
                              ((entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
                               (entry.bound() == bound_type::upper && entry.score() <= alpha));
@@ -281,8 +320,10 @@ struct search_worker {
       }
     }
 
+    const std::optional<transposition_table_entry> maybe = select_entry(ub_tte, lb_tte);
+
     // step 3. internal iterative reductions
-    const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
+    const bool should_iir = !ub_tte.has_value() && !lb_tte.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
     if (should_iir) { --depth; }
 
     // step 4. compute static eval and adjust appropriately if there's a tt hit
@@ -395,7 +436,8 @@ struct search_worker {
         if (history_prune) { continue; }
       }
 
-      external.tt->prefetch(bd_.hash());
+      external.lb_tt->prefetch(bd_.hash());
+      external.ub_tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
       nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
 
@@ -510,7 +552,12 @@ struct search_worker {
       }
 
       const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);
-      external.tt->insert(entry);
+
+      if (bound == bound_type::lower) {
+        external.lb_tt->insert(entry);
+      } else {
+        external.ub_tt->insert(entry);
+      }
     }
 
     return make_result(best_score, best_move);
@@ -602,11 +649,12 @@ struct search_worker {
 
   search_worker(
       const nnue::weights* weights,
-      std::shared_ptr<transposition_table> tt,
+      std::shared_ptr<transposition_table> ub_tt,
+      std::shared_ptr<transposition_table> lb_tt,
       std::shared_ptr<search_constants> constants,
       std::function<void(const search_worker&)> on_iter = [](auto&&...) {},
       std::function<void(const search_worker&)> on_update = [](auto&&...) {})
-      : external(weights, tt, constants, on_iter, on_update) {}
+      : external(weights, ub_tt, lb_tt, constants, on_iter, on_update) {}
 };
 
 }  // namespace search

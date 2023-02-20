@@ -31,7 +31,9 @@ struct worker_orchestrator {
   static constexpr size_t primary_id = 0;
 
   const nnue::weights* weights_;
-  std::shared_ptr<transposition_table> tt_{nullptr};
+  std::shared_ptr<transposition_table> ub_tt_{nullptr};
+  std::shared_ptr<transposition_table> lb_tt_{nullptr};
+
   std::shared_ptr<search_constants> constants_{nullptr};
 
   std::mutex access_mutex_{};
@@ -40,7 +42,8 @@ struct worker_orchestrator {
   std::vector<std::thread> threads_{};
 
   void reset() {
-    tt_->clear();
+    ub_tt_->clear();
+    lb_tt_->clear();
     for (auto& worker : workers_) { worker->internal.reset(); };
   }
 
@@ -48,7 +51,7 @@ struct worker_orchestrator {
     constants_->update_(new_size);
     const size_t old_size = workers_.size();
     workers_.resize(new_size);
-    for (size_t i(old_size); i < new_size; ++i) { workers_[i] = std::make_unique<search_worker>(weights_, tt_, constants_); }
+    for (size_t i(old_size); i < new_size; ++i) { workers_[i] = std::make_unique<search_worker>(weights_, ub_tt_, lb_tt_, constants_); }
   }
 
   void go(const chess::position_history& hist, const chess::board& bd) {
@@ -57,7 +60,9 @@ struct worker_orchestrator {
     std::for_each(threads_.begin(), threads_.end(), [](auto& thread) { thread.join(); });
     threads_.clear();
 
-    tt_->update_gen();
+    ub_tt_->update_gen();
+    lb_tt_->update_gen();
+
     for (size_t i(0); i < workers_.size(); ++i) {
       const depth_type start_depth = 1 + static_cast<depth_type>(i % 2);
       workers_[i]->go(hist, bd, start_depth);
@@ -99,9 +104,11 @@ struct worker_orchestrator {
       std::function<void(const search_worker&)> on_iter = [](auto&&...) {},
       std::function<void(const search_worker&)> on_update = [](auto&&...) {}) {
     weights_ = weights;
-    tt_ = std::make_shared<transposition_table>(hash_table_size);
+    ub_tt_ = std::make_shared<transposition_table>(hash_table_size);
+    lb_tt_ = std::make_shared<transposition_table>(hash_table_size);
+
     constants_ = std::make_shared<search_constants>();
-    workers_.push_back(std::make_unique<search_worker>(weights, tt_, constants_, on_iter, on_update));
+    workers_.push_back(std::make_unique<search_worker>(weights, ub_tt_, lb_tt_, constants_, on_iter, on_update));
   }
 
   ~worker_orchestrator() {
