@@ -333,19 +333,19 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const score_type probcut_beta = beta + 384 - 64 * static_cast<score_type>(improving);
-    const bool try_probcut = !is_pv && !is_check && depth >= 5 && bd.us_threat_mask().any() &&
-                             !(maybe.has_value() && maybe->depth() + 3 >= depth && maybe->score() < probcut_beta);
+    const depth_type probcut_depth = depth - 3;
+    const score_type probcut_beta = beta + 320;
+    const bool try_probcut =
+        !is_pv && !is_check && depth >= 5 && !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
 
     if (try_probcut) {
-      const depth_type probcut_depth = depth - 4;
       move_orderer<chess::generation_mode::noisy_and_check> probcut_orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
       if (maybe.has_value()) { probcut_orderer.set_first(maybe->best_move()); }
 
       for (const auto& [idx, mv] : probcut_orderer) {
         if (!internal.keep_going()) { break; }
         if (mv == ss.excluded()) { continue; }
-        if (!(maybe.has_value() && mv == maybe->best_move()) && !bd.see_ge(mv, 0)) { break; }
+        if (!bd.see_ge(mv, 0)) { continue; }
 
         ss.set_played(mv);
 
@@ -355,7 +355,7 @@ struct search_worker {
         nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
 
         score_type probcut_score = -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0);
-        
+
         if (probcut_score >= probcut_beta) {
           probcut_score = -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer);
         }
