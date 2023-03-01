@@ -354,11 +354,17 @@ struct search_worker {
         internal.cache.prefetch(bd_.hash());
         nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
 
-        score_type probcut_score = -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0);
+        auto q_value = [&] { return -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0); };
+        auto pv_value = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
 
-        if (probcut_score >= probcut_beta) {
-          probcut_score = -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer);
-        }
+        const score_type probcut_score = [&] {
+          if (probcut_depth <= 3) { return pv_value(); }
+
+          score_type probcut_value = q_value();
+          if (probcut_value >= probcut_beta) { probcut_value = pv_value(); }
+          
+          return probcut_value;
+        }();
 
         if (probcut_score >= probcut_beta) { return make_result(probcut_score, mv); }
       }
