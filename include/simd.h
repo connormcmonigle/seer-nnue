@@ -130,14 +130,12 @@ inline void relu_matrix_vector_product(const T0* matrix, const T0* input, T1* ou
 }
 
 template <size_t dim0, size_t dim1, typename T0, typename T1>
-inline void relu_local_average_pool(const T0* input, T1* output) {
-  constexpr size_t N = dim0 / dim1;
+inline void relu_reduction_transform(const T0* vector, const T0* input, T1* output) {
+  constexpr size_t group = dim0 / dim1;
 #pragma omp simd
   for (size_t i = 0; i < dim1; ++i) {
-    for (size_t j = 0; j < N; ++j) { output[i] += static_cast<T1>(std::max(input[j + i * N], T0{0})); }
+    for (size_t j = group * i; j < group * i + group; ++j) { output[i] += static_cast<T1>(std::max(input[j], T0{0})) * static_cast<T1>(vector[j]); }
   }
-#pragma omp simd
-  for (size_t i = 0; i < dim1; ++i) { output[i] /= N; }
 }
 
 #if defined(__AVX512BW__)
@@ -515,15 +513,13 @@ inline void relu_matrix_vector_product(const std::int16_t* matrix, const std::in
 }
 
 template <size_t dim0, size_t dim1>
-struct int16_relu_local_average_pool_x16_x8 {
+struct int16_relu_reduction_transform_x16_x8 {
   static constexpr size_t num_units = 8;
   static constexpr bool available = divides<dim1, num_units> && divides<dim0 / dim1, per_unit<vector_256, std::int16_t>>;
 
-  static inline void f(const std::int16_t* input, std::int32_t* output) {
+  static inline void f(const std::int16_t* vector, const std::int16_t* input, std::int32_t* output) {
     constexpr size_t group = dim0 / dim1;
-    const int shift_right = __builtin_ctzll(group);
     const __m256i zero = _mm256_setzero_si256();
-    const __m256i one = _mm256_set_epi16(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
 
     __m256i* v_output = (__m256i*)output;
     constexpr size_t output_step = num_units / per_unit<vector_256, std::int32_t>;
@@ -538,14 +534,14 @@ struct int16_relu_local_average_pool_x16_x8 {
       __m256i sum_7 = _mm256_setzero_si256();
 
       for (size_t j(0); j < group; j += per_unit<vector_256, std::int16_t>) {
-        sum_0 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 0) * group + j))), one), sum_0);
-        sum_1 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 1) * group + j))), one), sum_1);
-        sum_2 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 2) * group + j))), one), sum_2);
-        sum_3 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 3) * group + j))), one), sum_3);
-        sum_4 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 4) * group + j))), one), sum_4);
-        sum_5 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 5) * group + j))), one), sum_5);
-        sum_6 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 6) * group + j))), one), sum_6);
-        sum_7 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 7) * group + j))), one), sum_7);
+        sum_0 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 0) * group + j))), _mm256_load_si256((__m256i*)(vector + (i + 0) * group + j))), sum_0);
+        sum_1 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 1) * group + j))), _mm256_load_si256((__m256i*)(vector + (i + 1) * group + j))), sum_1);
+        sum_2 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 2) * group + j))), _mm256_load_si256((__m256i*)(vector + (i + 2) * group + j))), sum_2);
+        sum_3 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 3) * group + j))), _mm256_load_si256((__m256i*)(vector + (i + 3) * group + j))), sum_3);
+        sum_4 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 4) * group + j))), _mm256_load_si256((__m256i*)(vector + (i + 4) * group + j))), sum_4);
+        sum_5 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 5) * group + j))), _mm256_load_si256((__m256i*)(vector + (i + 5) * group + j))), sum_5);
+        sum_6 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 6) * group + j))), _mm256_load_si256((__m256i*)(vector + (i + 6) * group + j))), sum_6);
+        sum_7 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + (i + 7) * group + j))), _mm256_load_si256((__m256i*)(vector + (i + 7) * group + j))), sum_7);
       }
 
       const __m256i sum_01 = _mm256_hadd_epi32(sum_0, sum_1);
@@ -559,14 +555,14 @@ struct int16_relu_local_average_pool_x16_x8 {
       const __m256i sum_01234567 =
           _mm256_add_epi32(_mm256_permute2f128_si256(sum_0123, sum_4567, 0x20), _mm256_permute2f128_si256(sum_0123, sum_4567, 0x31));
 
-      *v_output = _mm256_srai_epi32(sum_01234567, shift_right);
+      *v_output = _mm256_add_epi32(*v_output, sum_01234567);
     }
   }
 };
 
 template <size_t dim0, size_t dim1>
-inline void relu_local_average_pool(const std::int16_t* input, std::int32_t* output) {
-  return overload_set<int16_relu_local_average_pool_x16_x8<dim0, dim1>>::f(input, output);
+inline void relu_reduction_transform(const std::int16_t* vector, const std::int16_t* input, std::int32_t* output) {
+  return overload_set<int16_relu_reduction_transform_x16_x8<dim0, dim1>>::f(vector, input, output);
 }
 
 #elif defined(__SSSE3__)

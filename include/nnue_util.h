@@ -204,21 +204,57 @@ inline stack_vector<T, dim0 + dim1> splice(const stack_vector<T, dim0>& a, const
 }
 
 template <typename T, size_t dim0, size_t dim1>
-struct relu_local_average_pool {
+struct stack_relu_reduction {
   static constexpr size_t N = dim0 / dim1;
 
   static_assert(dim0 % dim1 == 0, "dim0 must divide dim1");
   static_assert((N != 0) && ((N & (N - 1)) == 0), "N must be a power of 2");
 
+  static constexpr size_t W_numel = dim0;
+  static constexpr size_t b_numel = dim1;
+
+  alignas(simd::alignment) T W[W_numel];
+  alignas(simd::alignment) dot_type<T> b[b_numel];
+
   inline stack_vector<dot_type<T>, dim1> forward(const stack_vector<T, dim0>& x) const {
-    stack_vector<dot_type<T>, dim1> result{};
-    simd::relu_local_average_pool<dim0, dim1>(x.data, result.data);
+    auto result = stack_vector<dot_type<T>, dim1>::from(b);
+    simd::relu_reduction_transform<dim0, dim1>(W, x.data, result.data);
     return result;
   }
 
   inline stack_vector<dot_type<T>, dim1> forward(const aligned_slice<T, dim0>& x) const {
-    stack_vector<dot_type<T>, dim1> result{};
-    simd::relu_local_average_pool<dim0, dim1>(x.data, result.data);
+    auto result = stack_vector<dot_type<T>, dim1>::from(b);
+    simd::relu_reduction_transform<dim0, dim1>(W, x.data, result.data);
+    return result;
+  }
+
+  template <typename streamer_type>
+  stack_relu_reduction<T, dim0, dim1>& load_(streamer_type& ws) {
+    ws.template stream<T>(W, W_numel).template stream<dot_type<T>>(b, b_numel);
+    return *this;
+  }
+
+  template <typename U>
+  stack_relu_reduction<U, dim0, dim1> quantized(const T& weight_scale, const T& bias_scale) const {
+    static_assert(std::is_floating_point_v<T> && std::is_integral_v<U>);
+    stack_relu_reduction<U, dim0, dim1> result{};
+#pragma omp simd
+    for (size_t i = 0; i < W_numel; ++i) { result.W[i] = static_cast<U>(std::round(weight_scale * W[i])); }
+    for (size_t i = 0; i < b_numel; ++i) { result.b[i] = static_cast<dot_type<U>>(std::round(bias_scale * b[i])); }
+    return result;
+  }
+
+  stack_relu_reduction<T, dim0, dim1> half_input_flipped() const {
+    static_assert(W_numel % 2 == 0);
+    static_assert(b_numel % 2 == 0);
+
+    constexpr size_t half_W_numel = W_numel / 2;
+    constexpr size_t half_b_numel = b_numel / 2;
+
+    stack_relu_reduction<T, dim0, dim1> result = *this;    
+    for (size_t j(0); j < half_W_numel; ++j) { std::iter_swap(result.W + j, result.W + half_W_numel + j); }
+    for (size_t j(0); j < half_b_numel; ++j) { std::iter_swap(result.b + j, result.b + half_b_numel + j); }
+
     return result;
   }
 };

@@ -37,26 +37,27 @@ struct weights {
   static constexpr size_t base_dim = 512;
 
   static constexpr parameter_type shared_quantization_scale = static_cast<parameter_type>(512);
-  static constexpr parameter_type fc0_weight_quantization_scale = static_cast<parameter_type>(1024);
-  static constexpr parameter_type fc0_bias_quantization_scale = shared_quantization_scale * fc0_weight_quantization_scale;
+  static constexpr parameter_type weight_quantization_scale = static_cast<parameter_type>(1024);
+  static constexpr parameter_type bias_quantization_scale = shared_quantization_scale * weight_quantization_scale;
 
-  static constexpr parameter_type pool_dequantization_scale = static_cast<parameter_type>(1) / shared_quantization_scale;
-  static constexpr parameter_type fc0_dequantization_scale =
-      static_cast<parameter_type>(1) / (shared_quantization_scale * fc0_weight_quantization_scale);
+  static constexpr parameter_type dequantization_scale =
+      static_cast<parameter_type>(1) / (shared_quantization_scale * weight_quantization_scale);
 
   weights_streamer::signature_type signature_{0};
   big_affine<parameter_type, feature::half_ka::numel, base_dim> shared{};
   big_affine<quantized_parameter_type, feature::half_ka::numel, base_dim> quantized_shared{};
 
-  relu_local_average_pool<quantized_parameter_type, 2 * base_dim, 8> pool{};
+  stack_relu_reduction<parameter_type, 2 * base_dim, 8> red{};
+  stack_relu_reduction<quantized_parameter_type, 2 * base_dim, 8> white_quantized_red{};
+  stack_relu_reduction<quantized_parameter_type, 2 * base_dim, 8> black_quantized_red{};
 
   stack_relu_affine<parameter_type, 2 * base_dim, 8> fc0{};
   stack_relu_affine<quantized_parameter_type, 2 * base_dim, 8> white_quantized_fc0{};
   stack_relu_affine<quantized_parameter_type, 2 * base_dim, 8> black_quantized_fc0{};
 
-  stack_relu_affine<parameter_type, 16, 16> fc1{};
-  stack_relu_affine<parameter_type, 32, 16> fc2{};
-  stack_relu_affine<parameter_type, 48, 1> fc3{};
+  stack_relu_affine<parameter_type, 16, 8> fc1{};
+  stack_relu_affine<parameter_type, 24, 8> fc2{};
+  stack_relu_affine<parameter_type, 32, 1> fc3{};
 
   size_t signature() const { return signature_; }
 
@@ -67,6 +68,8 @@ struct weights {
   template <typename streamer_type>
   weights& load(streamer_type& ws) {
     shared.load_(ws);
+    red.load_(ws);
+
     fc0.load_(ws);
     fc1.load_(ws);
     fc2.load_(ws);
@@ -74,7 +77,11 @@ struct weights {
     signature_ = ws.signature();
 
     quantized_shared = shared.quantized<quantized_parameter_type>(shared_quantization_scale);
-    white_quantized_fc0 = fc0.quantized<quantized_parameter_type>(fc0_weight_quantization_scale, fc0_bias_quantization_scale);
+    
+    white_quantized_red = red.quantized<quantized_parameter_type>(weight_quantization_scale, bias_quantization_scale);
+    black_quantized_red = white_quantized_red.half_input_flipped();
+
+    white_quantized_fc0 = fc0.quantized<quantized_parameter_type>(weight_quantization_scale, bias_quantization_scale);
     black_quantized_fc0 = white_quantized_fc0.half_input_flipped();
 
     return *this;
@@ -116,12 +123,12 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
   feature_transformer<quantized_parameter_type> black;
 
   inline parameter_type propagate(const bool pov) const {
-    const auto x1_0 = (pov ? weights_->pool.forward(base_) : weights_->pool.forward(base_).half_swap_())
-                        .dequantized<parameter_type>(weights::pool_dequantization_scale);
+    const auto x1_0 = (pov ? weights_->white_quantized_red.forward(base_) : weights_->black_quantized_red.forward(base_).half_swap_())
+                        .dequantized<parameter_type>(weights::dequantization_scale);
 
     const auto x1_1 = (pov ? weights_->white_quantized_fc0 : weights_->black_quantized_fc0)
                         .forward(base_)
-                        .dequantized<parameter_type>(weights::fc0_dequantization_scale);
+                        .dequantized<parameter_type>(weights::dequantization_scale);
 
     const auto x1 = splice(x1_0, x1_1);
     const auto x2 = splice(x1, weights_->fc1.forward(x1));
