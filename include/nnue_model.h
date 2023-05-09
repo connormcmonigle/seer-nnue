@@ -34,7 +34,7 @@ struct weights {
   using parameter_type = float;
   using quantized_parameter_type = std::int16_t;
 
-  static constexpr size_t base_dim = 512;
+  static constexpr size_t base_dim = 768;
 
   static constexpr parameter_type shared_quantization_scale = static_cast<parameter_type>(512);
   static constexpr parameter_type fc0_weight_quantization_scale = static_cast<parameter_type>(1024);
