@@ -57,7 +57,10 @@ value_type formula(const value_type& x, const value_type& gain) {
 struct butterfly_info {
   static constexpr size_t N = constants::num_squares * constants::num_squares;
 
-  static constexpr bool is_applicable(const context&, const chess::move& mv) { return mv.is_quiet(); }
+  template <bool is_quiet>
+  static constexpr bool is_applicable(const context&, const chess::move&) {
+    return is_quiet;
+  }
 
   static constexpr size_t compute_index(const context&, const chess::move& mv) {
     const size_t from = static_cast<size_t>(mv.from().index());
@@ -69,7 +72,10 @@ struct butterfly_info {
 struct threatened_info {
   static constexpr size_t N = constants::num_squares * constants::num_squares;
 
-  static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) { return ctxt.threatened.is_member(mv.from()) && mv.is_quiet(); }
+  template <bool is_quiet>
+  static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) {
+    return is_quiet && ctxt.threatened.is_member(mv.from());
+  }
 
   static constexpr size_t compute_index(const context&, const chess::move& mv) {
     const size_t from = static_cast<size_t>(mv.from().index());
@@ -81,7 +87,10 @@ struct threatened_info {
 struct counter_info {
   static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
 
-  static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) { return !ctxt.counter.is_null() && mv.is_quiet(); }
+  template <bool is_quiet>
+  static constexpr bool is_applicable(const context& ctxt, const chess::move&) {
+    return is_quiet && !ctxt.counter.is_null();
+  }
 
   static constexpr size_t compute_index(const context& ctxt, const chess::move& mv) {
     const size_t p0 = static_cast<size_t>(ctxt.counter.piece());
@@ -96,7 +105,10 @@ struct counter_info {
 struct follow_info {
   static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
 
-  static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) { return !ctxt.follow.is_null() && mv.is_quiet(); }
+  template <bool is_quiet>
+  static constexpr bool is_applicable(const context& ctxt, const chess::move&) {
+    return is_quiet && !ctxt.follow.is_null();
+  }
 
   static constexpr size_t compute_index(const context& ctxt, const chess::move& mv) {
     const size_t p0 = static_cast<size_t>(ctxt.follow.piece());
@@ -111,7 +123,10 @@ struct follow_info {
 struct capture_info {
   static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_pieces;
 
-  static constexpr bool is_applicable(const context&, const chess::move& mv) { return mv.is_capture(); }
+  template <bool is_quiet>
+  static constexpr bool is_applicable(const context&, const chess::move& mv) {
+    return !is_quiet && mv.is_capture();
+  }
 
   static constexpr size_t compute_index(const context&, const chess::move& mv) {
     const size_t piece = static_cast<size_t>(mv.piece());
@@ -125,7 +140,10 @@ template <typename T>
 struct table {
   std::array<value_type, T::N> data_{};
 
-  constexpr bool is_applicable(const context& ctxt, const chess::move& mv) const { return T::is_applicable(ctxt, mv); }
+  template <bool is_quiet>
+  constexpr bool is_applicable(const context& ctxt, const chess::move& mv) const {
+    return T::template is_applicable<is_quiet>(ctxt, mv);
+  }
 
   constexpr const value_type& at(const context& ctxt, const chess::move& mv) const { return data_[T::compute_index(ctxt, mv)]; }
   constexpr value_type& at(const context& ctxt, const chess::move& mv) { return data_[T::compute_index(ctxt, mv)]; }
@@ -139,17 +157,10 @@ struct combined {
 
   constexpr combined<Ts...>& update(const context& ctxt, const chess::move& best_move, const chess::move_list& tried, const depth_type& depth) {
     constexpr value_type history_max = 400;
-
-    auto single_update = [&, this](const auto& mv, const value_type& gain) {
-      const value_type value = compute_value(ctxt, mv);
-      util::apply(tables_, [=](auto& tbl) {
-        if (tbl.is_applicable(ctxt, mv)) { tbl.at(ctxt, mv) += formula(value, gain); }
-      });
-    };
-
     const value_type gain = std::min(history_max, depth * depth);
-    std::for_each(tried.begin(), tried.end(), [single_update, gain](const chess::move& mv) { single_update(mv, -gain); });
-    single_update(best_move, gain);
+
+    std::for_each(tried.begin(), tried.end(), [this, &ctxt, &gain](const chess::move& mv) { single_update(ctxt, mv, -gain); });
+    single_update(ctxt, best_move, gain);
 
     return *this;
   }
@@ -158,12 +169,38 @@ struct combined {
     util::apply(tables_, [](auto& tbl) { tbl.clear(); });
   }
 
-  constexpr value_type compute_value(const context& ctxt, const chess::move& mv) const {
+  template <bool is_quiet>
+  void single_update_(const context& ctxt, const chess::move& mv, const value_type& gain) {
+    const value_type value = compute_value_<is_quiet>(ctxt, mv);
+    util::apply(tables_, [=](auto& tbl) {
+      if (tbl.template is_applicable<is_quiet>(ctxt, mv)) { tbl.at(ctxt, mv) += formula(value, gain); }
+    });
+  }
+
+  void single_update(const context& ctxt, const chess::move& mv, const value_type& gain) {
+    if (const bool is_quiet = mv.is_quiet(); is_quiet) {
+      return single_update_<true>(ctxt, mv, gain);
+    } else {
+      return single_update_<false>(ctxt, mv, gain);
+    }
+  }
+
+  template <bool is_quiet>
+  constexpr value_type compute_value_(const context& ctxt, const chess::move& mv) const {
     value_type result{};
     util::apply(tables_, [&](const auto& tbl) {
-      if (tbl.is_applicable(ctxt, mv)) { result += tbl.at(ctxt, mv); }
+      if (tbl.template is_applicable<is_quiet>(ctxt, mv)) { result += tbl.at(ctxt, mv); }
     });
+
     return result;
+  }
+
+  constexpr value_type compute_value(const context& ctxt, const chess::move& mv) const {
+    if (const bool is_quiet = mv.is_quiet(); is_quiet) {
+      return compute_value_<true>(ctxt, mv);
+    } else {
+      return compute_value_<false>(ctxt, mv);
+    }
   }
 };
 
