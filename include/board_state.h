@@ -30,38 +30,10 @@
 
 namespace chess {
 
-struct manifest_zobrist_src {
-  static constexpr size_t num_squares = 64;
-  using plane_t = std::array<zobrist::hash_type, num_squares>;
-  plane_t pawn_{};
-  plane_t knight_{};
-  plane_t bishop_{};
-  plane_t rook_{};
-  plane_t queen_{};
-  plane_t king_{};
-
-  std::array<zobrist::hash_type, num_squares>& get_plane(const piece_type& pt) { return get_member(pt, *this); }
-
-  const std::array<zobrist::hash_type, num_squares>& get_plane(const piece_type& pt) const { return get_member(pt, *this); }
-
-  template <typename S>
-  zobrist::hash_type get(const piece_type& pt, const S& at) const {
-    static_assert(is_square_v<S>, "at must be of square type");
-    return get_plane(pt)[at.index()];
-  }
-
-  manifest_zobrist_src() {
-    over_types([this](const piece_type pt) {
-      plane_t& pt_plane = get_plane(pt);
-      std::transform(pt_plane.begin(), pt_plane.end(), pt_plane.begin(), [](auto...) { return zobrist::random_bit_string(); });
-    });
-  }
-};
-
 struct manifest {
   static constexpr size_t num_squares = 64;
 
-  const manifest_zobrist_src* zobrist_src_;
+  const zobrist::manifest_src* zobrist_src_;
   zobrist::hash_type hash_{0};
   square_set pawn_{};
   square_set knight_{};
@@ -114,45 +86,20 @@ struct manifest {
     return *this;
   }
 
-  manifest(const manifest_zobrist_src* src) : zobrist_src_{src} {}
+  manifest(const zobrist::manifest_src* src) : zobrist_src_{src} {}
 };
 
 struct sided_manifest : sided<sided_manifest, manifest> {
-  static inline const manifest_zobrist_src w_manifest_src{};
-  static inline const manifest_zobrist_src b_manifest_src{};
-
   manifest white;
   manifest black;
 
   zobrist::hash_type hash() const { return white.hash() ^ black.hash(); }
 
-  sided_manifest() : white(&w_manifest_src), black(&b_manifest_src) {}
-};
-
-struct latent_zobrist_src {
-  static constexpr size_t num_squares = 64;
-  zobrist::hash_type oo_;
-  zobrist::hash_type ooo_;
-  std::array<zobrist::hash_type, num_squares> ep_mask_;
-
-  zobrist::hash_type get_oo() const { return oo_; }
-  zobrist::hash_type get_ooo() const { return ooo_; }
-
-  template <typename S>
-  zobrist::hash_type get_ep_mask(const S& at) const {
-    static_assert(is_square_v<S>, "at must be of square type");
-    return ep_mask_[at.index()];
-  }
-
-  latent_zobrist_src() {
-    oo_ = zobrist::random_bit_string();
-    ooo_ = zobrist::random_bit_string();
-    std::transform(ep_mask_.begin(), ep_mask_.end(), ep_mask_.begin(), [](auto...) { return zobrist::random_bit_string(); });
-  }
+  sided_manifest() : white(&zobrist::sources::manifest.white), black(&zobrist::sources::manifest.black) {}
 };
 
 struct latent {
-  const latent_zobrist_src* zobrist_src_;
+  const zobrist::latent_src* zobrist_src_;
   zobrist::hash_type hash_{0};
   bool oo_{true};
   bool ooo_{true};
@@ -193,15 +140,10 @@ struct latent {
     return *this;
   }
 
-  latent(const latent_zobrist_src* src) : zobrist_src_{src} {}
+  latent(const zobrist::latent_src* src) : zobrist_src_{src} {}
 };
 
 struct sided_latent : sided<sided_latent, latent> {
-  static inline const latent_zobrist_src w_latent_src{};
-  static inline const latent_zobrist_src b_latent_src{};
-  static inline const zobrist::hash_type turn_white_src = zobrist::random_bit_string();
-  static inline const zobrist::hash_type turn_black_src = zobrist::random_bit_string();
-
   size_t half_clock{0};
   size_t ply_count{0};
   latent white;
@@ -209,10 +151,10 @@ struct sided_latent : sided<sided_latent, latent> {
 
   zobrist::hash_type hash() const {
     const zobrist::hash_type result = white.hash() ^ black.hash();
-    return ((ply_count % 2) == 0) ? (result ^ turn_white_src) : (result ^ turn_black_src);
+    return result ^ zobrist::sources::turn.us(ply_count % 2 == 0);
   }
 
-  sided_latent() : white(&w_latent_src), black(&b_latent_src) {}
+  sided_latent() : white(&zobrist::sources::latent.white), black(&zobrist::sources::latent.black) {}
 };
 
 }  // namespace chess

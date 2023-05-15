@@ -95,18 +95,19 @@ struct feature_transformer {
 };
 
 struct eval : chess::sided<eval, feature_transformer<weights::quantized_parameter_type>> {
-  static constexpr size_t feature_transformer_dim = 2 * weights::base_dim;
+  static constexpr size_t base_dim = 2 * weights::base_dim;
   static constexpr size_t scratchpad_depth = 256;
 
   using parameter_type = weights::parameter_type;
   using quantized_parameter_type = weights::quantized_parameter_type;
-  using scratchpad_type = stack_scratchpad<quantized_parameter_type, scratchpad_depth * feature_transformer_dim>;
+  using scratchpad_type = stack_scratchpad<quantized_parameter_type, scratchpad_depth * base_dim>;
+  using base_type = aligned_slice<quantized_parameter_type, base_dim>;
 
   const weights* weights_;
   scratchpad_type* scratchpad_;
 
   size_t scratchpad_idx_;
-  aligned_slice<quantized_parameter_type, feature_transformer_dim> base_;
+  base_type base_;
   feature_transformer<quantized_parameter_type> white;
   feature_transformer<quantized_parameter_type> black;
 
@@ -133,9 +134,17 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
     return static_cast<search::score_type>(value);
   }
 
+  const base_type& base() const { return base_; }
+
   eval next_child() const {
     const size_t next_scratchpad_idx = scratchpad_idx_ + 1;
-    scratchpad_->get_nth_slice<feature_transformer_dim>(next_scratchpad_idx).copy_from(base_.data);
+    scratchpad_->get_nth_slice<base_dim>(next_scratchpad_idx).copy_from(base_.data);
+    return eval(weights_, scratchpad_, next_scratchpad_idx);
+  }
+
+  eval next_child_from_cached_state(const base_type& cached_state) const {
+    const size_t next_scratchpad_idx = scratchpad_idx_ + 1;
+    scratchpad_->get_nth_slice<base_dim>(next_scratchpad_idx).copy_from(cached_state.data);
     return eval(weights_, scratchpad_, next_scratchpad_idx);
   }
 
@@ -143,46 +152,9 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
       : weights_{src},
         scratchpad_{scratchpad},
         scratchpad_idx_{scratchpad_idx},
-        base_(scratchpad_->get_nth_slice<feature_transformer_dim>(scratchpad_idx_)),
+        base_(scratchpad_->get_nth_slice<base_dim>(scratchpad_idx_)),
         white{&src->quantized_shared, base_.slice<weights::base_dim>()},
         black{&src->quantized_shared, base_.slice<weights::base_dim, weights::base_dim>()} {}
-};
-
-struct eval_node {
-  struct context {
-    eval_node* parent_node_{nullptr};
-    const chess::board* parent_board_{nullptr};
-    const chess::move move_{chess::move::null()};
-  };
-
-  bool dirty_;
-
-  union {
-    context context_;
-    eval eval_;
-  } data_;
-
-  bool dirty() const { return dirty_; }
-
-  const eval& evaluator() {
-    if (!dirty_) { return data_.eval_; }
-    dirty_ = false;
-    const context ctxt = data_.context_;
-    data_.eval_ = ctxt.parent_node_->evaluator().next_child();
-    ctxt.parent_board_->feature_move_delta(ctxt.move_, data_.eval_);
-    return data_.eval_;
-  }
-
-  eval_node dirty_child(const chess::board* bd, const chess::move& mv) { return eval_node::dirty_node(context{this, bd, mv}); }
-
-  static eval_node dirty_node(const context& context) { return eval_node{true, {context}}; }
-
-  static eval_node clean_node(const eval& eval) {
-    eval_node result{};
-    result.dirty_ = false;
-    result.data_.eval_ = eval;
-    return result;
-  }
 };
 
 }  // namespace nnue

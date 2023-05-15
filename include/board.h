@@ -85,6 +85,10 @@ struct board {
 
   zobrist::hash_type hash() const { return man_.hash() ^ lat_.hash(); }
 
+  zobrist::hash_type guess_hash_after(const move& mv) const {
+    return zobrist::sources::turn.white ^ zobrist::sources::turn.black ^ hash() ^ mv.guess_hash_delta(turn());
+  }
+
   template <color c>
   std::tuple<piece_type, square> least_valuable_attacker(const square& tgt, const square_set& ignore) const {
     const auto p_mask = pawn_attack_tbl<opponent<c>>.look_up(tgt);
@@ -800,6 +804,8 @@ struct board {
 
     return mirror;
   }
+
+  constexpr bool requires_feature_refresh(const move& mv) const { return mv.piece() == piece_type::king; }
 
   template <color c, typename T>
   void feature_half_refresh(T& sided_set, const square& our_king) const {

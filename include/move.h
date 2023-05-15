@@ -21,6 +21,7 @@
 #include <chess_types.h>
 #include <square.h>
 #include <table_generation.h>
+#include <zobrist_util.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -116,7 +117,13 @@ struct move {
     }
   }
 
-  std::string name(bool pov) const { return pov ? name<color::white>() : name<color::black>(); }
+  std::string name(const bool& pov) const { return pov ? name<color::white>() : name<color::black>(); }
+
+  zobrist::hash_type guess_hash_delta(const bool& pov) const {
+    return zobrist::sources::manifest.us(pov).get(piece(), from()) ^
+           (is_capture() ? zobrist::sources::manifest.them(pov).get(captured(), to()) : zobrist::hash_type()) ^
+           (is_promotion() ? zobrist::sources::manifest.us(pov).get(promotion(), to()) : zobrist::sources::manifest.us(pov).get(piece(), to()));
+  }
 
   move() = default;
 

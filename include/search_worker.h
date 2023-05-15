@@ -19,6 +19,8 @@
 
 #include <board.h>
 #include <eval_cache.h>
+#include <eval_node.h>
+#include <feature_transformer_cache.h>
 #include <history_heuristic.h>
 #include <move.h>
 #include <move_orderer.h>
@@ -61,6 +63,7 @@ struct internal_state {
   nnue::eval::scratchpad_type scratchpad{};
   sided_history_heuristic hh{};
   eval_cache cache{};
+  nnue::feature_transformer_cache ft_cache{};
   std::unordered_map<chess::move, size_t, chess::move_hash> node_distribution{};
 
   std::atomic_bool go{false};
@@ -86,6 +89,7 @@ struct internal_state {
     stack = search_stack{chess::position_history{}, chess::board::start_pos()};
     hh.clear();
     cache.clear();
+    ft_cache.clear();
     node_distribution.clear();
 
     go.store(false);
@@ -194,7 +198,7 @@ struct search_worker {
       const chess::board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-      nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+      nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.ft_cache, &bd, mv);
 
       const score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_node_, bd_, -beta, -alpha, elevation + 1);
 
@@ -397,7 +401,7 @@ struct search_worker {
 
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-      nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+      nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.ft_cache, &bd, mv);
 
       // step 11. extensions
       bool multicut = false;
