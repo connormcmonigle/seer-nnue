@@ -307,7 +307,7 @@ struct search_worker {
     // step 5. return static eval if max depth was reached
     if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
     
-    if (!is_pv && depth <= 7 && ss.is_good_sacrificial_sequence(value)) { ++depth; }
+    if (depth <= 7 && ss.is_good_sacrificial_sequence(value)) { ++depth; }
 
     // step 6. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_value);
