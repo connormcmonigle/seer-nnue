@@ -306,6 +306,8 @@ struct search_worker {
 
     // step 5. return static eval if max depth was reached
     if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
+    
+    if (!is_pv && depth <= 7 && ss.is_good_sacrificial_sequence(value)) { ++depth; }
 
     // step 6. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_value);
@@ -361,7 +363,7 @@ struct search_worker {
       if (mv == ss.excluded()) { continue; }
 
       const size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
-      ss.set_played(mv);
+      ss.set_played(mv, idx == 0, mv.is_capture() && !bd.see_ge(mv, 0));
 
       const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
 

@@ -29,10 +29,14 @@
 #include <string>
 
 namespace search {
+bool is_first_{false};
 
 struct stack_entry {
   zobrist::hash_type hash_{};
   score_type eval_{};
+
+  bool is_first_{false};
+  bool is_sacrifice_{false};
   chess::move played_{chess::move::null()};
   chess::move killer_{chess::move::null()};
   chess::move excluded_{chess::move::null()};
@@ -88,56 +92,69 @@ struct stack_view {
   search_stack* view_;
   depth_type height_{};
 
-  constexpr score_type loss_score() const {  return mate_score + height_; }
+  constexpr score_type loss_score() const { return mate_score + height_; }
 
   constexpr score_type win_score() const { return -mate_score - height_; }
 
-  bool reached_max_height() const { return height_ >= (safe_depth - 1); }
+  inline bool reached_max_height() const { return height_ >= (safe_depth - 1); }
 
-  depth_type height() const { return height_; }
+  inline depth_type height() const { return height_; }
 
-  chess::board root_pos() const { return view_->root_pos(); }
+  inline chess::board root_pos() const { return view_->root_pos(); }
 
   bool is_two_fold(const zobrist::hash_type& hash) const { return view_->occurrences(height_, hash) >= 1; }
 
-  chess::move counter() const {
-    if (height_ <= 0) { return chess::move::null(); }
+  inline chess::move counter() const {
+    if (height_ < 1) { return chess::move::null(); }
     return view_->at(height_ - 1).played_;
   }
 
-  chess::move follow() const {
-    if (height_ <= 1) { return chess::move::null(); }
+  inline chess::move follow() const {
+    if (height_ < 2) { return chess::move::null(); }
     return view_->at(height_ - 2).played_;
   }
 
-  chess::move killer() const { return view_->at(height_).killer_; }
+  inline chess::move killer() const { return view_->at(height_).killer_; }
 
-  chess::move excluded() const { return view_->at(height_).excluded_; }
+  inline chess::move excluded() const { return view_->at(height_).excluded_; }
 
-  bool has_excluded() const { return !view_->at(height_).excluded_.is_null(); }
+  inline bool has_excluded() const { return !view_->at(height_).excluded_.is_null(); }
 
-  const std::array<chess::move, safe_depth>& pv() const { return view_->at(height_).pv_; }
+  inline const std::array<chess::move, safe_depth>& pv() const { return view_->at(height_).pv_; }
 
-  bool nmp_valid() const { return !counter().is_null() && !follow().is_null(); }
+  inline bool nmp_valid() const { return !counter().is_null() && !follow().is_null(); }
 
-  bool improving() const { return (height_ >= 2) && view_->at(height_ - 2).eval_ < view_->at(height_).eval_; }
+  inline bool improving() const { return (height_ >= 2) && view_->at(height_ - 2).eval_ < view_->at(height_).eval_; }
 
-  const stack_view& set_hash(const zobrist::hash_type& hash) const {
+  inline bool is_good_sacrificial_sequence(const score_type& value) const {
+    constexpr score_type good_sacrifice_margin = 128;
+
+    if (height_ < 2 || !view_->at(height_ - 2).is_sacrifice_) { return false; }
+    const chess::move sacrifice = view_->at(height_ - 2).played_;
+    const chess::move counter = view_->at(height_ - 1).played_;
+
+    return !counter.is_null() && counter.is_capture() && counter.to() == sacrifice.to() && view_->at(height_ - 1).is_first_ &&
+                        view_->at(height_ - 2).eval_ < (value + good_sacrifice_margin) && 0 < (value + good_sacrifice_margin);
+  }
+
+  inline const stack_view& set_hash(const zobrist::hash_type& hash) const {
     view_->at(height_).hash_ = hash;
     return *this;
   }
 
-  const stack_view& set_eval(const score_type& eval) const {
+  inline const stack_view& set_eval(const score_type& eval) const {
     view_->at(height_).eval_ = eval;
     return *this;
   }
 
-  const stack_view& set_played(const chess::move& played) const {
+  inline const stack_view& set_played(const chess::move& played, const bool& is_first = false, const bool& is_sacrifice = false) const {
     view_->at(height_).played_ = played;
+    view_->at(height_).is_first_ = is_first;
+    view_->at(height_).is_sacrifice_ = is_sacrifice;
     return *this;
   }
 
-  const stack_view& prepend_to_pv(const chess::move& pv_mv) const {
+  inline const stack_view& prepend_to_pv(const chess::move& pv_mv) const {
     const auto& child_pv = next().pv();
     auto output_iter = view_->at(height_).pv_.begin();
     *(output_iter++) = pv_mv;
@@ -145,19 +162,19 @@ struct stack_view {
     return *this;
   }
 
-  const stack_view& set_killer(const chess::move& killer) const {
+  inline const stack_view& set_killer(const chess::move& killer) const {
     view_->at(height_).killer_ = killer;
     return *this;
   }
 
-  const stack_view& set_excluded(const chess::move& excluded) const {
+  inline const stack_view& set_excluded(const chess::move& excluded) const {
     view_->at(height_).excluded_ = excluded;
     return *this;
   }
 
-  stack_view prev() const { return stack_view(view_, height_ - 1); }
+  inline stack_view prev() const { return stack_view(view_, height_ - 1); }
 
-  stack_view next() const { return stack_view(view_, height_ + 1); }
+  inline stack_view next() const { return stack_view(view_, height_ + 1); }
 
   stack_view(search_stack* view, const depth_type& height) : view_{view}, height_{height} { assert((height >= 0)); }
 
