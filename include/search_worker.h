@@ -307,8 +307,6 @@ struct search_worker {
     // step 5. return static eval if max depth was reached
     if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
     
-    if (depth <= 7 && ss.is_good_sacrificial_sequence(value)) { ++depth; }
-
     // step 6. add position and static eval to stack
     ss.set_hash(bd.hash()).set_eval(static_value);
     const bool improving = !is_check && ss.improving();
@@ -334,6 +332,8 @@ struct search_worker {
           -pv_search<false>(ss.next(), eval_node, bd.forward(chess::move::null()), -beta, -beta + 1, adjusted_depth, chess::player_from(!bd.turn()));
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
+
+    if (depth <= 7 && ss.is_good_sacrificial_sequence(value)) { ++depth; }
 
     // step 9. initialize move orderer (setting tt move first if applicable)
     const chess::move killer = ss.killer();
