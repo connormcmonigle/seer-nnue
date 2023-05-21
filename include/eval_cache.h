@@ -31,12 +31,13 @@ struct eval_cache_entry {
 };
 
 struct eval_cache {
-  static constexpr size_t size_mb = 6;
+  static constexpr size_t size_mb = 8;
   static constexpr size_t N = (size_mb << 20) / sizeof(eval_cache_entry);
+  static_assert((N != 0) && ((N & (N - 1)) == 0), "N must be a power of 2");
 
   std::array<eval_cache_entry, N> data{};
 
-  constexpr size_t hash_function(const zobrist::hash_type& hash) const { return hash % data.size(); }
+  constexpr size_t hash_function(const zobrist::hash_type& hash) const { return hash & (N - 1); }
 
   void prefetch(const zobrist::hash_type& hash) const { __builtin_prefetch(data.data() + hash_function(hash)); }
 
