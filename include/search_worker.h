@@ -333,10 +333,10 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const bool in_check_beta_prune = !is_pv && is_check && maybe.has_value() && maybe->depth() + 2 >= depth &&
-                                     maybe->bound() == bound_type::lower && maybe->score() >= beta + 400 * std::max(1, depth - maybe->depth());
+    const bool tt_beta_prune = !is_pv && maybe.has_value() && maybe->depth() + 2 >= depth &&
+                                     maybe->bound() == bound_type::lower && maybe->score() >= beta + 768 * std::max(1, depth - maybe->depth());
 
-    if (in_check_beta_prune) { return make_result(beta, maybe->best_move()); }
+    if (tt_beta_prune) { return make_result(beta, maybe->best_move()); }
 
     // step 9. initialize move orderer (setting tt move first if applicable)
     const chess::move killer = ss.killer();
