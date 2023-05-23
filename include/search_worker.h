@@ -333,8 +333,8 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const bool tt_beta_reduce = !is_pv && depth >= 4 && maybe.has_value() && maybe->depth() + 1 >= depth && maybe->bound() == bound_type::lower &&
-                               maybe->score() >= beta + 512;
+    const bool tt_beta_reduce = !is_pv && depth >= 5 && maybe.has_value() && maybe->depth() + 1 >= depth && maybe->bound() == bound_type::lower &&
+                               maybe->score() >= beta + 448;
 
     if (tt_beta_reduce) { --depth; }
 
