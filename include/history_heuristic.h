@@ -108,6 +108,31 @@ struct follow_info {
   }
 };
 
+struct sequence_info {
+  static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces *
+                              constants::num_squares * constants::num_pieces;
+
+  static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) {
+    return !ctxt.follow.is_null() && !ctxt.counter.is_null() && mv.is_quiet();
+  }
+
+  static constexpr size_t compute_index(const context& ctxt, const chess::move& mv) {
+    const size_t p0 = static_cast<size_t>(ctxt.follow.piece());
+    const size_t to0 = static_cast<size_t>(ctxt.follow.to().index());
+
+    const size_t p1 = static_cast<size_t>(ctxt.counter.piece());
+    const size_t to1 = static_cast<size_t>(ctxt.counter.to().index());
+
+    const size_t p2 = static_cast<size_t>(mv.piece());
+    const size_t to2 = static_cast<size_t>(mv.to().index());
+
+    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces * constants::num_squares +
+           to0 * constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces +
+           p1 * constants::num_squares * constants::num_pieces * constants::num_squares + to1 * constants::num_squares * constants::num_pieces +
+           p2 * constants::num_squares + to2;
+  }
+};
+
 struct capture_info {
   static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_pieces;
 
@@ -169,8 +194,13 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic =
-    history::combined<history::butterfly_info, history::threatened_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic = history::combined<
+    history::butterfly_info,
+    history::threatened_info,
+    history::counter_info,
+    history::follow_info,
+    history::sequence_info,
+    history::capture_info>;
 
 struct sided_history_heuristic : chess::sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;
