@@ -37,8 +37,9 @@ using value_type = search::counter_type;
 
 namespace constants {
 
-inline constexpr size_t num_squares = 64;
-inline constexpr size_t num_pieces = 6;
+constexpr size_t num_squares = 64;
+constexpr size_t num_pieces = 6;
+constexpr size_t num_types = 2;
 
 };  // namespace constants
 
@@ -79,16 +80,20 @@ struct threatened_info {
 };
 
 struct counter_info {
-  static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
+  static constexpr size_t N = constants::num_squares * constants::num_pieces * constants::num_types * constants::num_squares * constants::num_pieces;
 
   static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) { return !ctxt.counter.is_null() && mv.is_quiet(); }
 
   static constexpr size_t compute_index(const context& ctxt, const chess::move& mv) {
     const size_t p0 = static_cast<size_t>(ctxt.counter.piece());
     const size_t to0 = static_cast<size_t>(ctxt.counter.to().index());
+    const size_t t0 = static_cast<size_t>(ctxt.counter.is_quiet());
+
     const size_t p1 = static_cast<size_t>(mv.piece());
     const size_t to1 = static_cast<size_t>(mv.to().index());
-    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
+
+    return p0 * constants::num_squares * constants::num_pieces * constants::num_types * constants::num_squares +
+           to0 * constants::num_squares * constants::num_pieces * constants::num_types + t0 * constants::num_squares * constants::num_pieces +
            p1 * constants::num_squares + to1;
   }
 };
