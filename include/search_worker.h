@@ -364,15 +364,11 @@ struct search_worker {
       ss.set_played(mv);
 
       const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
-
-      const chess::board bd_ = bd.forward(mv);
-
       const bool try_pruning = !is_root && idx >= 2 && best_score > max_mate_score;
 
       // step 10. pruning
       if (try_pruning) {
-        const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
-
+        const bool lm_prune = idx > external.constants->lmp_count(improving, depth);
         if (lm_prune) { break; }
 
         const bool futility_prune =
@@ -395,6 +391,8 @@ struct search_worker {
         if (history_prune) { continue; }
       }
 
+      const chess::board bd_ = bd.forward(mv);
+      
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
       nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);

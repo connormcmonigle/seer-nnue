@@ -128,11 +128,7 @@ struct fixed_search_constants {
     return m * static_cast<score_type>(depth - (improving && !threats)) + (threats ? b : 0);
   }
 
-  constexpr int lmp_count(const bool& improving, const depth_type& depth) const {
-    constexpr std::array<int, 8> improving_counts = {0, 5, 8, 12, 20, 30, 42, 65};
-    constexpr std::array<int, 8> worsening_counts = {0, 3, 4, 8, 10, 13, 21, 31};
-    return improving ? improving_counts[depth] : worsening_counts[depth];
-  }
+  constexpr int lmp_count(const bool& improving, const depth_type& depth) const { return improving ? (3 + depth * depth) : (3 + depth * depth) / 2; }
 
   constexpr see_type quiet_see_prune_threshold(const depth_type& depth) const { return -50 * static_cast<see_type>(depth); }
   constexpr see_type noisy_see_prune_threshold(const depth_type& depth) const { return -100 * static_cast<see_type>(depth); }
