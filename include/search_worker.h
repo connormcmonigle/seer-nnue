@@ -365,10 +365,12 @@ struct search_worker {
 
       const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
       const bool try_pruning = !is_root && idx >= 2 && best_score > max_mate_score;
+      const chess::board bd_ = bd.forward(mv);
+
 
       // step 10. pruning
       if (try_pruning) {
-        const bool lm_prune = idx > external.constants->lmp_count(improving, depth);
+        const bool lm_prune = idx > external.constants->lmp_count(improving, depth) && !bd_.is_check();
         if (lm_prune) { break; }
 
         const bool futility_prune =
@@ -390,8 +392,6 @@ struct search_worker {
 
         if (history_prune) { continue; }
       }
-
-      const chess::board bd_ = bd.forward(mv);
       
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
