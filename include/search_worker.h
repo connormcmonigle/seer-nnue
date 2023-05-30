@@ -336,7 +336,7 @@ struct search_worker {
     const depth_type probcut_depth = depth - 3;
     const score_type probcut_beta = beta + 320;
     const bool try_probcut =
-        !is_pv && depth >= 5 &&
+        !is_pv && depth >= 5 && bd.us_threat_mask().any() &&
         !(maybe.has_value() && maybe->best_move().is_quiet()) &&
         !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
 
@@ -356,16 +356,11 @@ struct search_worker {
         internal.cache.prefetch(bd_.hash());
         nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
 
-        auto q_value = [&] { return -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0); };
-        auto pv_value = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
-
-        const score_type probcut_score = [&] {
-          score_type probcut_value = q_value();
-          if (probcut_value >= probcut_beta) { probcut_value = pv_value(); }
-
-          return probcut_value;
-        }();
-
+        auto pv_score = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
+        
+        const score_type q_score = -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0);
+        const score_type probcut_score = q_score >= probcut_beta ? pv_score() : q_score;
+        
         if (probcut_score >= probcut_beta) { return make_result(probcut_score, mv); }
       }
     }
