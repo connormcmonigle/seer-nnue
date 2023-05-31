@@ -336,7 +336,7 @@ struct search_worker {
     const depth_type probcut_depth = depth - 3;
     const score_type probcut_beta = beta + 320;
     const bool try_probcut =
-        !is_pv && depth >= 5 && bd.us_threat_mask().any() &&
+        !is_pv && depth >= 5 && (depth >= 11 || bd.us_threat_mask().any()) &&
         !(maybe.has_value() && maybe->best_move().is_quiet()) &&
         !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
 
