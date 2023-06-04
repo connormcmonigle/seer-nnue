@@ -92,6 +92,7 @@ struct fixed_search_constants {
   constexpr depth_type quiet_see_prune_depth() const { return 8; }
   constexpr depth_type noisy_see_prune_depth() const { return 6; }
   constexpr depth_type singular_extension_depth() const { return 6; }
+  constexpr depth_type probcut_depth() const { return 5; }
   constexpr depth_type iir_depth() const { return 4; }
 
   constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const {
@@ -152,6 +153,9 @@ struct fixed_search_constants {
 
   constexpr see_type good_capture_prune_see_margin() const { return 300; }
   constexpr score_type good_capture_prune_score_margin() const { return 256; }
+
+  constexpr depth_type probcut_search_depth(const depth_type& depth) const { return depth - 3; }
+  constexpr score_type probcut_beta(const score_type& beta) const { return beta + 320; }
 
   fixed_search_constants& update_(const size_t& thread_count) {
     thread_count_ = thread_count;
