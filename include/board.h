@@ -801,34 +801,76 @@ struct board {
     return mirror;
   }
 
-  template <color c, typename T>
-  void feature_half_refresh(T& sided_set, const square& our_king) const {
+  template <typename T>
+  void feature_full_reset(T& sided_set) const {
     namespace h_ka = feature::half_ka;
-    sided_set.template us<c>().clear();
+
+    const square white_king = man_.white.king().item();
+    const square black_king = man_.black.king().item();
+
+    sided_set.white.clear();
+    sided_set.black.clear();
+
     over_types([&](const piece_type& pt) {
-      for (const auto sq : man_.white.get_plane(pt)) { sided_set.template us<c>().insert(h_ka::index<c, color::white>(our_king, pt, sq)); }
-      for (const auto sq : man_.black.get_plane(pt)) { sided_set.template us<c>().insert(h_ka::index<c, color::black>(our_king, pt, sq)); }
+      for (const auto sq : man_.white.get_plane(pt)) {
+        sided_set.white.insert(h_ka::index<color::white, color::white>(white_king, pt, sq));
+        sided_set.black.insert(h_ka::index<color::black, color::white>(black_king, pt, sq));
+      }
+    });
+
+    over_types([&](const piece_type& pt) {
+      for (const auto sq : man_.black.get_plane(pt)) {
+        sided_set.white.insert(h_ka::index<color::white, color::black>(white_king, pt, sq));
+        sided_set.black.insert(h_ka::index<color::black, color::black>(black_king, pt, sq));
+      }
     });
   }
 
-  template <typename T>
-  void feature_full_refresh(T& sided_set) const {
-    feature_half_refresh<color::white>(sided_set, man_.white.king().item());
-    feature_half_refresh<color::black>(sided_set, man_.black.king().item());
+  template <color c, typename T>
+  void feature_partial_reset_(T& sided_set, const move& mv) const {
+    namespace h_ka = feature::half_ka;
+
+    const square our_king = mv.to();
+    const square their_king = man_.them<c>().king().item();
+
+    sided_set.template us<c>().clear();
+    sided_set.template us<c>().insert(h_ka::index<c, c>(our_king, piece_type::king, mv.to()));
+
+    sided_set.template them<c>().parent();
+    sided_set.template them<c>().erase(h_ka::index<opponent<c>, c>(their_king, piece_type::king, mv.from()));
+    sided_set.template them<c>().insert(h_ka::index<opponent<c>, c>(their_king, piece_type::king, mv.to()));
+    if (mv.is_capture()) { sided_set.template them<c>().erase(h_ka::index<opponent<c>, opponent<c>>(their_king, mv.captured(), mv.to())); }
+
+    over_types([&](const piece_type& pt) {
+      for (const auto sq : man_.us<c>().get_plane(pt).excluding(mv.from())) {
+        sided_set.template us<c>().insert(h_ka::index<c, c>(our_king, pt, sq));
+      }
+
+      for (const auto sq : man_.them<c>().get_plane(pt).excluding(mv.to())) {
+        sided_set.template us<c>().insert(h_ka::index<c, opponent<c>>(our_king, pt, sq));
+      }
+    });
   }
 
   template <color c, typename T>
   void feature_move_delta_(const move& mv, T& sided_set) const {
     namespace h_ka = feature::half_ka;
+
     if (mv.is_castle_oo<c>() || mv.is_castle_ooo<c>()) {
-      forward_<c>(mv).feature_full_refresh(sided_set);
+      forward_<c>(mv).feature_full_reset(sided_set);
       return;
     }
 
-    const square their_king = man_.them<c>().king().item();
-    const square our_king = (mv.piece() == piece_type::king) ? mv.to() : man_.us<c>().king().item();
+    if (mv.is_king_move()) {
+      feature_partial_reset_<c>(sided_set, mv);
+      return;
+    }
 
-    if (!man_.us<c>().king().is_member(our_king)) { feature_half_refresh<c>(sided_set, our_king); }
+    const square our_king = man_.us<c>().king().item();
+    const square their_king = man_.them<c>().king().item();
+
+    sided_set.template us<c>().parent();
+    sided_set.template them<c>().parent();
 
     sided_set.template us<c>().erase(h_ka::index<c, c>(our_king, mv.piece(), mv.from()));
     sided_set.template them<c>().erase(h_ka::index<opponent<c>, c>(their_king, mv.piece(), mv.from()));

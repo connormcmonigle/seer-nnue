@@ -75,6 +75,7 @@ struct move {
   constexpr piece_type promotion() const { return get_field_<promotion_>(); }
 
   constexpr bool is_null() const { return data == 0; }
+  constexpr bool is_king_move() const { return piece() == piece_type::king; }
 
   template <color c>
   constexpr bool is_castle_oo() const {

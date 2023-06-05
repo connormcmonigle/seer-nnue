@@ -552,8 +552,8 @@ struct search_worker {
 
   void iterative_deepening_loop() {
     nnue::eval_node root_node = nnue::eval_node::clean_node([this] {
-      nnue::eval result(external.weights, &internal.scratchpad, 0);
-      internal.stack.root_pos().feature_full_refresh(result);
+      nnue::eval result(external.weights, &internal.scratchpad, 0, 0);
+      internal.stack.root_pos().feature_full_reset(result);
       return result;
     }());
 

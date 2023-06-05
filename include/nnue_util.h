@@ -74,6 +74,11 @@ struct aligned_slice {
     return *this;
   }
 
+  aligned_slice<T, dim>& copy_from(const aligned_slice<T, dim>& other) {
+    std::memcpy(data, other.data, sizeof(T) * dim);
+    return *this;
+  }
+
   aligned_slice(T* data) : data{data} {}
 };
 
