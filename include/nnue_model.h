@@ -89,9 +89,17 @@ struct feature_transformer {
   aligned_slice<T, weights::base_dim> slice_;
 
   void clear() { slice_.copy_from(weights_->b); }
-  void parent() { slice_.copy_from(parent_slice_); }
+  void copy_parent() { slice_.copy_from(parent_slice_); }
   void insert(const size_t& idx) { weights_->insert_idx(idx, slice_); }
   void erase(const size_t& idx) { weights_->erase_idx(idx, slice_); }
+
+  void copy_parent_insert_erase(const size_t& insert_idx, const size_t& erase_idx) {
+    weights_->insert_erase_idx(insert_idx, erase_idx, parent_slice_, slice_);
+  }
+
+  void copy_parent_insert_erase_erase(const size_t& insert_idx, const size_t& erase_idx_0, const size_t& erase_idx_1) {
+    weights_->insert_erase_erase_idx(insert_idx, erase_idx_0, erase_idx_1, parent_slice_, slice_);
+  }
 
   feature_transformer(
       const big_affine<T, feature::half_ka::numel, weights::base_dim>* src,
@@ -113,10 +121,10 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
   scratchpad_type* scratchpad_;
 
   size_t scratchpad_idx_;
-  
+
   aligned_slice<quantized_parameter_type, feature_transformer_dim> parent_base_;
   aligned_slice<quantized_parameter_type, feature_transformer_dim> base_;
-  
+
   feature_transformer<quantized_parameter_type> white;
   feature_transformer<quantized_parameter_type> black;
 
