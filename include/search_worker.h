@@ -333,10 +333,12 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-    const depth_type probcut_depth = depth - 3;
-    const score_type probcut_beta = beta + 320;
+
+    // step 9. probcut pruning
+    const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
+    const score_type probcut_beta = external.constants->probcut_beta(beta);
     const bool try_probcut =
-        !is_pv && depth >= 5 &&
+        !is_pv && depth >= external.constants->probcut_depth() &&
         !(maybe.has_value() && maybe->best_move().is_quiet()) &&
         !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
 
@@ -356,21 +358,15 @@ struct search_worker {
         internal.cache.prefetch(bd_.hash());
         nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
 
-        auto q_value = [&] { return -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0); };
-        auto pv_value = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
-
-        const score_type probcut_score = [&] {
-          score_type probcut_value = q_value();
-          if (probcut_value >= probcut_beta) { probcut_value = pv_value(); }
-
-          return probcut_value;
-        }();
+        auto pv_score = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
+        const score_type q_score = -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0);
+        const score_type probcut_score = (q_score >= probcut_beta) ? pv_score() : q_score;
 
         if (probcut_score >= probcut_beta) { return make_result(probcut_score, mv); }
       }
     }
 
-    // step 9. initialize move orderer (setting tt move first if applicable)
+    // step 10. initialize move orderer (setting tt move first if applicable)
     const chess::move killer = ss.killer();
     const chess::move follow = ss.follow();
     const chess::move counter = ss.counter();
@@ -406,7 +402,7 @@ struct search_worker {
 
       const bool try_pruning = !is_root && idx >= 2 && best_score > max_mate_score;
 
-      // step 10. pruning
+      // step 11. pruning
       if (try_pruning) {
         const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
@@ -436,7 +432,7 @@ struct search_worker {
       internal.cache.prefetch(bd_.hash());
       nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
 
-      // step 11. extensions
+      // step 12. extensions
       bool multicut = false;
       const depth_type extension = [&, mv = mv] {
         const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
@@ -480,7 +476,7 @@ struct search_worker {
         depth_type lmr_depth;
         score_type zw_score;
 
-        // step 12. late move reductions
+        // step 13. late move reductions
         const bool try_lmr = !is_check && (mv.is_quiet() || !bd.see_ge(mv, 0)) && idx >= 2 && (depth >= external.constants->reduce_depth());
         if (try_lmr) {
           depth_type reduction = external.constants->reduction(depth, idx);
@@ -534,7 +530,7 @@ struct search_worker {
     if (legal_count == 0 && is_check) { return make_result(ss.loss_score(), chess::move::null()); }
     if (legal_count == 0) { return make_result(draw_score, chess::move::null()); }
 
-    // step 13. update histories if appropriate and maybe insert a new transposition_table_entry
+    // step 14. update histories if appropriate and maybe insert a new transposition_table_entry
     if (internal.keep_going() && !ss.has_excluded()) {
       const bound_type bound = [&] {
         if (best_score >= beta) { return bound_type::lower; }
@@ -556,8 +552,8 @@ struct search_worker {
 
   void iterative_deepening_loop() {
     nnue::eval_node root_node = nnue::eval_node::clean_node([this] {
-      nnue::eval result(external.weights, &internal.scratchpad, 0);
-      internal.stack.root_pos().feature_full_refresh(result);
+      nnue::eval result(external.weights, &internal.scratchpad, 0, 0);
+      internal.stack.root_pos().feature_full_reset(result);
       return result;
     }());
 

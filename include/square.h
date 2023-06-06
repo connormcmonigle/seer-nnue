@@ -149,8 +149,9 @@ struct square_set {
   std::uint64_t data;
 
   constexpr iterator begin() const { return square_set_iterator(data); }
-
   constexpr iterator end() const { return square_set_iterator(static_cast<std::uint64_t>(0)); }
+
+  constexpr square_set excluding(const square& sq) const { return square_set(data & ~sq.bit_board()); }
 
   constexpr square_set& insert(const tbl_square& tbl_sq) {
     data |= one << static_cast<std::uint64_t>(tbl_sq.index());

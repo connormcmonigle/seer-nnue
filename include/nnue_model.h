@@ -84,18 +84,25 @@ struct weights {
 template <typename T>
 struct feature_transformer {
   const big_affine<T, feature::half_ka::numel, weights::base_dim>* weights_;
+
+  aligned_slice<T, weights::base_dim> parent_slice_;
   aligned_slice<T, weights::base_dim> slice_;
 
   void clear() { slice_.copy_from(weights_->b); }
+  void parent() { slice_.copy_from(parent_slice_); }
   void insert(const size_t& idx) { weights_->insert_idx(idx, slice_); }
   void erase(const size_t& idx) { weights_->erase_idx(idx, slice_); }
 
-  feature_transformer(const big_affine<T, feature::half_ka::numel, weights::base_dim>* src, aligned_slice<T, weights::base_dim>&& slice)
-      : weights_{src}, slice_{slice} {}
+  feature_transformer(
+      const big_affine<T, feature::half_ka::numel, weights::base_dim>* src,
+      aligned_slice<T, weights::base_dim>&& parent_slice,
+      aligned_slice<T, weights::base_dim>&& slice)
+      : weights_{src}, parent_slice_{parent_slice}, slice_{slice} {}
 };
 
 struct eval : chess::sided<eval, feature_transformer<weights::quantized_parameter_type>> {
-  static constexpr size_t feature_transformer_dim = 2 * weights::base_dim;
+  static constexpr size_t base_dim = weights::base_dim;
+  static constexpr size_t feature_transformer_dim = 2 * base_dim;
   static constexpr size_t scratchpad_depth = 256;
 
   using parameter_type = weights::parameter_type;
@@ -106,7 +113,10 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
   scratchpad_type* scratchpad_;
 
   size_t scratchpad_idx_;
+  
+  aligned_slice<quantized_parameter_type, feature_transformer_dim> parent_base_;
   aligned_slice<quantized_parameter_type, feature_transformer_dim> base_;
+  
   feature_transformer<quantized_parameter_type> white;
   feature_transformer<quantized_parameter_type> black;
 
@@ -135,17 +145,17 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
 
   eval next_child() const {
     const size_t next_scratchpad_idx = scratchpad_idx_ + 1;
-    scratchpad_->get_nth_slice<feature_transformer_dim>(next_scratchpad_idx).copy_from(base_.data);
-    return eval(weights_, scratchpad_, next_scratchpad_idx);
+    return eval(weights_, scratchpad_, scratchpad_idx_, next_scratchpad_idx);
   }
 
-  eval(const weights* src, scratchpad_type* scratchpad, const size_t& scratchpad_idx)
+  eval(const weights* src, scratchpad_type* scratchpad, const size_t& parent_scratchpad_idx, const size_t& scratchpad_idx)
       : weights_{src},
         scratchpad_{scratchpad},
         scratchpad_idx_{scratchpad_idx},
+        parent_base_(scratchpad_->get_nth_slice<feature_transformer_dim>(parent_scratchpad_idx)),
         base_(scratchpad_->get_nth_slice<feature_transformer_dim>(scratchpad_idx_)),
-        white{&src->quantized_shared, base_.slice<weights::base_dim>()},
-        black{&src->quantized_shared, base_.slice<weights::base_dim, weights::base_dim>()} {}
+        white{&src->quantized_shared, parent_base_.slice<base_dim>(), base_.slice<base_dim>()},
+        black{&src->quantized_shared, parent_base_.slice<base_dim, base_dim>(), base_.slice<base_dim, base_dim>()} {}
 };
 
 struct eval_node {
