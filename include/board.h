@@ -827,7 +827,7 @@ struct board {
   }
 
   template <color c, typename T>
-  void feature_partial_reset_(T& sided_set, const move& mv) const {
+  void feature_partial_reset_(const move& mv, T& sided_set) const {
     namespace h_ka = feature::half_ka;
 
     const square our_king = mv.to();
@@ -836,7 +836,7 @@ struct board {
     sided_set.template us<c>().clear();
     sided_set.template us<c>().insert(h_ka::index<c, c>(our_king, piece_type::king, mv.to()));
 
-    sided_set.template them<c>().parent();
+    sided_set.template them<c>().copy_parent();
     sided_set.template them<c>().erase(h_ka::index<opponent<c>, c>(their_king, piece_type::king, mv.from()));
     sided_set.template them<c>().insert(h_ka::index<opponent<c>, c>(their_king, piece_type::king, mv.to()));
     if (mv.is_capture()) { sided_set.template them<c>().erase(h_ka::index<opponent<c>, opponent<c>>(their_king, mv.captured(), mv.to())); }
@@ -852,6 +852,32 @@ struct board {
     });
   }
 
+  template <color pov, color p, typename T>
+  void half_feature_move_delta_(const move& mv, T& sided_set) const {
+    namespace h_ka = feature::half_ka;
+    const square our_king = man_.us<pov>().king().item();
+    const size_t erase_idx_0 = h_ka::index<pov, p>(our_king, mv.piece(), mv.from());
+    
+    const size_t insert_idx = [&] {
+      const piece_type on_to = mv.is_promotion<p>() ? mv.promotion() : mv.piece();
+      return h_ka::index<pov, p>(our_king, on_to, mv.to());
+    }();
+
+    if (mv.is_capture()) {
+      const size_t erase_idx_1 = h_ka::index<pov, opponent<p>>(our_king, mv.captured(), mv.to());
+      sided_set.template us<pov>().copy_parent_insert_erase_erase(insert_idx, erase_idx_0, erase_idx_1);
+      return;
+    }
+    
+    if (mv.is_enpassant()) {
+      const size_t erase_idx_1 = h_ka::index<pov, opponent<p>>(our_king, piece_type::pawn, mv.enpassant_sq());
+      sided_set.template us<pov>().copy_parent_insert_erase_erase(insert_idx, erase_idx_0, erase_idx_1);
+      return;
+    }
+
+    sided_set.template us<pov>().copy_parent_insert_erase(insert_idx, erase_idx_0);
+  }
+
   template <color c, typename T>
   void feature_move_delta_(const move& mv, T& sided_set) const {
     namespace h_ka = feature::half_ka;
@@ -862,36 +888,12 @@ struct board {
     }
 
     if (mv.is_king_move()) {
-      feature_partial_reset_<c>(sided_set, mv);
+      feature_partial_reset_<c>(mv, sided_set);
       return;
     }
 
-    const square our_king = man_.us<c>().king().item();
-    const square their_king = man_.them<c>().king().item();
-
-    sided_set.template us<c>().parent();
-    sided_set.template them<c>().parent();
-
-    sided_set.template us<c>().erase(h_ka::index<c, c>(our_king, mv.piece(), mv.from()));
-    sided_set.template them<c>().erase(h_ka::index<opponent<c>, c>(their_king, mv.piece(), mv.from()));
-
-    if (mv.is_promotion<c>()) {
-      sided_set.template us<c>().insert(h_ka::index<c, c>(our_king, mv.promotion(), mv.to()));
-      sided_set.template them<c>().insert(h_ka::index<opponent<c>, c>(their_king, mv.promotion(), mv.to()));
-    } else {
-      sided_set.template us<c>().insert(h_ka::index<c, c>(our_king, mv.piece(), mv.to()));
-      sided_set.template them<c>().insert(h_ka::index<opponent<c>, c>(their_king, mv.piece(), mv.to()));
-    }
-
-    if (mv.is_enpassant()) {
-      sided_set.template them<c>().erase(h_ka::index<opponent<c>, opponent<c>>(their_king, piece_type::pawn, mv.enpassant_sq()));
-      sided_set.template us<c>().erase(h_ka::index<c, opponent<c>>(our_king, piece_type::pawn, mv.enpassant_sq()));
-    }
-
-    if (mv.is_capture()) {
-      sided_set.template them<c>().erase(h_ka::index<opponent<c>, opponent<c>>(their_king, mv.captured(), mv.to()));
-      sided_set.template us<c>().erase(h_ka::index<c, opponent<c>>(our_king, mv.captured(), mv.to()));
-    }
+    half_feature_move_delta_<c, c>(mv, sided_set);
+    half_feature_move_delta_<opponent<c>, c>(mv, sided_set);
   }
 
   template <typename T>

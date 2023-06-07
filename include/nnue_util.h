@@ -271,6 +271,24 @@ struct big_affine {
     simd::sub<b_numel>(x.data, mem_region);
   }
 
+  void insert_erase_idx(const size_t insert_idx, const size_t erase_idx, const aligned_slice<T, b_numel>& src, aligned_slice<T, b_numel> dst) const {
+    const T* insert_mem_region = W + insert_idx * dim1;
+    const T* erase_mem_region = W + erase_idx * dim1;
+    simd::add_add_sub<b_numel>(src.data, insert_mem_region, erase_mem_region, dst.data);
+  }
+
+  void insert_erase_erase_idx(
+      const size_t insert_idx,
+      const size_t erase_idx_0,
+      const size_t erase_idx_1,
+      const aligned_slice<T, b_numel>& src,
+      aligned_slice<T, b_numel> dst) const {
+    const T* insert_mem_region = W + insert_idx * dim1;
+    const T* erase_mem_region_0 = W + erase_idx_0 * dim1;
+    const T* erase_mem_region_1 = W + erase_idx_1 * dim1;
+    simd::add_add_sub_sub<b_numel>(src.data, insert_mem_region, erase_mem_region_0, erase_mem_region_1, dst.data);
+  }
+
   template <typename streamer_type>
   big_affine<T, dim0, dim1>& load_(streamer_type& ws) {
     ws.template stream<T>(W, W_numel).template stream<T>(b, b_numel);

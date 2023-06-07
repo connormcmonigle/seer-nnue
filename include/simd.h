@@ -121,6 +121,18 @@ inline void sub(T* a, const T* b) {
   for (size_t i = 0; i < dim; ++i) { a[i] -= b[i]; }
 }
 
+template <size_t dim, typename T>
+inline void add_add_sub(const T* a_0, const T* a_1, const T* s_0, T* out) {
+#pragma omp simd
+  for (size_t i = 0; i < dim; ++i) { out[i] = a_0[i] + a_1[i] - s_0[i]; }
+}
+
+template <size_t dim, typename T>
+inline void add_add_sub_sub(const T* a_0, const T* a_1, const T* s_0, const T* s_1, T* out) {
+#pragma omp simd
+  for (size_t i = 0; i < dim; ++i) { out[i] = a_0[i] - s_0[i] + a_1[i] - s_1[i]; }
+}
+
 template <size_t dim0, size_t dim1, typename T0, typename T1>
 inline void relu_matrix_vector_product(const T0* matrix, const T0* input, T1* output) {
 #pragma omp simd
@@ -182,6 +194,105 @@ struct int16_sub_x128 {
 template <size_t dim>
 inline void sub(std::int16_t* a, const std::int16_t* b) {
   return overload_set<int16_sub_x128<dim>>::f(a, b);
+}
+
+
+template <size_t dim>
+struct int16_add_add_sub_x128 {
+  static constexpr size_t num_units = 4;
+  static constexpr bool available = divides<dim, num_units * per_unit<vector_512, std::int16_t>>;
+
+  static inline void f(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, std::int16_t* out) {
+    for (size_t i(0); i < dim; i += num_units * per_unit<vector_512, std::int16_t>) {
+      {
+        const __m512i a_0_0 = _mm512_load_si512((__m512i*)(a_0 + i + 0 * per_unit<vector_512, std::int16_t>));
+        const __m512i a_1_0 = _mm512_load_si512((__m512i*)(a_1 + i + 0 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_0_0 = _mm512_load_si512((__m512i*)(s_0 + i + 0 * per_unit<vector_512, std::int16_t>));
+        __m512i* out_0 = (__m512i*)(out + i + 0 * per_unit<vector_512, std::int16_t>);
+        *out_0 = _mm512_add_epi16(a_0_0, _mm512_sub_epi16(a_1_0, s_0_0));
+      }
+
+      {
+        const __m512i a_0_1 = _mm512_load_si512((__m512i*)(a_0 + i + 1 * per_unit<vector_512, std::int16_t>));
+        const __m512i a_1_1 = _mm512_load_si512((__m512i*)(a_1 + i + 1 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_0_1 = _mm512_load_si512((__m512i*)(s_0 + i + 1 * per_unit<vector_512, std::int16_t>));
+        __m512i* out_1 = (__m512i*)(out + i + 1 * per_unit<vector_512, std::int16_t>);
+        *out_1 = _mm512_add_epi16(a_0_1, _mm512_sub_epi16(a_1_1, s_0_1));
+      }
+
+      {
+        const __m512i a_0_2 = _mm512_load_si512((__m512i*)(a_0 + i + 2 * per_unit<vector_512, std::int16_t>));
+        const __m512i a_1_2 = _mm512_load_si512((__m512i*)(a_1 + i + 2 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_0_2 = _mm512_load_si512((__m512i*)(s_0 + i + 2 * per_unit<vector_512, std::int16_t>));
+        __m512i* out_2 = (__m512i*)(out + i + 2 * per_unit<vector_512, std::int16_t>);
+        *out_2 = _mm512_add_epi16(a_0_2, _mm512_sub_epi16(a_1_2, s_0_2));
+      }
+
+      {
+        const __m512i a_0_3 = _mm512_load_si512((__m512i*)(a_0 + i + 3 * per_unit<vector_512, std::int16_t>));
+        const __m512i a_1_3 = _mm512_load_si512((__m512i*)(a_1 + i + 3 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_0_3 = _mm512_load_si512((__m512i*)(s_0 + i + 3 * per_unit<vector_512, std::int16_t>));
+        __m512i* out_3 = (__m512i*)(out + i + 3 * per_unit<vector_512, std::int16_t>);
+        *out_3 = _mm512_add_epi16(a_0_3, _mm512_sub_epi16(a_1_3, s_0_3));
+      }
+    }
+  }
+};
+
+template <size_t dim>
+inline void add_add_sub(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, std::int16_t* out) {
+  return overload_set<int16_add_add_sub_x128<dim>>::f(a_0, a_1, s_0, out);
+}
+
+template <size_t dim>
+struct int16_add_add_sub_sub_x128 {
+  static constexpr size_t num_units = 4;
+  static constexpr bool available = divides<dim, num_units * per_unit<vector_512, std::int16_t>>;
+
+  static inline void f(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) {
+    for (size_t i(0); i < dim; i += num_units * per_unit<vector_512, std::int16_t>) {
+      {
+        const __m512i a_0_0 = _mm512_load_si512((__m512i*)(a_0 + i + 0 * per_unit<vector_512, std::int16_t>));
+        const __m512i a_1_0 = _mm512_load_si512((__m512i*)(a_1 + i + 0 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_0_0 = _mm512_load_si512((__m512i*)(s_0 + i + 0 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_1_0 = _mm512_load_si512((__m512i*)(s_1 + i + 0 * per_unit<vector_512, std::int16_t>));
+        __m512i* out_0 = (__m512i*)(out + i + 0 * per_unit<vector_512, std::int16_t>);
+        *out_0 = _mm512_add_epi16(_mm512_sub_epi16(a_0_0, s_0_0), _mm512_sub_epi16(a_1_0, s_1_0));
+      }
+
+      {
+        const __m512i a_0_1 = _mm512_load_si512((__m512i*)(a_0 + i + 1 * per_unit<vector_512, std::int16_t>));
+        const __m512i a_1_1 = _mm512_load_si512((__m512i*)(a_1 + i + 1 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_0_1 = _mm512_load_si512((__m512i*)(s_0 + i + 1 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_1_1 = _mm512_load_si512((__m512i*)(s_1 + i + 1 * per_unit<vector_512, std::int16_t>));
+        __m512i* out_1 = (__m512i*)(out + i + 1 * per_unit<vector_512, std::int16_t>);
+        *out_1 = _mm512_add_epi16(_mm512_sub_epi16(a_0_1, s_0_1), _mm512_sub_epi16(a_1_1, s_1_1));
+      }
+
+      {
+        const __m512i a_0_2 = _mm512_load_si512((__m512i*)(a_0 + i + 2 * per_unit<vector_512, std::int16_t>));
+        const __m512i a_1_2 = _mm512_load_si512((__m512i*)(a_1 + i + 2 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_0_2 = _mm512_load_si512((__m512i*)(s_0 + i + 2 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_1_2 = _mm512_load_si512((__m512i*)(s_1 + i + 2 * per_unit<vector_512, std::int16_t>));
+        __m512i* out_2 = (__m512i*)(out + i + 2 * per_unit<vector_512, std::int16_t>);
+        *out_2 = _mm512_add_epi16(_mm512_sub_epi16(a_0_2, s_0_2), _mm512_sub_epi16(a_1_2, s_1_2));
+      }
+
+      {
+        const __m512i a_0_3 = _mm512_load_si512((__m512i*)(a_0 + i + 3 * per_unit<vector_512, std::int16_t>));
+        const __m512i a_1_3 = _mm512_load_si512((__m512i*)(a_1 + i + 3 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_0_3 = _mm512_load_si512((__m512i*)(s_0 + i + 3 * per_unit<vector_512, std::int16_t>));
+        const __m512i s_1_3 = _mm512_load_si512((__m512i*)(s_1 + i + 3 * per_unit<vector_512, std::int16_t>));
+        __m512i* out_3 = (__m512i*)(out + i + 3 * per_unit<vector_512, std::int16_t>);
+        *out_3 = _mm512_add_epi16(_mm512_sub_epi16(a_0_3, s_0_3), _mm512_sub_epi16(a_1_3, s_1_3));
+      }
+    }
+  }
+};
+
+template <size_t dim>
+inline void add_add_sub_sub(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) {
+  return overload_set<int16_add_add_sub_sub_x128<dim>>::f(a_0, a_1, s_0, s_1, out);
 }
 
 template <size_t dim0, size_t dim1>
@@ -374,6 +485,104 @@ struct int16_sub_x64 {
 template <size_t dim>
 inline void sub(std::int16_t* a, const std::int16_t* b) {
   return overload_set<int16_sub_x64<dim>>::f(a, b);
+}
+
+template <size_t dim>
+struct int16_add_add_sub_x64 {
+  static constexpr size_t num_units = 4;
+  static constexpr bool available = divides<dim, num_units * per_unit<vector_256, std::int16_t>>;
+
+  static inline void f(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, std::int16_t* out) {
+    for (size_t i(0); i < dim; i += num_units * per_unit<vector_256, std::int16_t>) {
+      {
+        const __m256i a_0_0 = _mm256_load_si256((__m256i*)(a_0 + i + 0 * per_unit<vector_256, std::int16_t>));
+        const __m256i a_1_0 = _mm256_load_si256((__m256i*)(a_1 + i + 0 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_0_0 = _mm256_load_si256((__m256i*)(s_0 + i + 0 * per_unit<vector_256, std::int16_t>));
+        __m256i* out_0 = (__m256i*)(out + i + 0 * per_unit<vector_256, std::int16_t>);
+        *out_0 = _mm256_add_epi16(a_0_0, _mm256_sub_epi16(a_1_0, s_0_0));
+      }
+
+      {
+        const __m256i a_0_1 = _mm256_load_si256((__m256i*)(a_0 + i + 1 * per_unit<vector_256, std::int16_t>));
+        const __m256i a_1_1 = _mm256_load_si256((__m256i*)(a_1 + i + 1 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_0_1 = _mm256_load_si256((__m256i*)(s_0 + i + 1 * per_unit<vector_256, std::int16_t>));
+        __m256i* out_1 = (__m256i*)(out + i + 1 * per_unit<vector_256, std::int16_t>);
+        *out_1 = _mm256_add_epi16(a_0_1, _mm256_sub_epi16(a_1_1, s_0_1));
+      }
+
+      {
+        const __m256i a_0_2 = _mm256_load_si256((__m256i*)(a_0 + i + 2 * per_unit<vector_256, std::int16_t>));
+        const __m256i a_1_2 = _mm256_load_si256((__m256i*)(a_1 + i + 2 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_0_2 = _mm256_load_si256((__m256i*)(s_0 + i + 2 * per_unit<vector_256, std::int16_t>));
+        __m256i* out_2 = (__m256i*)(out + i + 2 * per_unit<vector_256, std::int16_t>);
+        *out_2 = _mm256_add_epi16(a_0_2, _mm256_sub_epi16(a_1_2, s_0_2));
+      }
+
+      {
+        const __m256i a_0_3 = _mm256_load_si256((__m256i*)(a_0 + i + 3 * per_unit<vector_256, std::int16_t>));
+        const __m256i a_1_3 = _mm256_load_si256((__m256i*)(a_1 + i + 3 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_0_3 = _mm256_load_si256((__m256i*)(s_0 + i + 3 * per_unit<vector_256, std::int16_t>));
+        __m256i* out_3 = (__m256i*)(out + i + 3 * per_unit<vector_256, std::int16_t>);
+        *out_3 = _mm256_add_epi16(a_0_3, _mm256_sub_epi16(a_1_3, s_0_3));
+      }
+    }
+  }
+};
+
+template <size_t dim>
+inline void add_add_sub(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, std::int16_t* out) {
+  return overload_set<int16_add_add_sub_x64<dim>>::f(a_0, a_1, s_0, out);
+}
+
+template <size_t dim>
+struct int16_add_add_sub_sub_x64 {
+  static constexpr size_t num_units = 4;
+  static constexpr bool available = divides<dim, num_units * per_unit<vector_256, std::int16_t>>;
+
+  static inline void f(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) {
+    for (size_t i(0); i < dim; i += num_units * per_unit<vector_256, std::int16_t>) {
+      {
+        const __m256i a_0_0 = _mm256_load_si256((__m256i*)(a_0 + i + 0 * per_unit<vector_256, std::int16_t>));
+        const __m256i a_1_0 = _mm256_load_si256((__m256i*)(a_1 + i + 0 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_0_0 = _mm256_load_si256((__m256i*)(s_0 + i + 0 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_1_0 = _mm256_load_si256((__m256i*)(s_1 + i + 0 * per_unit<vector_256, std::int16_t>));
+        __m256i* out_0 = (__m256i*)(out + i + 0 * per_unit<vector_256, std::int16_t>);
+        *out_0 = _mm256_add_epi16(_mm256_sub_epi16(a_0_0, s_0_0), _mm256_sub_epi16(a_1_0, s_1_0));
+      }
+
+      {
+        const __m256i a_0_1 = _mm256_load_si256((__m256i*)(a_0 + i + 1 * per_unit<vector_256, std::int16_t>));
+        const __m256i a_1_1 = _mm256_load_si256((__m256i*)(a_1 + i + 1 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_0_1 = _mm256_load_si256((__m256i*)(s_0 + i + 1 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_1_1 = _mm256_load_si256((__m256i*)(s_1 + i + 1 * per_unit<vector_256, std::int16_t>));
+        __m256i* out_1 = (__m256i*)(out + i + 1 * per_unit<vector_256, std::int16_t>);
+        *out_1 = _mm256_add_epi16(_mm256_sub_epi16(a_0_1, s_0_1), _mm256_sub_epi16(a_1_1, s_1_1));
+      }
+
+      {
+        const __m256i a_0_2 = _mm256_load_si256((__m256i*)(a_0 + i + 2 * per_unit<vector_256, std::int16_t>));
+        const __m256i a_1_2 = _mm256_load_si256((__m256i*)(a_1 + i + 2 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_0_2 = _mm256_load_si256((__m256i*)(s_0 + i + 2 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_1_2 = _mm256_load_si256((__m256i*)(s_1 + i + 2 * per_unit<vector_256, std::int16_t>));
+        __m256i* out_2 = (__m256i*)(out + i + 2 * per_unit<vector_256, std::int16_t>);
+        *out_2 = _mm256_add_epi16(_mm256_sub_epi16(a_0_2, s_0_2), _mm256_sub_epi16(a_1_2, s_1_2));
+      }
+
+      {
+        const __m256i a_0_3 = _mm256_load_si256((__m256i*)(a_0 + i + 3 * per_unit<vector_256, std::int16_t>));
+        const __m256i a_1_3 = _mm256_load_si256((__m256i*)(a_1 + i + 3 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_0_3 = _mm256_load_si256((__m256i*)(s_0 + i + 3 * per_unit<vector_256, std::int16_t>));
+        const __m256i s_1_3 = _mm256_load_si256((__m256i*)(s_1 + i + 3 * per_unit<vector_256, std::int16_t>));
+        __m256i* out_3 = (__m256i*)(out + i + 3 * per_unit<vector_256, std::int16_t>);
+        *out_3 = _mm256_add_epi16(_mm256_sub_epi16(a_0_3, s_0_3), _mm256_sub_epi16(a_1_3, s_1_3));
+      }
+    }
+  }
+};
+
+template <size_t dim>
+inline void add_add_sub_sub(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) {
+  return overload_set<int16_add_add_sub_sub_x64<dim>>::f(a_0, a_1, s_0, s_1, out);
 }
 
 template <size_t dim0, size_t dim1>
@@ -580,7 +789,7 @@ struct float_relu_matrix_vector_product_x4_x8 {
 template <size_t dim0, size_t dim1>
 struct int16_relu_matrix_vector_product_x8_x8 {
   static constexpr size_t num_units = 8;
-  static constexpr bool available = divides<dim1, num_units> && divides<dim0, per_unit<vector_128,std::int16_t>>;
+  static constexpr bool available = divides<dim1, num_units> && divides<dim0, per_unit<vector_128, std::int16_t>>;
 
   static inline void f(const std::int16_t* matrix, const std::int16_t* input, std::int32_t* output) {
     const __m128i zero = _mm_setzero_si128();
