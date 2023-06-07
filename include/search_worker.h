@@ -179,6 +179,12 @@ struct search_worker {
       ++legal_count;
       if (!internal.keep_going()) { break; }
 
+      if (!is_check && mv.is_capture()) {
+        const history::context ctxt{chess::move::null(), chess::move::null(), chess::square_set{}};
+        const counter_type value = internal.hh.us(bd.turn()).get<history::capture_info>().at(ctxt, mv);        
+        if (value <= -1536) { continue; }
+      }
+
       if (!is_check && !bd.see_ge(mv, 0)) { continue; }
 
       const bool delta_prune = !is_pv && !is_check && !bd.see_gt(mv, 0) && ((value + external.constants->delta_margin()) < alpha);
@@ -333,14 +339,11 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-
     // step 9. probcut pruning
     const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
     const score_type probcut_beta = external.constants->probcut_beta(beta);
-    const bool try_probcut =
-        !is_pv && depth >= external.constants->probcut_depth() &&
-        !(maybe.has_value() && maybe->best_move().is_quiet()) &&
-        !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
+    const bool try_probcut = !is_pv && depth >= external.constants->probcut_depth() && !(maybe.has_value() && maybe->best_move().is_quiet()) &&
+                             !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
 
     if (try_probcut) {
       move_orderer<chess::generation_mode::noisy_and_check> probcut_orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));

@@ -137,6 +137,9 @@ template <typename... Ts>
 struct combined {
   std::tuple<table<Ts>...> tables_{};
 
+  template <typename T>
+  constexpr const table<T>& get() const { return std::get<table<T>>(tables_); }
+
   constexpr combined<Ts...>& update(const context& ctxt, const chess::move& best_move, const chess::move_list& tried, const depth_type& depth) {
     constexpr value_type history_max = 400;
 
