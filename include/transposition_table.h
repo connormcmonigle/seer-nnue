@@ -69,6 +69,14 @@ struct transposition_table_entry {
     return *this;
   }
 
+  transposition_table_entry& merge(const transposition_table_entry& other) {
+    if (bound() != bound_type::upper || key() != other.key()) { return *this; }
+    key_ ^= value_;
+    best_move_::set(value_, other.best_move().data);
+    key_ ^= value_;
+    return *this;
+  }
+
   transposition_table_entry(
       const zobrist::hash_type& key, const bound_type& bound, const score_type& score, const chess::move& mv, const depth_type& depth)
       : key_{key} {
@@ -147,10 +155,7 @@ struct transposition_table {
     const bool should_replace =
         (entry.bound() == bound_type::exact) || (entry.key() != to_replace->key()) || ((entry.depth() + offset) >= to_replace->depth());
 
-    if (should_replace) {
-      *to_replace = entry;
-      to_replace->set_gen(gen);
-    }
+    if (should_replace) { *to_replace = transposition_table_entry(entry).set_gen(gen).merge(*to_replace); }
 
     return *this;
   }
