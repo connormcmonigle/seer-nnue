@@ -43,6 +43,7 @@ inline constexpr size_t num_pieces = 6;
 };  // namespace constants
 
 struct context {
+  chess::square king;
   chess::move follow;
   chess::move counter;
   chess::square_set threatened;
@@ -53,6 +54,19 @@ value_type formula(const value_type& x, const value_type& gain) {
   constexpr value_type history_divisor = 512;
   return (gain * history_multiplier) - (x * std::abs(gain) / history_divisor);
 }
+
+struct king_butterfly_info {
+  static constexpr size_t N = constants::num_squares * constants::num_squares * constants::num_pieces;
+
+  static constexpr bool is_applicable(const context&, const chess::move& mv) { return mv.is_quiet(); }
+
+  static constexpr size_t compute_index(const context& ctxt, const chess::move& mv) {
+    const size_t k = static_cast<size_t>(ctxt.king.index());
+    const size_t p = static_cast<size_t>(mv.piece());
+    const size_t to = static_cast<size_t>(mv.to().index());
+    return k * constants::num_squares * constants::num_pieces + p * constants::num_squares + to;
+  }
+};
 
 struct butterfly_info {
   static constexpr size_t N = constants::num_squares * constants::num_squares;
@@ -169,8 +183,13 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic =
-    history::combined<history::butterfly_info, history::threatened_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic = history::combined<
+    history::butterfly_info,
+    history::king_butterfly_info,
+    history::threatened_info,
+    history::counter_info,
+    history::follow_info,
+    history::capture_info>;
 
 struct sided_history_heuristic : chess::sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;

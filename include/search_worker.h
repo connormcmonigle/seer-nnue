@@ -386,6 +386,8 @@ struct search_worker {
     bool did_double_extend{false};
     int legal_count{0};
 
+    const history::context history_context{bd.them_king_square(), follow, counter, threatened};
+
     for (const auto& [idx, mv] : orderer) {
       assert((mv != chess::move::null()));
 
@@ -396,7 +398,7 @@ struct search_worker {
       const size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
       ss.set_played(mv);
 
-      const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
+      const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history_context, mv);
 
       const chess::board bd_ = bd.forward(mv);
 
@@ -539,7 +541,7 @@ struct search_worker {
       }();
 
       if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
-        internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
+        internal.hh.us(bd.turn()).update(history_context, best_move, moves_tried, depth);
         ss.set_killer(best_move);
       }
 
