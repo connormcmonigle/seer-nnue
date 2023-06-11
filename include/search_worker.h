@@ -181,12 +181,12 @@ struct search_worker {
 
       if (!is_check && !bd.see_ge(mv, 0)) { continue; }
 
-      const bool delta_prune = !is_pv && !is_check && !bd.see_gt(mv, 0) && ((value + external.constants->delta_margin()) < alpha);
+      const bool delta_prune = !is_pv && !is_check && ((value + external.constants->delta_margin()) < alpha) && !bd.see_gt(mv, 0);
       if (delta_prune) { continue; }
 
       const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() &&
-                                      bd.see_ge(mv, external.constants->good_capture_prune_see_margin()) &&
-                                      value + external.constants->good_capture_prune_score_margin() > beta;
+                                      value + external.constants->good_capture_prune_score_margin() > beta &&
+                                      bd.see_ge(mv, external.constants->good_capture_prune_see_margin());
       if (good_capture_prune) { return beta; }
 
       ss.set_played(mv);
@@ -333,14 +333,11 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-
     // step 9. probcut pruning
     const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
     const score_type probcut_beta = external.constants->probcut_beta(beta);
-    const bool try_probcut =
-        !is_pv && depth >= external.constants->probcut_depth() &&
-        !(maybe.has_value() && maybe->best_move().is_quiet()) &&
-        !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
+    const bool try_probcut = !is_pv && depth >= external.constants->probcut_depth() && !(maybe.has_value() && maybe->best_move().is_quiet()) &&
+                             !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
 
     if (try_probcut) {
       move_orderer<chess::generation_mode::noisy_and_check> probcut_orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
@@ -477,7 +474,7 @@ struct search_worker {
         score_type zw_score;
 
         // step 13. late move reductions
-        const bool try_lmr = !is_check && (mv.is_quiet() || !bd.see_ge(mv, 0)) && idx >= 2 && (depth >= external.constants->reduce_depth());
+        const bool try_lmr = !is_check && idx >= 2 && depth >= external.constants->reduce_depth() && (mv.is_quiet() || !bd.see_ge(mv, 0));
         if (try_lmr) {
           depth_type reduction = external.constants->reduction(depth, idx);
 
@@ -490,7 +487,7 @@ struct search_worker {
 
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
-          if (!bd.see_ge(mv, 0) && mv.is_quiet()) { ++reduction; }
+          if (mv.is_quiet() && !bd.see_ge(mv, 0)) { ++reduction; }
 
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
           // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
@@ -511,7 +508,7 @@ struct search_worker {
         return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
       }();
 
-      if (score < beta && (mv.is_quiet() || !bd.see_gt(mv, 0))) { moves_tried.push(mv); }
+      if (score < beta && (mv.is_quiet() || !bd.guess_see_gt(mv, 0))) { moves_tried.push(mv); }
 
       if (score > best_score) {
         best_score = score;
@@ -538,7 +535,7 @@ struct search_worker {
         return bound_type::upper;
       }();
 
-      if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
+      if (bound == bound_type::lower && (best_move.is_quiet() || !bd.guess_see_gt(best_move, 0))) {
         internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
         ss.set_killer(best_move);
       }

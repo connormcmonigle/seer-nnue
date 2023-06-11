@@ -695,6 +695,18 @@ struct board {
     return see_ge(mv, threshold + 1);
   }
 
+  template <color c, typename T>
+  constexpr T guess_see_gt_(const move& mv, const T& threshold) const {
+    const bool capture = (mv.is_capture() && !mv.is_castle_ooo<c>() && !mv.is_castle_oo<c>());
+    const T value = capture ? (material_value<T>(mv.captured()) - material_value<T>(mv.piece())) : T{};
+    return value > threshold;
+  }
+
+  template <typename T>
+  constexpr T guess_see_gt(const move& mv, const T& threshold) const {
+    return turn() ? guess_see_gt_<color::white, T>(mv, threshold) : guess_see_gt_<color::black, T>(mv, threshold);
+  }
+
   bool has_non_pawn_material() const {
     return man_.us(turn()).knight().any() || man_.us(turn()).bishop().any() || man_.us(turn()).rook().any() || man_.us(turn()).queen().any();
   }
@@ -857,7 +869,7 @@ struct board {
     namespace h_ka = feature::half_ka;
     const square our_king = man_.us<pov>().king().item();
     const size_t erase_idx_0 = h_ka::index<pov, p>(our_king, mv.piece(), mv.from());
-    
+
     const size_t insert_idx = [&] {
       const piece_type on_to = mv.is_promotion<p>() ? mv.promotion() : mv.piece();
       return h_ka::index<pov, p>(our_king, on_to, mv.to());
@@ -868,7 +880,7 @@ struct board {
       sided_set.template us<pov>().copy_parent_insert_erase_erase(insert_idx, erase_idx_0, erase_idx_1);
       return;
     }
-    
+
     if (mv.is_enpassant()) {
       const size_t erase_idx_1 = h_ka::index<pov, opponent<p>>(our_king, piece_type::pawn, mv.enpassant_sq());
       sided_set.template us<pov>().copy_parent_insert_erase_erase(insert_idx, erase_idx_0, erase_idx_1);
