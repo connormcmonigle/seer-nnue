@@ -129,7 +129,7 @@ struct move_orderer_stepper {
     const history::context ctxt{data.follow, data.counter, data.threatened};
 
     end_ = std::transform(list.begin(), list.end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
-      if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->guess_see_gt(mv, 0), data.hh->compute_value(ctxt, mv)); }
+      if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see_gt(mv, 0), data.hh->compute_value(ctxt, mv)); }
       return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
     });
 
