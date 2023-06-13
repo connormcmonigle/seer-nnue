@@ -21,6 +21,7 @@
 #include <board.h>
 #include <embedded_weights.h>
 #include <move.h>
+#include <nnue_stats.h>
 #include <option_parser.h>
 #include <search_constants.h>
 #include <search_stack.h>
@@ -67,11 +68,6 @@ struct uci {
 
   bool should_quit() const { return should_quit_.load(); }
 
-  void weights_info_string() {
-    std::lock_guard<std::mutex> os_lk(os_mutex_);
-    os << "info string loaded weights with signature 0x" << std::hex << weights_.signature() << std::dec << std::endl;
-  }
-
   auto options() {
     auto weight_path = option_callback(string_option("Weights", std::string(default_weight_path)), [this](const std::string& path) {
       if (path == std::string(default_weight_path)) {
@@ -80,7 +76,8 @@ struct uci {
       } else {
         weights_.load(path);
       }
-      weights_info_string();
+
+      load_weights_info_string();
     });
 
     auto hash_size = option_callback(spin_option("Hash", default_hash_size, spin_range{1, 262144}), [this](const int size) {
@@ -95,9 +92,15 @@ struct uci {
 
     auto ponder = option_callback(check_option("Ponder", default_ponder), [this](const bool& value) { ponder_.store(value); });
 
-    auto syzygy_path = option_callback(string_option("SyzygyPath", std::string(default_syzygy_path)), [](const std::string& path) { syzygy::init(path); });
+    auto syzygy_path =
+        option_callback(string_option("SyzygyPath", std::string(default_syzygy_path)), [](const std::string& path) { syzygy::init(path); });
 
     return uci_options(weight_path, hash_size, thread_count, ponder, syzygy_path);
+  }
+
+  void load_weights_info_string() {
+    std::lock_guard<std::mutex> os_lk(os_mutex_);
+    os << "info string loaded weights with signature 0x" << std::hex << weights_.signature() << std::dec << std::endl;
   }
 
   void uci_new_game() {
@@ -169,7 +172,7 @@ struct uci {
     const chess::move best_move = orchestrator_.primary_worker().best_move();
     const chess::move ponder_move = orchestrator_.primary_worker().ponder_move();
 
-     const std::string ponder_move_string = [&] {
+    const std::string ponder_move_string = [&] {
       if (!position.forward(best_move).is_legal<chess::generation_mode::all>(ponder_move)) { return std::string{}; }
       return std::string(" ponder ") + ponder_move.name(position.forward(best_move).turn());
     }();
@@ -194,7 +197,7 @@ struct uci {
 
   void bench() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
-    os << get_bench_info(weights_) << std::endl;
+    os << get_bench_info<>(weights_) << std::endl;
   }
 
   void eval() {
@@ -235,6 +238,16 @@ struct uci {
     }
   }
 
+  /*void optimize_weights() {
+    nnue::weights_streamer streamer("optimized.bin", std::ios_base::out | std::ios_base::binary);
+    using stats_type = nnue::feature_transformer_sparsity_stats<nnue::weights::quantized_parameter_type, nnue::weights::base_dim>;
+    get_bench_info<stats_type>(weights_);
+    const auto indices = stats_type::permuted_indices();
+    for (const auto index : indices) { std::cout << index << ", " << std::endl; }
+
+    weights_.permuted(stats_type::permuted_indices()).dump(streamer);
+  }*/
+
   void quit() { should_quit_.store(true); }
 
   void read(const std::string& line) {
@@ -261,6 +274,9 @@ struct uci {
       eval();
     } else if (!is_searching && line == "probe") {
       probe();
+    /*} else if (!is_searching && line == "optimize_weights") {
+      optimize_weights();
+      */
     } else if (!is_searching && std::regex_match(line, perft_rgx)) {
       perft(line);
     } else if (!is_searching && std::regex_match(line, go_rgx)) {

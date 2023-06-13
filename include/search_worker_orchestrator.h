@@ -28,6 +28,7 @@
 namespace search {
 
 struct worker_orchestrator {
+  using worker_type = search_worker<>;
   static constexpr size_t primary_id = 0;
 
   const nnue::weights* weights_;
@@ -36,7 +37,7 @@ struct worker_orchestrator {
 
   std::mutex access_mutex_{};
   std::atomic_bool is_searching_{};
-  std::vector<std::unique_ptr<search_worker>> workers_{};
+  std::vector<std::unique_ptr<worker_type>> workers_{};
   std::vector<std::thread> threads_{};
 
   void reset() {
@@ -48,7 +49,7 @@ struct worker_orchestrator {
     constants_->update_(new_size);
     const size_t old_size = workers_.size();
     workers_.resize(new_size);
-    for (size_t i(old_size); i < new_size; ++i) { workers_[i] = std::make_unique<search_worker>(weights_, tt_, constants_); }
+    for (size_t i(old_size); i < new_size; ++i) { workers_[i] = std::make_unique<worker_type>(weights_, tt_, constants_); }
   }
 
   void go(const chess::position_history& hist, const chess::board& bd) {
@@ -91,17 +92,17 @@ struct worker_orchestrator {
         workers_.begin(), workers_.end(), static_cast<size_t>(0), [](const size_t& count, const auto& worker) { return count + worker->tb_hits(); });
   }
 
-  search_worker& primary_worker() { return *workers_[primary_id]; }
+  worker_type& primary_worker() { return *workers_[primary_id]; }
 
   worker_orchestrator(
       const nnue::weights* weights,
       size_t hash_table_size,
-      std::function<void(const search_worker&)> on_iter = [](auto&&...) {},
-      std::function<void(const search_worker&)> on_update = [](auto&&...) {}) {
+      std::function<void(const worker_type&)> on_iter = [](auto&&...) {},
+      std::function<void(const worker_type&)> on_update = [](auto&&...) {}) {
     weights_ = weights;
     tt_ = std::make_shared<transposition_table>(hash_table_size);
     constants_ = std::make_shared<search_constants>();
-    workers_.push_back(std::make_unique<search_worker>(weights, tt_, constants_, on_iter, on_update));
+    workers_.push_back(std::make_unique<worker_type>(weights, tt_, constants_, on_iter, on_update));
   }
 
   ~worker_orchestrator() {

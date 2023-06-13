@@ -59,6 +59,16 @@ struct weights {
     return shared.num_parameters() + fc0.num_parameters() + fc1.num_parameters() + fc2.num_parameters() + fc3.num_parameters();
   }
 
+  weights permuted(const std::array<size_t, base_dim>& permuted_indices) {
+    weights result{};
+    result.shared = shared.output_permuted(permuted_indices);
+    result.fc0 = fc0.half_input_permuted(permuted_indices);
+    result.fc1 = fc1;
+    result.fc2 = fc2;
+    result.fc3 = fc3;
+    return result;
+  }
+
   template <typename streamer_type>
   weights& load(streamer_type& ws) {
     shared.load_(ws);
@@ -79,6 +89,16 @@ struct weights {
     auto ws = weights_streamer(path);
     return load(ws);
   }
+
+  template <typename streamer_type>
+  weights& dump(streamer_type& ws) {
+    shared.dump(ws);
+    fc0.dump(ws);
+    fc1.dump(ws);
+    fc2.dump(ws);
+    fc3.dump(ws);
+    return *this;
+  }
 };
 
 template <typename T>
@@ -87,6 +107,11 @@ struct feature_transformer {
 
   aligned_slice<T, weights::base_dim> parent_slice_;
   aligned_slice<T, weights::base_dim> slice_;
+
+  template <typename F>
+  void visit(F&& f) const {
+    for (size_t i(0); i < weights::base_dim; ++i) { f(i, slice_.data[i]); }
+  }
 
   void clear() { slice_.copy_from(weights_->b); }
   void copy_parent() { slice_.copy_from(parent_slice_); }
@@ -128,6 +153,12 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
   feature_transformer<quantized_parameter_type> white;
   feature_transformer<quantized_parameter_type> black;
 
+  template <typename F>
+  void visit(F&& f) const {
+    white.visit(std::forward<F>(f));
+    black.visit(std::forward<F>(f));
+  }
+
   inline parameter_type propagate(const bool pov) const {
     const auto x1 = (pov ? weights_->white_quantized_fc0 : weights_->black_quantized_fc0)
                         .forward(base_)
@@ -166,6 +197,14 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
         black{&src->quantized_shared, parent_base_.slice<base_dim, base_dim>(), base_.slice<base_dim, base_dim>()} {}
 };
 
+namespace {
+
+constexpr auto null_visitor = [](auto...) {};
+using null_visitor_type = decltype(null_visitor);
+
+}  // namespace
+
+template <typename F = null_visitor_type>
 struct eval_node {
   struct context {
     eval_node* parent_node_{nullptr};
@@ -188,15 +227,17 @@ struct eval_node {
     const context ctxt = data_.context_;
     data_.eval_ = ctxt.parent_node_->evaluator().next_child();
     ctxt.parent_board_->feature_move_delta(ctxt.move_, data_.eval_);
+
+    if constexpr (!std::is_same_v<null_visitor_type, F>) { data_.eval_.visit(F{}); }
     return data_.eval_;
   }
 
-  eval_node dirty_child(const chess::board* bd, const chess::move& mv) { return eval_node::dirty_node(context{this, bd, mv}); }
+  eval_node<F> dirty_child(const chess::board* bd, const chess::move& mv) { return eval_node<F>::dirty_node(context{this, bd, mv}); }
 
-  static eval_node dirty_node(const context& context) { return eval_node{true, {context}}; }
+  static eval_node<F> dirty_node(const context& context) { return eval_node<F>{true, {context}}; }
 
-  static eval_node clean_node(const eval& eval) {
-    eval_node result{};
+  static eval_node<F> clean_node(const eval& eval) {
+    eval_node<F> result{};
     result.dirty_ = false;
     result.data_.eval_ = eval;
     return result;

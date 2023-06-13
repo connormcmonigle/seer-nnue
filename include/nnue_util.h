@@ -228,6 +228,12 @@ struct stack_relu_affine {
     return *this;
   }
 
+  template <typename streamer_type>
+  stack_relu_affine<T, dim0, dim1>& dump(streamer_type& ws) {
+    ws.template dump<T>(W, W_numel).template dump<dot_type<T>>(b, b_numel);
+    return *this;
+  }
+
   stack_relu_affine<T, dim0, dim1> half_input_flipped() const {
     static_assert(dim0 % 2 == 0);
     constexpr size_t half_dim0 = dim0 / 2;
@@ -235,6 +241,23 @@ struct stack_relu_affine {
     stack_relu_affine<T, dim0, dim1> result = *this;
     for (size_t i(0); i < W_numel; i += dim0) {
       for (size_t j(0); j < half_dim0; ++j) { std::iter_swap(result.W + i + j, result.W + half_dim0 + i + j); }
+    }
+
+    return result;
+  }
+
+  template <size_t N>
+  stack_relu_affine<T, dim0, dim1> half_input_permuted(const std::array<size_t, N>& permuted_indices) const {
+    constexpr size_t half_dim0 = dim0 / 2;
+    static_assert(dim0 % 2 == 0);
+    static_assert(half_dim0 == N);
+
+    stack_relu_affine<T, dim0, dim1> result = *this;
+    for (size_t i(0); i < W_numel; i += dim0) {
+      for (size_t j(0); j < half_dim0; ++j) {
+        result.W[i + j] = W[i + permuted_indices[j]];
+        result.W[i + j + half_dim0] = W[i + permuted_indices[j] + half_dim0];
+      }
     }
 
     return result;
@@ -289,9 +312,26 @@ struct big_affine {
     simd::add_add_sub_sub<b_numel>(src.data, insert_mem_region, erase_mem_region_0, erase_mem_region_1, dst.data);
   }
 
+  big_affine<T, dim0, dim1> output_permuted(const std::array<size_t, dim1>& permuted_indices) {
+    big_affine<T, dim0, dim1> result{};
+
+    for (size_t i(0); i < dim0; ++i) {
+      for (size_t j(0); j < dim1; ++j) { result.W[i * dim1 + j] = W[i * dim1 + permuted_indices[j]]; }
+    }
+
+    for (size_t i(0); i < dim1; ++i) { result.b[i] = b[permuted_indices[i]]; }
+    return result;
+  }
+
   template <typename streamer_type>
   big_affine<T, dim0, dim1>& load_(streamer_type& ws) {
     ws.template stream<T>(W, W_numel).template stream<T>(b, b_numel);
+    return *this;
+  }
+
+  template <typename streamer_type>
+  big_affine<T, dim0, dim1>& dump(streamer_type& ws) {
+    ws.template dump<T>(W, W_numel).template dump<T>(b, b_numel);
     return *this;
   }
 

@@ -30,26 +30,40 @@ struct weights_streamer {
   using signature_type = std::uint32_t;
 
   signature_type signature_{0};
-  std::fstream reader;
+  std::fstream file;
 
-  template<typename T>
+  template <typename T>
   weights_streamer& stream(T* dst, const size_t request) {
     constexpr size_t signature_bytes = std::min(sizeof(signature_type), sizeof(T));
     std::array<char, sizeof(T)> single_element{};
+
     for (size_t i(0); i < request; ++i) {
-      reader.read(single_element.data(), single_element.size());
+      file.read(single_element.data(), single_element.size());
       std::memcpy(dst + i, single_element.data(), single_element.size());
 
       signature_type x{};
       std::memcpy(&x, single_element.data(), signature_bytes);
       signature_ ^= x;
     }
+
+    return *this;
+  }
+
+  template <typename T>
+  weights_streamer& dump(T* src, const size_t response) {
+    std::array<char, sizeof(T)> single_element{};
+
+    for (size_t i(0); i < response; ++i) {
+      std::memcpy(single_element.data(), src + i, single_element.size());
+      file.write(single_element.data(), single_element.size());
+    }
+
     return *this;
   }
 
   signature_type signature() const { return signature_; }
 
-  weights_streamer(const std::string& name) : reader(name, std::ios_base::in | std::ios_base::binary) {}
+  weights_streamer(const std::string& name, const std::ios_base::openmode& mode = std::ios_base::in | std::ios_base::binary) : file(name, mode) {}
 };
 
 struct embedded_weight_streamer {
@@ -59,7 +73,7 @@ struct embedded_weight_streamer {
   signature_type signature_{0};
   const unsigned char* back_ptr;
 
-  template<typename T>
+  template <typename T>
   embedded_weight_streamer& stream(T* dst, const size_t request) {
     constexpr size_t signature_bytes = std::min(sizeof(signature_type), sizeof(T));
     std::array<unsigned char, sizeof(T)> single_element{};

@@ -196,7 +196,6 @@ inline void sub(std::int16_t* a, const std::int16_t* b) {
   return overload_set<int16_sub_x128<dim>>::f(a, b);
 }
 
-
 template <size_t dim>
 struct int16_add_add_sub_x128 {
   static constexpr size_t num_units = 4;
@@ -659,9 +658,25 @@ struct int16_relu_matrix_vector_product_x16_x8 {
   static constexpr size_t num_units = 8;
   static constexpr bool available = divides<dim1, num_units> && divides<dim0, per_unit<vector_256, std::int16_t>>;
 
+  static inline size_t find_nonzero_blocks(const std::int16_t* input, size_t* nonzero_block_indices) {
+    const __m256i zero = _mm256_setzero_si256();
+    size_t nnz_blocks{};
+
+    for (size_t i(0); i < dim0; i += per_unit<vector_256, std::int16_t>) {
+      const __m256i nonzero = _mm256_cmpgt_epi16(_mm256_load_si256((__m256i*)(input + i)), zero);
+      if (!_mm256_testz_si256(nonzero, nonzero)) { *(nonzero_block_indices + nnz_blocks++) = i; }
+    }
+
+    return nnz_blocks;
+  }
+
   static inline void f(const std::int16_t* matrix, const std::int16_t* input, std::int32_t* output) {
     const __m256i zero = _mm256_setzero_si256();
     __m256i* v_output = (__m256i*)output;
+    
+    size_t nonzero_block_indices[dim0];
+    const size_t nnz_blocks = find_nonzero_blocks(input, nonzero_block_indices);
+    
     constexpr size_t output_step = num_units / per_unit<vector_256, std::int32_t>;
     for (size_t i(0); i < dim1; i += num_units, v_output += output_step) {
       __m256i sum_0 = _mm256_setzero_si256();
@@ -673,7 +688,8 @@ struct int16_relu_matrix_vector_product_x16_x8 {
       __m256i sum_6 = _mm256_setzero_si256();
       __m256i sum_7 = _mm256_setzero_si256();
 
-      for (size_t j(0); j < dim0; j += per_unit<vector_256, std::int16_t>) {
+      for (size_t k(0); k < nnz_blocks; ++k) {
+        const size_t j = nonzero_block_indices[k];
         const __m256i input_region = _mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + j)));
         sum_0 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_load_si256((__m256i*)(matrix + (i + 0) * dim0 + j)), input_region), sum_0);
         sum_1 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_load_si256((__m256i*)(matrix + (i + 1) * dim0 + j)), input_region), sum_1);

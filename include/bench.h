@@ -99,8 +99,9 @@ struct bench_info {
 
 std::ostream& operator<<(std::ostream& os, const bench_info& info) { return os << info.total_nodes << " nodes " << info.nodes_per_second << " nps"; }
 
+template <typename ... Fs>
 bench_info get_bench_info(const nnue::weights& weights) {
-  using worker_type = search::search_worker;
+  using worker_type = search::search_worker<Fs...>;
   std::shared_ptr<search::search_constants> constants = std::make_shared<search::search_constants>(1);
   std::shared_ptr<search::transposition_table> tt = std::make_shared<search::transposition_table>(bench_config::tt_mb_size);
 

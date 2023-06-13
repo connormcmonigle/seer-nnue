@@ -54,6 +54,7 @@ struct pv_search_result<true> {
 template <bool is_root>
 using pv_search_result_t = typename pv_search_result<is_root>::type;
 
+template <typename ... Fs>
 struct search_worker;
 
 struct internal_state {
@@ -97,30 +98,32 @@ struct internal_state {
   }
 };
 
+template <typename ... Fs>
 struct external_state {
   const nnue::weights* weights;
   std::shared_ptr<transposition_table> tt;
   std::shared_ptr<search_constants> constants;
-  std::function<void(const search_worker&)> on_iter;
-  std::function<void(const search_worker&)> on_update;
+  std::function<void(const search_worker<Fs...>&)> on_iter;
+  std::function<void(const search_worker<Fs...>&)> on_update;
 
   external_state(
       const nnue::weights* weights_,
       std::shared_ptr<transposition_table> tt_,
       std::shared_ptr<search_constants> constants_,
-      std::function<void(const search_worker&)>& on_iter_,
-      std::function<void(const search_worker&)> on_update_)
+      std::function<void(const search_worker<Fs...>&)>& on_iter_,
+      std::function<void(const search_worker<Fs...>&)> on_update_)
       : weights{weights_}, tt{tt_}, constants{constants_}, on_iter{on_iter_}, on_update{on_update_} {}
 };
 
+template <typename ... Fs>
 struct search_worker {
-  external_state external;
+  external_state<Fs...> external;
   internal_state internal{};
 
   template <bool is_pv, bool use_tt = true>
   score_type q_search(
       const stack_view& ss,
-      nnue::eval_node& eval_node,
+      nnue::eval_node<Fs...>& eval_node,
       const chess::board& bd,
       score_type alpha,
       const score_type& beta,
@@ -194,7 +197,7 @@ struct search_worker {
       const chess::board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-      nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+      nnue::eval_node<Fs...> eval_node_ = eval_node.dirty_child(&bd, mv);
 
       const score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_node_, bd_, -beta, -alpha, elevation + 1);
 
@@ -225,7 +228,7 @@ struct search_worker {
   template <bool is_pv, bool is_root = false>
   auto pv_search(
       const stack_view& ss,
-      nnue::eval_node& eval_node,
+      nnue::eval_node<Fs...>& eval_node,
       const chess::board& bd,
       score_type alpha,
       const score_type& beta,
@@ -333,7 +336,6 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-
     // step 9. probcut pruning
     const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
     const score_type probcut_beta = external.constants->probcut_beta(beta);
@@ -356,7 +358,7 @@ struct search_worker {
         const chess::board bd_ = bd.forward(mv);
         external.tt->prefetch(bd_.hash());
         internal.cache.prefetch(bd_.hash());
-        nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+        nnue::eval_node<Fs...> eval_node_ = eval_node.dirty_child(&bd, mv);
 
         auto pv_score = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
         const score_type q_score = -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0);
@@ -430,7 +432,7 @@ struct search_worker {
 
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-      nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+      nnue::eval_node<Fs...> eval_node_ = eval_node.dirty_child(&bd, mv);
 
       // step 12. extensions
       bool multicut = false;
@@ -551,7 +553,7 @@ struct search_worker {
   }
 
   void iterative_deepening_loop() {
-    nnue::eval_node root_node = nnue::eval_node::clean_node([this] {
+    nnue::eval_node<Fs...> root_node = nnue::eval_node<Fs...>::clean_node([this] {
       nnue::eval result(external.weights, &internal.scratchpad, 0, 0);
       internal.stack.root_pos().feature_full_reset(result);
       return result;
@@ -638,8 +640,8 @@ struct search_worker {
       const nnue::weights* weights,
       std::shared_ptr<transposition_table> tt,
       std::shared_ptr<search_constants> constants,
-      std::function<void(const search_worker&)> on_iter = [](auto&&...) {},
-      std::function<void(const search_worker&)> on_update = [](auto&&...) {})
+      std::function<void(const search_worker<Fs...>&)> on_iter = [](auto&&...) {},
+      std::function<void(const search_worker<Fs...>&)> on_update = [](auto&&...) {})
       : external(weights, tt, constants, on_iter, on_update) {}
 };
 
