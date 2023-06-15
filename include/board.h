@@ -857,7 +857,7 @@ struct board {
     namespace h_ka = feature::half_ka;
     const square our_king = man_.us<pov>().king().item();
     const size_t erase_idx_0 = h_ka::index<pov, p>(our_king, mv.piece(), mv.from());
-    
+
     const size_t insert_idx = [&] {
       const piece_type on_to = mv.is_promotion<p>() ? mv.promotion() : mv.piece();
       return h_ka::index<pov, p>(our_king, on_to, mv.to());
@@ -868,7 +868,7 @@ struct board {
       sided_set.template us<pov>().copy_parent_insert_erase_erase(insert_idx, erase_idx_0, erase_idx_1);
       return;
     }
-    
+
     if (mv.is_enpassant()) {
       const size_t erase_idx_1 = h_ka::index<pov, opponent<p>>(our_king, piece_type::pawn, mv.enpassant_sq());
       sided_set.template us<pov>().copy_parent_insert_erase_erase(insert_idx, erase_idx_0, erase_idx_1);
@@ -904,6 +904,8 @@ struct board {
       feature_move_delta_<color::black>(mv, sided_set);
     }
   }
+
+  constexpr bool requires_feature_reset(const move& mv) const { return mv.is_king_move(); }
 
   std::tuple<position_history, board> after_uci_moves(const std::string& moves) const {
     position_history history{};

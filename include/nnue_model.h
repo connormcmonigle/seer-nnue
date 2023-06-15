@@ -182,12 +182,25 @@ struct eval_node {
 
   bool dirty() const { return dirty_; }
 
+  eval detached_evaluator_() {
+    if (!dirty_) { return data_.eval_; }
+    return data_.context_.parent_node_->detached_evaluator_().next_child();
+  }
+
   const eval& evaluator() {
     if (!dirty_) { return data_.eval_; }
+
     dirty_ = false;
     const context ctxt = data_.context_;
-    data_.eval_ = ctxt.parent_node_->evaluator().next_child();
-    ctxt.parent_board_->feature_move_delta(ctxt.move_, data_.eval_);
+
+    if (ctxt.parent_board_->requires_feature_reset(ctxt.move_)) {
+      data_.eval_ = ctxt.parent_node_->detached_evaluator_().next_child();
+      ctxt.parent_board_->forward(ctxt.move_).feature_full_reset(data_.eval_);
+    } else {
+      data_.eval_ = ctxt.parent_node_->evaluator().next_child();
+      ctxt.parent_board_->feature_move_delta(ctxt.move_, data_.eval_);
+    }
+
     return data_.eval_;
   }
 
