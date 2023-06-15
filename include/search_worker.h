@@ -200,8 +200,8 @@ struct search_worker {
 
       if (score > best_score) {
         best_score = score;
-        best_move = mv;
         if (score > alpha) {
+          best_move = mv;
           if (score < beta) { alpha = score; }
           if constexpr (is_pv) { ss.prepend_to_pv(mv); }
         }
@@ -515,8 +515,8 @@ struct search_worker {
 
       if (score > best_score) {
         best_score = score;
-        best_move = mv;
         if (score > alpha) {
+          best_move = mv;
           if (score < beta) { alpha = score; }
           if constexpr (is_pv) { ss.prepend_to_pv(mv); }
         }
