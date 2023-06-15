@@ -70,10 +70,12 @@ struct transposition_table_entry {
   }
 
   transposition_table_entry& merge(const transposition_table_entry& other) {
-    if (bound() != bound_type::upper || key() != other.key()) { return *this; }
-    key_ ^= value_;
-    best_move_::set(value_, other.best_move().data);
-    key_ ^= value_;
+    if (bound() == bound_type::upper && other.bound() != bound_type::upper && key() == other.key()) {
+      key_ ^= value_;
+      best_move_::set(value_, other.best_move().data);
+      key_ ^= value_;
+    }
+
     return *this;
   }
 
