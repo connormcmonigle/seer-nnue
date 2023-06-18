@@ -333,14 +333,11 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-
     // step 9. probcut pruning
     const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
     const score_type probcut_beta = external.constants->probcut_beta(beta);
-    const bool try_probcut =
-        !is_pv && depth >= external.constants->probcut_depth() &&
-        !(maybe.has_value() && maybe->best_move().is_quiet()) &&
-        !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
+    const bool try_probcut = !is_pv && depth >= external.constants->probcut_depth() && !(maybe.has_value() && maybe->best_move().is_quiet()) &&
+                             !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
 
     if (try_probcut) {
       move_orderer<chess::generation_mode::noisy_and_check> probcut_orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
@@ -491,6 +488,10 @@ struct search_worker {
           if (!is_pv) { ++reduction; }
           if (did_double_extend) { ++reduction; }
           if (!bd.see_ge(mv, 0) && mv.is_quiet()) { ++reduction; }
+
+          // we can be sure we already tried the move which previously failed high so we can reduce the other moves
+          /// with higher confidence, possibly?
+          if (maybe.has_value() && maybe->bound() == bound_type::upper && maybe->was_exact_or_lb()) { ++reduction; }
 
           // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
           // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
