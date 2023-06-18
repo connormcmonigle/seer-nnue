@@ -39,13 +39,15 @@ enum class bound_type { upper, lower, exact };
 
 struct transposition_table_entry {
   static constexpr zobrist::hash_type empty_key = zobrist::hash_type{};
+  static constexpr size_t gen_bits = 7;
   using gen_type = std::uint8_t;
 
   using bound_ = bit::range<bound_type, 0, 2>;
   using score_ = bit::next_range<bound_, std::int16_t>;
-  using gen_ = bit::next_range<score_, gen_type>;
-  using best_move_ = bit::next_range<gen_, chess::move::data_type, chess::move::width>;
+  using best_move_ = bit::next_range<score_, chess::move::data_type, chess::move::width>;
   using depth_ = bit::next_range<best_move_, std::uint8_t>;
+  using gen_ = bit::next_range<depth_, gen_type, gen_bits>;
+  using was_exact_or_lb_ = bit::next_flag<gen_>;
 
   zobrist::hash_type key_{empty_key};
   zobrist::hash_type value_{};
@@ -57,6 +59,7 @@ struct transposition_table_entry {
   gen_type gen() const { return gen_::get(value_); }
   depth_type depth() const { return static_cast<depth_type>(depth_::get(value_)); }
   chess::move best_move() const { return chess::move{best_move_::get(value_)}; }
+  bool was_exact_or_lb() const { return was_exact_or_lb_::get(value_); }
 
   bool is_empty() const { return key_ == empty_key; }
 
@@ -70,9 +73,10 @@ struct transposition_table_entry {
   }
 
   transposition_table_entry& merge(const transposition_table_entry& other) {
-    if (bound() == bound_type::upper && other.bound() != bound_type::upper && key() == other.key()) {
+    if (bound() == bound_type::upper && other.was_exact_or_lb() && key() == other.key()) {
       key_ ^= value_;
       best_move_::set(value_, other.best_move().data);
+      was_exact_or_lb_::set(value_, true);
       key_ ^= value_;
     }
 
@@ -86,6 +90,7 @@ struct transposition_table_entry {
     score_::set(value_, static_cast<score_::type>(score));
     best_move_::set(value_, mv.data);
     depth_::set(value_, static_cast<depth_::type>(depth));
+    was_exact_or_lb_::set(value_, bound != bound_type::upper);
     key_ ^= value_;
   }
 
@@ -142,7 +147,8 @@ struct transposition_table {
   }
 
   void update_gen() {
-    constexpr auto limit = std::numeric_limits<transposition_table_entry::gen_type>::max();
+    using gen_type = transposition_table_entry::gen_type;
+    constexpr gen_type limit = gen_type{1} << transposition_table_entry::gen_bits;
     current_gen = (current_gen + 1) % limit;
   }
 
