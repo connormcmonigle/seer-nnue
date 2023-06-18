@@ -22,6 +22,8 @@
 #include <history_heuristic.h>
 #include <move.h>
 #include <move_orderer.h>
+#include <nnue_eval_node.h>
+#include <nnue_feature_reset_cache.h>
 #include <nnue_model.h>
 #include <search_constants.h>
 #include <search_stack.h>
@@ -57,6 +59,7 @@ using pv_search_result_t = typename pv_search_result<is_root>::type;
 struct search_worker;
 
 struct internal_state {
+  nnue::sided_feature_reset_cache reset_cache;
   search_stack stack{chess::position_history{}, chess::board::start_pos()};
   nnue::eval::scratchpad_type scratchpad{};
   sided_history_heuristic hh{};
@@ -95,6 +98,8 @@ struct internal_state {
     score.store(0);
     best_move.store(chess::move::null().data);
   }
+
+  internal_state(const nnue::weights* weights) : reset_cache(weights) {}
 };
 
 struct external_state {
@@ -115,7 +120,7 @@ struct external_state {
 
 struct search_worker {
   external_state external;
-  internal_state internal{};
+  internal_state internal;
 
   template <bool is_pv, bool use_tt = true>
   score_type q_search(
@@ -194,7 +199,7 @@ struct search_worker {
       const chess::board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-      nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+      nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
       const score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_node_, bd_, -beta, -alpha, elevation + 1);
 
@@ -333,14 +338,11 @@ struct search_worker {
       if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
     }
 
-
     // step 9. probcut pruning
     const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
     const score_type probcut_beta = external.constants->probcut_beta(beta);
-    const bool try_probcut =
-        !is_pv && depth >= external.constants->probcut_depth() &&
-        !(maybe.has_value() && maybe->best_move().is_quiet()) &&
-        !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
+    const bool try_probcut = !is_pv && depth >= external.constants->probcut_depth() && !(maybe.has_value() && maybe->best_move().is_quiet()) &&
+                             !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
 
     if (try_probcut) {
       move_orderer<chess::generation_mode::noisy_and_check> probcut_orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
@@ -356,7 +358,7 @@ struct search_worker {
         const chess::board bd_ = bd.forward(mv);
         external.tt->prefetch(bd_.hash());
         internal.cache.prefetch(bd_.hash());
-        nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+        nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
         auto pv_score = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
         const score_type q_score = -q_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, 0);
@@ -430,7 +432,7 @@ struct search_worker {
 
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-      nnue::eval_node eval_node_ = eval_node.dirty_child(&bd, mv);
+      nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
       // step 12. extensions
       bool multicut = false;
@@ -640,7 +642,7 @@ struct search_worker {
       std::shared_ptr<search_constants> constants,
       std::function<void(const search_worker&)> on_iter = [](auto&&...) {},
       std::function<void(const search_worker&)> on_update = [](auto&&...) {})
-      : external(weights, tt, constants, on_iter, on_update) {}
+      : external(weights, tt, constants, on_iter, on_update), internal(weights) {}
 };
 
 }  // namespace search
