@@ -48,36 +48,44 @@ struct sided_piece_configuration : chess::sided<sided_piece_configuration, piece
 };
 
 struct feature_reset_cache_entry {
-  using parameter_type = weights::quantized_parameter_type;
   static constexpr size_t dim = weights::base_dim;
 
-  const big_affine<parameter_type, feature::half_ka::numel, dim>* weights_;
+  using parameter_type = weights::quantized_parameter_type;
+  using weights_type = big_affine<parameter_type, feature::half_ka::numel, dim>;
+
+  const weights_type* weights_;
   aligned_slice<parameter_type, dim> slice_;
   sided_piece_configuration config;
 
   void insert(const size_t& idx) { weights_->insert_idx(idx, slice_); }
   void erase(const size_t& idx) { weights_->erase_idx(idx, slice_); }
-
   void copy_state_to(feature_transformer<parameter_type>& dst) const { dst.slice_.copy_from(slice_); }
 
-  feature_reset_cache_entry() : slice_{nullptr}, config{} {}
-  feature_reset_cache_entry(const big_affine<parameter_type, feature::half_ka::numel, dim>* weights, const aligned_slice<parameter_type, dim>& slice)
-      : weights_{weights}, slice_{slice}, config{} {
-    slice_.copy_from(weights->b);
+  void reinitialize(const weights_type* weights, const aligned_slice<parameter_type, dim>& slice) {
+    weights_ = weights;
+    slice_ = slice;
+    config = sided_piece_configuration{};
+
+    slice_.copy_from(weights_->b);
   }
+
+  feature_reset_cache_entry() : slice_{nullptr}, config{} {}
 };
 
 struct feature_reset_cache {
   using entry_type = feature_reset_cache_entry;
   static constexpr size_t num_squares = 64;
 
-  stack_scratchpad<entry_type::parameter_type, num_squares * entry_type::dim> scratchpad_;
-  feature_reset_cache_entry entries_[num_squares];
+  stack_scratchpad<entry_type::parameter_type, num_squares * entry_type::dim> scratchpad_{};
+  feature_reset_cache_entry entries_[num_squares]{};
 
   feature_reset_cache_entry* look_up(const chess::square& sq) { return entries_ + sq.index(); }
 
-  feature_reset_cache(const big_affine<entry_type::parameter_type, feature::half_ka::numel, entry_type::dim>* weights) : scratchpad_{} {
-    for (size_t i(0); i < num_squares; ++i) { entries_[i] = feature_reset_cache_entry(weights, scratchpad_.get_nth_slice<entry_type::dim>(i)); }
+  void reinitialize(const weights* weights) {
+    for (size_t i(0); i < num_squares; ++i) {
+      const auto slice = scratchpad_.get_nth_slice<entry_type::dim>(i);
+      entries_[i].reinitialize(&weights->quantized_shared, slice);
+    }
   }
 };
 
@@ -85,7 +93,12 @@ struct sided_feature_reset_cache : chess::sided<sided_feature_reset_cache, featu
   feature_reset_cache white;
   feature_reset_cache black;
 
-  sided_feature_reset_cache(const weights* weights) : white(&weights->quantized_shared), black(&weights->quantized_shared) {}
+  void reinitialize(const weights* weights) {
+    white.reinitialize(weights);
+    black.reinitialize(weights);
+  }
+
+  sided_feature_reset_cache() : white{}, black{} {}
 };
 
 }  // namespace nnue

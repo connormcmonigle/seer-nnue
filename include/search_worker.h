@@ -59,7 +59,7 @@ using pv_search_result_t = typename pv_search_result<is_root>::type;
 struct search_worker;
 
 struct internal_state {
-  nnue::sided_feature_reset_cache reset_cache;
+  nnue::sided_feature_reset_cache reset_cache{};
   search_stack stack{chess::position_history{}, chess::board::start_pos()};
   nnue::eval::scratchpad_type scratchpad{};
   sided_history_heuristic hh{};
@@ -98,8 +98,6 @@ struct internal_state {
     score.store(0);
     best_move.store(chess::move::null().data);
   }
-
-  internal_state(const nnue::weights* weights) : reset_cache(weights) {}
 };
 
 struct external_state {
@@ -120,7 +118,7 @@ struct external_state {
 
 struct search_worker {
   external_state external;
-  internal_state internal;
+  internal_state internal{};
 
   template <bool is_pv, bool use_tt = true>
   score_type q_search(
@@ -553,6 +551,7 @@ struct search_worker {
   }
 
   void iterative_deepening_loop() {
+    internal.reset_cache.reinitialize(external.weights);
     nnue::eval_node root_node = nnue::eval_node::clean_node([this] {
       nnue::eval result(external.weights, &internal.scratchpad, 0, 0);
       internal.stack.root_pos().feature_full_reset(result);
@@ -642,7 +641,7 @@ struct search_worker {
       std::shared_ptr<search_constants> constants,
       std::function<void(const search_worker&)> on_iter = [](auto&&...) {},
       std::function<void(const search_worker&)> on_update = [](auto&&...) {})
-      : external(weights, tt, constants, on_iter, on_update), internal(weights) {}
+      : external(weights, tt, constants, on_iter, on_update) {}
 };
 
 }  // namespace search
