@@ -19,6 +19,7 @@
 
 #include <array>
 #include <cassert>
+#include <utility>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
@@ -210,9 +211,16 @@ struct square_set {
   }
 
   template <typename I>
-  constexpr bool occ(I idx) const {
+  constexpr bool occ(const I& idx) const {
     static_assert(std::is_integral_v<I>, "idx must be of integral type");
     return static_cast<bool>(data & (one << static_cast<std::uint64_t>(idx)));
+  }
+
+  template <typename ... Ts>
+  static constexpr square_set of(Ts&& ... ts) {
+    auto bit_board = [](auto&& sq) { return sq.bit_board(); };
+    auto bit_wise_or = [](auto&& ... args) { return (args | ...); };
+    return square_set(bit_wise_or(bit_board(std::forward<Ts>(ts))...));
   }
 
   constexpr square_set() : data{0} {}
