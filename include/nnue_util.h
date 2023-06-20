@@ -82,6 +82,15 @@ struct aligned_slice {
   aligned_slice(T* data) : data{data} {}
 };
 
+template <typename T, size_t dim>
+std::ostream& operator<<(std::ostream& ostr, const aligned_slice<T, dim>& vec) {
+  static_assert(dim != 0, "can't stream empty slice.");
+  ostr << "aligned_slice<T, " << dim << ">([";
+  for (size_t i = 0; i < (dim - 1); ++i) { ostr << vec.data[i] << ", "; }
+  ostr << vec.data[dim - 1] << "])";
+  return ostr;
+}
+
 template <typename T, size_t scratchpad_size>
 struct stack_scratchpad {
   alignas(simd::alignment) T data[scratchpad_size];
