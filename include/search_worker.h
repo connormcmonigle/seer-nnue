@@ -265,7 +265,7 @@ struct search_worker {
 
     const score_type original_alpha = alpha;
 
-    const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
+    std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
     if (maybe.has_value()) {
       const transposition_table_entry entry = maybe.value();
       const bool is_cutoff = !is_pv && entry.depth() >= depth &&
@@ -285,8 +285,12 @@ struct search_worker {
     }
 
     // step 3. internal iterative reductions
-    const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
-    if (should_iir) { --depth; }
+    const bool should_iir = !is_root && !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
+    if (should_iir) {
+      const score_type iir_score = pv_search<is_pv>(ss, eval_node, bd, alpha, beta, depth - 1, reducer);
+      if (iir_score >= beta) { return make_result(iir_score, chess::move::null()); }
+      maybe = external.tt->find(bd.hash());
+    }
 
     // step 4. compute static eval and adjust appropriately if there's a tt hit
     const auto [static_value, value] = [&] {
