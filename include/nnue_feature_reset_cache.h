@@ -18,34 +18,16 @@
 #pragma once
 
 #include <board.h>
+#include <chess_types.h>
 #include <nnue_model.h>
 #include <nnue_util.h>
-#include <search_constants.h>
-#include <zobrist_util.h>
+#include <piece_configuration.h>
+#include <square.h>
 
 #include <array>
 #include <optional>
 
 namespace nnue {
-
-struct piece_configuration {
-  chess::square_set pawn_{};
-  chess::square_set knight_{};
-  chess::square_set bishop_{};
-  chess::square_set rook_{};
-  chess::square_set queen_{};
-  chess::square_set king_{};
-
-  chess::square_set& get_plane(const chess::piece_type& pt) { return chess::get_member(pt, *this); }
-  const chess::square_set& get_plane(const chess::piece_type& pt) const { return chess::get_member(pt, *this); }
-};
-
-struct sided_piece_configuration : chess::sided<sided_piece_configuration, piece_configuration> {
-  piece_configuration white;
-  piece_configuration black;
-
-  sided_piece_configuration() : white{}, black{} {}
-};
 
 struct feature_reset_cache_entry {
   static constexpr size_t dim = weights::base_dim;
@@ -54,8 +36,8 @@ struct feature_reset_cache_entry {
   using weights_type = big_affine<parameter_type, feature::half_ka::numel, dim>;
 
   const weights_type* weights_;
+  chess::sided_piece_configuration config;
   aligned_slice<parameter_type, dim> slice_;
-  sided_piece_configuration config;
 
   void insert(const size_t& idx) { weights_->insert_idx(idx, slice_); }
   void erase(const size_t& idx) { weights_->erase_idx(idx, slice_); }
@@ -64,12 +46,12 @@ struct feature_reset_cache_entry {
   void reinitialize(const weights_type* weights, const aligned_slice<parameter_type, dim>& slice) {
     weights_ = weights;
     slice_ = slice;
-    config = sided_piece_configuration{};
 
     slice_.copy_from(weights_->b);
+    config = chess::sided_piece_configuration{};
   }
 
-  feature_reset_cache_entry() : slice_{nullptr}, config{} {}
+  feature_reset_cache_entry() : config{}, slice_{nullptr} {}
 };
 
 struct feature_reset_cache {
@@ -79,7 +61,7 @@ struct feature_reset_cache {
   stack_scratchpad<entry_type::parameter_type, num_squares * entry_type::dim> scratchpad_{};
   feature_reset_cache_entry entries_[num_squares]{};
 
-  feature_reset_cache_entry* look_up(const chess::square& sq) { return entries_ + sq.index(); }
+  feature_reset_cache_entry& look_up(const chess::square& sq) { return entries_[sq.index()]; }
 
   void reinitialize(const weights* weights) {
     for (size_t i(0); i < num_squares; ++i) {

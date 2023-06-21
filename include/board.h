@@ -18,6 +18,7 @@
 #include <board_state.h>
 #include <chess_types.h>
 #include <feature_util.h>
+#include <piece_configuration.h>
 #include <position_history.h>
 #include <square.h>
 #include <table_generation.h>
@@ -829,31 +830,32 @@ struct board {
   template <color c, typename T0, typename T1>
   void half_feature_partial_reset_(const move& mv, T0& feature_reset_cache, T1& sided_set) const {
     namespace h_ka = feature::half_ka;
-
     const square our_king = mv.to();
-    auto* entry = feature_reset_cache.template us<c>().look_up(our_king);
+
+    auto& entry = feature_reset_cache.template us<c>().look_up(our_king);
+    sided_piece_configuration& config = entry.config;
 
     over_types([&](const piece_type& pt) {
-      square_set& them_entry_plane = entry->config.template them<c>().get_plane(pt);
-      square_set& us_entry_plane = entry->config.template us<c>().get_plane(pt);
+      const square_set them_entry_plane = config.them<c>().get_plane(pt);
+      const square_set us_entry_plane = config.us<c>().get_plane(pt);
 
       const square_set them_board_plane = man_.them<c>().get_plane(pt).excluding(mv.to());
       const square_set us_board_plane = [&] {
-        if (pt == piece_type::king) { return man_.us<c>().get_plane(pt).excluding(mv.from()).insert(mv.to()); }
+        if (pt == piece_type::king) { return square_set::of(our_king); }
         return man_.us<c>().get_plane(pt).excluding(mv.from());
       }();
 
-      for (const auto sq : (us_entry_plane & ~us_board_plane)) { entry->erase(h_ka::index<c, c>(our_king, pt, sq)); }
-      for (const auto sq : (them_entry_plane & ~them_board_plane)) { entry->erase(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
+      for (const auto sq : them_entry_plane & ~them_board_plane) { entry.erase(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
+      for (const auto sq : (us_entry_plane & ~us_board_plane)) { entry.erase(h_ka::index<c, c>(our_king, pt, sq)); }
 
-      for (const auto sq : (us_board_plane & ~us_entry_plane)) { entry->insert(h_ka::index<c, c>(our_king, pt, sq)); }
-      for (const auto sq : (them_board_plane & ~them_entry_plane)) { entry->insert(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
+      for (const auto sq : them_board_plane & ~them_entry_plane) { entry.insert(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
+      for (const auto sq : us_board_plane & ~us_entry_plane) { entry.insert(h_ka::index<c, c>(our_king, pt, sq)); }
 
-      us_entry_plane = us_board_plane;
-      them_entry_plane = them_board_plane;
+      config.them<c>().set_plane(pt, them_board_plane);
+      config.us<c>().set_plane(pt, us_board_plane);
     });
 
-    entry->copy_state_to(sided_set.template us<c>());
+    entry.copy_state_to(sided_set.template us<c>());
   }
 
   template <color pov, color p, typename T>
