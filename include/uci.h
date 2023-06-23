@@ -200,8 +200,10 @@ struct uci {
   void eval() {
     std::lock_guard<std::mutex> os_lk(os_mutex_);
 
+    auto cache = std::make_unique<nnue::eval::cache_type>();
     auto scratchpad = std::make_unique<nnue::eval::scratchpad_type>();
-    auto evaluator = nnue::eval(&weights_, scratchpad.get(), 0, 0);
+
+    auto evaluator = nnue::eval(&weights_, cache.get(), scratchpad.get(), 0, 0);
     position.feature_full_reset(evaluator);
 
     os << "phase: " << position.phase<nnue::weights::parameter_type>() << std::endl;

@@ -59,8 +59,9 @@ using pv_search_result_t = typename pv_search_result<is_root>::type;
 struct search_worker;
 
 struct internal_state {
-  nnue::sided_feature_reset_cache reset_cache{};
   search_stack stack{chess::position_history{}, chess::board::start_pos()};
+  nnue::sided_feature_reset_cache reset_cache{};
+  nnue::eval::cache_type delta_cache{};
   nnue::eval::scratchpad_type scratchpad{};
   sided_history_heuristic hh{};
   eval_cache cache{};
@@ -553,7 +554,7 @@ struct search_worker {
   void iterative_deepening_loop() {
     internal.reset_cache.reinitialize(external.weights);
     nnue::eval_node root_node = nnue::eval_node::clean_node([this] {
-      nnue::eval result(external.weights, &internal.scratchpad, 0, 0);
+      nnue::eval result(external.weights, &internal.delta_cache, &internal.scratchpad, 0, 0);
       internal.stack.root_pos().feature_full_reset(result);
       return result;
     }());

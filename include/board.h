@@ -17,6 +17,7 @@
 
 #include <board_state.h>
 #include <chess_types.h>
+#include <feature_hash_util.h>
 #include <feature_util.h>
 #include <piece_configuration.h>
 #include <position_history.h>
@@ -862,6 +863,7 @@ struct board {
   void half_feature_move_delta_(const move& mv, T& sided_set) const {
     namespace h_ka = feature::half_ka;
     const square our_king = man_.us<pov>().king().item();
+
     const size_t erase_idx_0 = h_ka::index<pov, p>(our_king, mv.piece(), mv.from());
 
     const size_t insert_idx = [&] {

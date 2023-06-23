@@ -18,7 +18,9 @@
 
 #include <board.h>
 #include <chess_types.h>
+#include <feature_hash_util.h>
 #include <feature_util.h>
+#include <nnue_delta_cache.h>
 #include <nnue_util.h>
 #include <search_constants.h>
 #include <weights_streamer.h>
@@ -84,6 +86,7 @@ struct weights {
 template <typename T>
 struct feature_transformer {
   const big_affine<T, feature::half_ka::numel, weights::base_dim>* weights_;
+  delta_cache<T, weights::base_dim>* cache_;
 
   aligned_slice<T, weights::base_dim> parent_slice_;
   aligned_slice<T, weights::base_dim> slice_;
@@ -94,18 +97,39 @@ struct feature_transformer {
   void erase(const size_t& idx) { weights_->erase_idx(idx, slice_); }
 
   void copy_parent_insert_erase(const size_t& insert_idx, const size_t& erase_idx) {
-    weights_->insert_erase_idx(insert_idx, erase_idx, parent_slice_, slice_);
+    const zobrist::hash_type hash = feature::half_ka::delta_hash(insert_idx, erase_idx);
+    
+    const bool cache_hit = cache_->cache_hit(hash);
+    aligned_slice<T, weights::base_dim> delta_slice = cache_->insert_and_fetch(hash);
+
+    if (cache_hit) {
+      slice_.store_summand(parent_slice_, delta_slice);
+      return;
+    }
+
+    weights_->insert_erase_idx(insert_idx, erase_idx, parent_slice_, delta_slice, slice_);
   }
 
   void copy_parent_insert_erase_erase(const size_t& insert_idx, const size_t& erase_idx_0, const size_t& erase_idx_1) {
-    weights_->insert_erase_erase_idx(insert_idx, erase_idx_0, erase_idx_1, parent_slice_, slice_);
+    const zobrist::hash_type hash = feature::half_ka::delta_hash(insert_idx, erase_idx_0, erase_idx_1);
+    
+    const bool cache_hit = cache_->cache_hit(hash);
+    aligned_slice<T, weights::base_dim> delta_slice = cache_->insert_and_fetch(hash);
+    
+    if (cache_hit) {
+      slice_.store_summand(parent_slice_, delta_slice);
+      return;
+    }
+
+    weights_->insert_erase_erase_idx(insert_idx, erase_idx_0, erase_idx_1, parent_slice_, delta_slice, slice_);
   }
 
   feature_transformer(
       const big_affine<T, feature::half_ka::numel, weights::base_dim>* src,
+      delta_cache<T, weights::base_dim>* cache,
       aligned_slice<T, weights::base_dim>&& parent_slice,
       aligned_slice<T, weights::base_dim>&& slice)
-      : weights_{src}, parent_slice_{parent_slice}, slice_{slice} {}
+      : weights_{src}, cache_{cache}, parent_slice_{parent_slice}, slice_{slice} {}
 };
 
 struct eval : chess::sided<eval, feature_transformer<weights::quantized_parameter_type>> {
@@ -116,8 +140,11 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
   using parameter_type = weights::parameter_type;
   using quantized_parameter_type = weights::quantized_parameter_type;
   using scratchpad_type = stack_scratchpad<quantized_parameter_type, scratchpad_depth * feature_transformer_dim>;
+  using cache_type = delta_cache<quantized_parameter_type, weights::base_dim>;
 
   const weights* weights_;
+
+  cache_type* cache_;
   scratchpad_type* scratchpad_;
 
   size_t scratchpad_idx_;
@@ -153,17 +180,18 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
 
   eval next_child() const {
     const size_t next_scratchpad_idx = scratchpad_idx_ + 1;
-    return eval(weights_, scratchpad_, scratchpad_idx_, next_scratchpad_idx);
+    return eval(weights_, cache_, scratchpad_, scratchpad_idx_, next_scratchpad_idx);
   }
 
-  eval(const weights* src, scratchpad_type* scratchpad, const size_t& parent_scratchpad_idx, const size_t& scratchpad_idx)
+  eval(const weights* src, cache_type* cache, scratchpad_type* scratchpad, const size_t& parent_scratchpad_idx, const size_t& scratchpad_idx)
       : weights_{src},
+        cache_{cache},
         scratchpad_{scratchpad},
         scratchpad_idx_{scratchpad_idx},
         parent_base_(scratchpad_->get_nth_slice<feature_transformer_dim>(parent_scratchpad_idx)),
         base_(scratchpad_->get_nth_slice<feature_transformer_dim>(scratchpad_idx_)),
-        white{&src->quantized_shared, parent_base_.slice<base_dim>(), base_.slice<base_dim>()},
-        black{&src->quantized_shared, parent_base_.slice<base_dim, base_dim>(), base_.slice<base_dim, base_dim>()} {}
+        white{&src->quantized_shared, cache_, parent_base_.slice<base_dim>(), base_.slice<base_dim>()},
+        black{&src->quantized_shared, cache_, parent_base_.slice<base_dim, base_dim>(), base_.slice<base_dim, base_dim>()} {}
 };
 
 }  // namespace nnue

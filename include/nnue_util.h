@@ -79,6 +79,11 @@ struct aligned_slice {
     return *this;
   }
 
+  aligned_slice<T, dim>& store_summand(const aligned_slice<T, dim>& a, const aligned_slice<T, dim>& b) {
+    simd::add_add<dim>(a.data, b.data, data);
+    return *this;
+  }
+
   aligned_slice(T* data) : data{data} {}
 };
 
@@ -280,10 +285,15 @@ struct big_affine {
     simd::sub<b_numel>(x.data, mem_region);
   }
 
-  void insert_erase_idx(const size_t insert_idx, const size_t erase_idx, const aligned_slice<T, b_numel>& src, aligned_slice<T, b_numel> dst) const {
+  void insert_erase_idx(
+      const size_t insert_idx,
+      const size_t erase_idx,
+      const aligned_slice<T, b_numel>& src,
+      aligned_slice<T, b_numel> delta,
+      aligned_slice<T, b_numel> dst) const {
     const T* insert_mem_region = W + insert_idx * dim1;
     const T* erase_mem_region = W + erase_idx * dim1;
-    simd::add_add_sub<b_numel>(src.data, insert_mem_region, erase_mem_region, dst.data);
+    simd::add_add_sub<b_numel>(src.data, insert_mem_region, erase_mem_region, delta.data, dst.data);
   }
 
   void insert_erase_erase_idx(
@@ -291,11 +301,12 @@ struct big_affine {
       const size_t erase_idx_0,
       const size_t erase_idx_1,
       const aligned_slice<T, b_numel>& src,
+      aligned_slice<T, b_numel> delta,
       aligned_slice<T, b_numel> dst) const {
     const T* insert_mem_region = W + insert_idx * dim1;
     const T* erase_mem_region_0 = W + erase_idx_0 * dim1;
     const T* erase_mem_region_1 = W + erase_idx_1 * dim1;
-    simd::add_add_sub_sub<b_numel>(src.data, insert_mem_region, erase_mem_region_0, erase_mem_region_1, dst.data);
+    simd::add_add_sub_sub<b_numel>(src.data, insert_mem_region, erase_mem_region_0, erase_mem_region_1, delta.data, dst.data);
   }
 
   template <typename streamer_type>
