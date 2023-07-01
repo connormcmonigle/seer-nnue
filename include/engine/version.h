@@ -15,19 +15,18 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <engine/uci.h>
+#pragma once
 
-#include <iostream>
-#include <string>
+#include <string_view>
 
-int main(int argc, char* argv[]) {
-  engine::uci uci{};
+namespace engine {
+namespace version {
 
-  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if (perform_bench) {
-    uci.bench();
-    return 0;
-  }
+constexpr std::string_view engine_name = "Seer";
+constexpr std::string_view author_name = "Connor McMonigle";
+constexpr std::size_t major = 2;
+constexpr std::size_t minor = 6;
+constexpr std::size_t patch = 0;
 
-  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
-}
+}  // namespace version
+}  // namespace engine

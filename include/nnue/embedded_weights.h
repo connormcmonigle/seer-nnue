@@ -15,19 +15,18 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <engine/uci.h>
+#pragma once
 
-#include <iostream>
-#include <string>
+#define INCBIN_PREFIX
+#define INCBIN_STYLE INCBIN_STYLE_SNAKE
+#include <incbin.h>
 
-int main(int argc, char* argv[]) {
-  engine::uci uci{};
+namespace nnue {
+namespace embed {
 
-  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if (perform_bench) {
-    uci.bench();
-    return 0;
-  }
-
-  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
+extern "C" {
+INCBIN(weights_file, EVALFILE);
 }
+
+}  // namespace embed
+}  // namespace nnue

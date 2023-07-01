@@ -15,19 +15,25 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <engine/uci.h>
+#pragma once
 
-#include <iostream>
-#include <string>
+#include <nnue/aligned_slice.h>
+#include <nnue/simd.h>
 
-int main(int argc, char* argv[]) {
-  engine::uci uci{};
+#include <cstddef>
+#include <cstring>
 
-  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if (perform_bench) {
-    uci.bench();
-    return 0;
+namespace nnue {
+
+template <typename T, std::size_t scratchpad_size>
+struct aligned_scratchpad {
+  alignas(simd::alignment) T data[scratchpad_size];
+
+  template <std::size_t dim>
+  [[nodiscard]] aligned_slice<T, dim> get_nth_slice(const std::size_t& n) noexcept {
+    static_assert(scratchpad_size % dim == 0);
+    return aligned_slice<T, dim>(data + n * dim);
   }
+};
 
-  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
-}
+}  // namespace nnue

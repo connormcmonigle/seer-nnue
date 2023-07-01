@@ -15,19 +15,13 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <engine/uci.h>
+#include <chess/move_list.h>
 
-#include <iostream>
-#include <string>
+namespace chess {
 
-int main(int argc, char* argv[]) {
-  engine::uci uci{};
+std::ostream& operator<<(std::ostream& ostr, const move_list& mv_ls) noexcept {
+  for (std::size_t i(0); i < mv_ls.size(); ++i) { ostr << i << ". " << mv_ls[i] << '\n'; }
+  return ostr;
+}
 
-  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if (perform_bench) {
-    uci.bench();
-    return 0;
-  }
-
-  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
 }

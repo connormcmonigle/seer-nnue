@@ -15,19 +15,41 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <engine/uci.h>
+#pragma once
 
-#include <iostream>
-#include <string>
+#include <cstdint>
 
-int main(int argc, char* argv[]) {
-  engine::uci uci{};
+namespace nnue {
 
-  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if (perform_bench) {
-    uci.bench();
-    return 0;
-  }
+template <typename T>
+struct dot_type_impl {};
 
-  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
+template <>
+struct dot_type_impl<float> {
+  using type = float;
+};
+
+template <>
+struct dot_type_impl<double> {
+  using type = double;
+};
+
+template <>
+struct dot_type_impl<std::int8_t> {
+  using type = std::int16_t;
+};
+
+template <>
+struct dot_type_impl<std::int16_t> {
+  using type = std::int32_t;
+};
+
+template <>
+struct dot_type_impl<std::int32_t> {
+  using type = std::int64_t;
+};
+
+template <typename T>
+using dot_type = typename dot_type_impl<T>::type;
+
 }

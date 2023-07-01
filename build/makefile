@@ -1,5 +1,5 @@
 EXE = seer
-SRC = ../src/seer.cc ../syzygy/tbprobe.c
+SRC = ../src/seer.cc ../syzygy/tbprobe.c ../src/search/*.cc ../src/chess/*.cc ../src/engine/*.cc
 CC = g++
 
 EVALFILE = weights/0xddf7a131.bin
@@ -12,7 +12,7 @@ INCBIN = ../incbin
 SYZYGY = ../syzygy
 
 CXXFLAGS += -std=c++$(CXXSTANDARD)
-CXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp -flto
+CXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp -flto -fwhole-program
 CXXFLAGS += -Wall -Wextra
 CXXFLAGS += -fconstexpr-ops-limit=$(OPSLIMIT)
 CXXFLAGS += -I$(INCLUDE) -I$(INCBIN) -I$(SYZYGY)

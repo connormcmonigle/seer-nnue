@@ -1,3 +1,4 @@
+
 /*
   Seer is a UCI chess engine by Connor McMonigle
   Copyright (C) 2021-2023  Connor McMonigle
@@ -15,19 +16,16 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <engine/uci.h>
+#pragma once
 
-#include <iostream>
-#include <string>
-
-int main(int argc, char* argv[]) {
-  engine::uci uci{};
-
-  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if (perform_bench) {
-    uci.bench();
-    return 0;
-  }
-
-  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
-}
+#include <engine/processor/condition_type.h>
+#include <engine/processor/consume_type.h>
+#include <engine/processor/emit_all_type.h>
+#include <engine/processor/emit_n_type.h>
+#include <engine/processor/emit_type.h>
+#include <engine/processor/invoke_type.h>
+#include <engine/processor/key_type.h>
+#include <engine/processor/null_type.h>
+#include <engine/processor/parallel_combinator_type.h>
+#include <engine/processor/receiver_combinator_type.h>
+#include <engine/processor/sequential_combinator_type.h>

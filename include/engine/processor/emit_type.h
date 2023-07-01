@@ -1,3 +1,4 @@
+
 /*
   Seer is a UCI chess engine by Connor McMonigle
   Copyright (C) 2021-2023  Connor McMonigle
@@ -15,19 +16,34 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <engine/uci.h>
+#pragma once
 
-#include <iostream>
-#include <string>
+#include <engine/command_lexer.h>
+#include <engine/processor/null_type.h>
+#include <util/tuple.h>
 
-int main(int argc, char* argv[]) {
-  engine::uci uci{};
+#include <tuple>
 
-  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if (perform_bench) {
-    uci.bench();
-    return 0;
+namespace engine {
+namespace processor {
+
+template <typename T>
+struct emit_type {
+  template <typename... As, typename F = null_type>
+  void process(const lexed_command_view& view, const std::tuple<As...>& args, const F& receiver = def::null) const noexcept {
+    view.emit<T>([&](const T& value, const lexed_command_view& next_view) {
+      const auto next_args = util::tuple::append(args, value);
+      receiver.process(next_view, next_args);
+    });
   }
+};
 
-  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
+namespace def {
+
+template <typename T>
+constexpr auto emit = emit_type<T>{};
+
 }
+
+}  // namespace processor
+}  // namespace engine
