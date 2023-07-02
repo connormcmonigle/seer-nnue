@@ -55,12 +55,16 @@ struct search_stack {
 
   [[nodiscard]] constexpr stack_entry& at(const depth_type& height) noexcept { return future_[height]; }
 
+  [[maybe_unused]] constexpr search_stack& update_selective_depth(const depth_type& height) noexcept {
+    selective_depth_ = std::max(selective_depth_, height);
+    return *this;
+  }
+
   [[nodiscard]] std::size_t count(const std::size_t& height, const zobrist::hash_type& hash) const noexcept;
 
   [[nodiscard]] std::string pv_string() const noexcept;
   [[nodiscard]] chess::move ponder_move() const noexcept;
 
-  [[maybe_unused]] search_stack& update_selective_depth(const depth_type& height) noexcept;
   [[maybe_unused]] search_stack& clear_future() noexcept;
 
   search_stack(const chess::board_history& past, const chess::board& present) noexcept;

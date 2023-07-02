@@ -42,11 +42,6 @@ std::string search_stack::pv_string() const noexcept {
 
 chess::move search_stack::ponder_move() const noexcept { return *(future_.begin()->pv_.begin() + 1); }
 
-search_stack& search_stack::update_selective_depth(const depth_type& height) noexcept {
-  selective_depth_ = std::max(selective_depth_, height);
-  return *this;
-}
-
 search_stack& search_stack::clear_future() noexcept {
   selective_depth_ = 0;
   future_.fill(stack_entry{});
