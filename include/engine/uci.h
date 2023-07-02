@@ -68,9 +68,9 @@ struct uci {
   void weights_info_string() noexcept;
   void info_string(const search::search_worker& worker) noexcept;
 
-  template <typename T, typename ... Ts>
-  void go(Ts&& ... args) noexcept;
-  
+  template <typename T, typename... Ts>
+  void go(Ts&&... args) noexcept;
+
   void ponder_hit() noexcept;
   void stop() noexcept;
 
@@ -80,7 +80,7 @@ struct uci {
   void bench() noexcept;
   void eval() noexcept;
   void probe() noexcept;
-  void perft(const std::string& line) noexcept;
+  void perft(const search::depth_type& depth) noexcept;
 
   void read(const std::string& line) noexcept;
 

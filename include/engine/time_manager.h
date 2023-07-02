@@ -46,7 +46,7 @@ struct move_time {
   bool ponder;
   int move_time;
 
-  constexpr std::chrono::milliseconds move_time_ms() const noexcept {
+  [[nodiscard]] constexpr std::chrono::milliseconds move_time_ms() const noexcept {
     const int value = move_time;
     return std::chrono::milliseconds(value);
   }
@@ -58,23 +58,23 @@ struct timed_move_state {
   int white_time;
   int black_time;
 
-  constexpr std::chrono::milliseconds our_time_ms(const bool& pov) const noexcept {
+  [[nodiscard]] constexpr std::chrono::milliseconds our_time_ms(const bool& pov) const noexcept {
     const int value = pov ? white_time : black_time;
     return std::chrono::milliseconds(value);
   }
 };
 
-struct increment : timed_move_state {
+struct increment : public timed_move_state {
   int white_increment;
   int black_increment;
 
-  constexpr std::chrono::milliseconds our_increment_ms(const bool& pov) const noexcept {
+  [[nodiscard]] constexpr std::chrono::milliseconds our_increment_ms(const bool& pov) const noexcept {
     const int value = pov ? white_increment : black_increment;
     return std::chrono::milliseconds(value);
   }
 };
 
-struct moves_to_go : timed_move_state {
+struct moves_to_go : public timed_move_state {
   int moves_to_go;
 };
 

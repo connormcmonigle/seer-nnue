@@ -37,7 +37,7 @@ struct eval_cache {
 
   std::array<eval_cache_entry, N> data{};
 
-  [[nodiscard]] constexpr std::size_t hash_function(const zobrist::hash_type& hash) const noexcept { return hash & (N - 1); }
+  [[nodiscard]] static constexpr std::size_t hash_function(const zobrist::hash_type& hash) noexcept { return hash & (N - 1); }
   inline void prefetch(const zobrist::hash_type& hash) const noexcept { __builtin_prefetch(data.data() + hash_function(hash)); }
 
   [[nodiscard]] constexpr std::optional<score_type> find(const zobrist::hash_type& hash) const noexcept {

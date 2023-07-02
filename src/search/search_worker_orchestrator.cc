@@ -64,13 +64,15 @@ bool worker_orchestrator::is_searching() noexcept {
 }
 
 std::size_t worker_orchestrator::nodes() const noexcept {
-  return std::accumulate(
-      workers_.begin(), workers_.end(), static_cast<std::size_t>(0), [](const std::size_t& count, const auto& worker) { return count + worker->nodes(); });
+  return std::accumulate(workers_.begin(), workers_.end(), static_cast<std::size_t>(0), [](const std::size_t& count, const auto& worker) {
+    return count + worker->nodes();
+  });
 }
 
 std::size_t worker_orchestrator::tb_hits() const noexcept {
-  return std::accumulate(
-      workers_.begin(), workers_.end(), static_cast<std::size_t>(0), [](const std::size_t& count, const auto& worker) { return count + worker->tb_hits(); });
+  return std::accumulate(workers_.begin(), workers_.end(), static_cast<std::size_t>(0), [](const std::size_t& count, const auto& worker) {
+    return count + worker->tb_hits();
+  });
 }
 
 search_worker& worker_orchestrator::primary_worker() noexcept { return *workers_[primary_id]; }

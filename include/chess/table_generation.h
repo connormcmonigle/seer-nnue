@@ -18,8 +18,8 @@
 #pragma once
 
 #include <chess/pawn_info.h>
-#include <chess/types.h>
 #include <chess/square.h>
+#include <chess/types.h>
 
 #include <algorithm>
 #include <array>
@@ -76,7 +76,7 @@ constexpr std::array<std::uint64_t, 64> bishop_magics = {
   return {D{1, 0}, D{0, 1}, D{-1, 0}, D{0, -1}, D{1, -1}, D{-1, 1}, D{-1, -1}, D{1, 1}};
 }
 
-[[nodiscard]] constexpr std::array<delta, 8> king_deltas()  noexcept {
+[[nodiscard]] constexpr std::array<delta, 8> king_deltas() noexcept {
   using D = delta;
   return {D{1, 0}, D{0, 1}, D{-1, 0}, D{0, -1}, D{1, -1}, D{-1, 1}, D{-1, -1}, D{1, 1}};
 }
@@ -91,7 +91,7 @@ constexpr std::array<std::uint64_t, 64> bishop_magics = {
   return {D{1, -1}, D{-1, 1}, D{-1, -1}, D{1, 1}};
 }
 
-[[nodiscard]]constexpr std::array<delta, 4> rook_deltas() noexcept {
+[[nodiscard]] constexpr std::array<delta, 4> rook_deltas() noexcept {
   using D = delta;
   return {D{1, 0}, D{0, 1}, D{-1, 0}, D{0, -1}};
 }

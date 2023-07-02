@@ -22,7 +22,6 @@
 #include <search/search_constants.h>
 #include <search/syzygy.h>
 
-#include <regex>
 #include <sstream>
 
 namespace engine {
@@ -192,15 +191,10 @@ void uci::probe() noexcept {
   }
 }
 
-void uci::perft(const std::string& line) noexcept {
+void uci::perft(const search::depth_type& depth) noexcept {
   std::lock_guard<std::mutex> lock(mutex_);
   if (orchestrator_.is_searching()) { return; }
-
-  const std::regex perft_with_depth("perft ([0-9]+)");
-  if (std::smatch matches{}; std::regex_search(line, matches, perft_with_depth)) {
-    const search::depth_type depth = std::stoi(matches.str(1));
-    std::cout << get_perft_info(position, depth) << std::endl;
-  }
+  std::cout << get_perft_info(position, depth) << std::endl;
 }
 
 void uci::read(const std::string& line) noexcept {
@@ -209,7 +203,6 @@ void uci::read(const std::string& line) noexcept {
   // clang-format off
   
   const auto processor = parallel(
-
     sequential(consume("uci"), invoke([&] { id_info(); })),
     sequential(consume("isready"), invoke([&] { ready(); })),
     options().processor(),
@@ -254,6 +247,7 @@ void uci::read(const std::string& line) noexcept {
     sequential(consume("quit"), invoke([&] { quit(); })),
 
     // extensions
+    sequential(consume("perft"), emit<search::depth_type>, invoke([&] (const search::depth_type& depth) { perft(depth); })),
     sequential(consume("bench"), invoke([&] { bench(); })),
     sequential(consume("probe"), invoke([&] { probe(); })),
     sequential(consume("eval"), invoke([&] { eval(); }))

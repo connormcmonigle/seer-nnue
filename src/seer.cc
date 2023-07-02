@@ -20,7 +20,7 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char* argv[]) {
+int main(const int argc, const char* argv[]) {
   engine::uci uci{};
 
   const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");

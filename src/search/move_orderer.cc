@@ -21,7 +21,7 @@
 
 namespace search {
 
-void move_orderer_stepper::update_list_() noexcept {
+void move_orderer_stepper::update_list_() const noexcept {
   auto comparator = [](const move_orderer_entry& a, const move_orderer_entry& b) { return a.sort_key() < b.sort_key(); };
   std::iter_swap(begin_, std::max_element(begin_, end_, comparator));
 }

@@ -24,8 +24,7 @@
 
 #include <tuple>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 struct condition_type {
   lexer::token_type token_{};
@@ -38,16 +37,13 @@ struct condition_type {
     });
   }
 
-  condition_type(const lexer::token_type& token) noexcept : token_{token} {}
+  explicit condition_type(const lexer::token_type& token) noexcept : token_{token} {}
 };
 
 namespace def {
 
-[[nodiscard]] inline condition_type condition(const lexer::token_type& token) noexcept {
-  return condition_type(token);
-}
+[[nodiscard]] inline condition_type condition(const lexer::token_type& token) noexcept { return condition_type(token); }
 
 }  // namespace def
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

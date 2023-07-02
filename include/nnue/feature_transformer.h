@@ -19,8 +19,8 @@
 #include <chess/board.h>
 #include <chess/types.h>
 #include <feature/util.h>
-#include <nnue/aligned_slice.h>
 #include <nnue/aligned_scratchpad.h>
+#include <nnue/aligned_slice.h>
 #include <nnue/dense_relu_affine_layer.h>
 #include <nnue/feature_transformer.h>
 #include <nnue/sparse_affine_layer.h>

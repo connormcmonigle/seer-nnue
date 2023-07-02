@@ -24,8 +24,7 @@
 
 #include <tuple>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 template <typename T>
 struct emit_type {
@@ -45,5 +44,4 @@ constexpr auto emit = emit_type<T>{};
 
 }
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

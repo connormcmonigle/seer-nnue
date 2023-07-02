@@ -25,8 +25,7 @@
 #include <cstddef>
 #include <tuple>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 template <std::ptrdiff_t N>
 struct emit_n_type {
@@ -46,5 +45,4 @@ constexpr auto emit_n = emit_n_type<N>{};
 
 }
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

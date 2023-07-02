@@ -42,7 +42,7 @@ struct string_option {
     return sequential(consume("setoption"), consume("name"), consume(name_), consume("value"), emit<type>, invoke(target));
   }
 
-  string_option(const std::string_view& name) noexcept : name_{name} {}
+  explicit string_option(const std::string_view& name) noexcept : name_{name} {}
   string_option(const std::string_view& name, const std::string& def) noexcept : name_{name}, default_{def} {}
 };
 
@@ -66,7 +66,7 @@ struct spin_option {
     return sequential(consume("setoption"), consume("name"), consume(name_), consume("value"), emit<type>, invoke(target));
   }
 
-  spin_option(const std::string_view& name) noexcept : name_{name} {}
+  explicit spin_option(const std::string_view& name) noexcept : name_{name} {}
   spin_option(const std::string& name, const spin_range& range) noexcept : name_{name}, range_{range} {}
   spin_option(const std::string& name, const int& def) noexcept : name_{name}, default_{def} {}
   spin_option(const std::string& name, const int& def, const spin_range& range) noexcept : name_{name}, default_{def}, range_{range} {}
@@ -90,7 +90,7 @@ struct check_option {
     // clang-format on
   }
 
-  check_option(const std::string_view& name) noexcept : name_{name} {}
+  explicit check_option(const std::string_view& name) noexcept : name_{name} {}
   check_option(const std::string_view& name, const bool& def) noexcept : name_{name}, default_{def} {}
 };
 
@@ -129,7 +129,7 @@ struct uci_options {
     return std::apply(convert_many, options_);
   }
 
-  uci_options(const option_callback<Ts>&... options) noexcept : options_{options...} {}
+  explicit uci_options(const option_callback<Ts>&... options) noexcept : options_{options...} {}
 };
 
 template <typename... Ts>

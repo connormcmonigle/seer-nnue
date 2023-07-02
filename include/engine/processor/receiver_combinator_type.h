@@ -23,8 +23,7 @@
 
 #include <tuple>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 template <typename A, typename B>
 struct receiver_combinator_type {
@@ -39,5 +38,4 @@ struct receiver_combinator_type {
   constexpr receiver_combinator_type(const A& processor, const B& receiver) noexcept : processor_{processor}, receiver_{receiver} {}
 };
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

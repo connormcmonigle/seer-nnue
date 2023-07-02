@@ -21,8 +21,7 @@
 #include <tuple>
 #include <type_traits>
 
-namespace util {
-namespace tuple {
+namespace util::tuple {
 
 template <typename T, typename F, std::size_t... I>
 constexpr void for_each_impl(T&& data, F&& f, std::index_sequence<I...>) noexcept {
@@ -60,5 +59,4 @@ constexpr std::tuple<Ts..., As...> append(const std::tuple<Ts...>& tuple, const 
   return std::tuple_cat(tuple, std::tuple{args...});
 }
 
-}  // namespace tuple
-}  // namespace util
+}  // namespace util::tuple

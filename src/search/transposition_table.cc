@@ -34,6 +34,8 @@ void transposition_table::update_gen() noexcept {
   current_gen = (current_gen + 1) % limit;
 }
 
+// clang-format off
+
 __attribute__((no_sanitize("thread")))
 transposition_table& transposition_table::insert(const transposition_table_entry& entry) noexcept {
   constexpr depth_type offset = 2;
@@ -49,10 +51,16 @@ transposition_table& transposition_table::insert(const transposition_table_entry
   return *this;
 }
 
+// clang-format on
+
+// clang-format off
+
 __attribute__((no_sanitize("thread")))
 std::optional<transposition_table_entry> transposition_table::find(const zobrist::hash_type& key) noexcept {
   const transposition_table_entry::gen_type gen = current_gen.load(std::memory_order_relaxed);
   return data[hash_function(key)].match(gen, key);
 }
+
+// clang-format on
 
 }  // namespace search

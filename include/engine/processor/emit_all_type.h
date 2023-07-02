@@ -25,8 +25,7 @@
 #include <cstddef>
 #include <tuple>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 struct emit_all_type {
   template <typename... As, typename F = null_type>
@@ -44,5 +43,4 @@ constexpr auto emit_all = emit_all_type{};
 
 }
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

@@ -32,7 +32,7 @@ struct sparse_affine_layer {
   T* W{nullptr};
   alignas(simd::alignment) T b[b_numel];
 
-  constexpr std::size_t num_parameters() const { return W_numel + b_numel; }
+  [[nodiscard]] constexpr std::size_t num_parameters() const { return W_numel + b_numel; }
 
   void insert_idx(const std::size_t idx, aligned_slice<T, b_numel> x) const {
     const T* mem_region = W + idx * dim1;
@@ -86,7 +86,7 @@ struct sparse_affine_layer {
     return *this;
   }
 
-  sparse_affine_layer<T, dim0, dim1>& operator=(sparse_affine_layer<T, dim0, dim1>&& other) {
+  sparse_affine_layer<T, dim0, dim1>& operator=(sparse_affine_layer<T, dim0, dim1>&& other) noexcept {
     std::swap(W, other.W);
     std::swap(b, other.b);
     return *this;
@@ -99,7 +99,7 @@ struct sparse_affine_layer {
     for (std::size_t i = 0; i < b_numel; ++i) { b[i] = other.b[i]; }
   }
 
-  sparse_affine_layer(sparse_affine_layer<T, dim0, dim1>&& other) {
+  sparse_affine_layer(sparse_affine_layer<T, dim0, dim1>&& other) noexcept {
     std::swap(W, other.W);
     std::swap(b, other.b);
   }

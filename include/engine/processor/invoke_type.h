@@ -25,8 +25,7 @@
 #include <tuple>
 #include <utility>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 template <typename I>
 struct invoke_type {
@@ -38,7 +37,7 @@ struct invoke_type {
     receiver.process(view, args);
   }
 
-  constexpr invoke_type(const I& invokable) noexcept : invokable_{invokable} {}
+  constexpr explicit invoke_type(const I& invokable) noexcept : invokable_{invokable} {}
 };
 
 namespace def {
@@ -50,5 +49,4 @@ template <typename I>
 
 }  // namespace def
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

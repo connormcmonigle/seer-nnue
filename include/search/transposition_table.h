@@ -94,7 +94,7 @@ struct transposition_table_entry {
     key_ ^= value_;
   }
 
-  constexpr transposition_table_entry() noexcept {}
+  constexpr transposition_table_entry() noexcept = default;
 };
 
 template <std::size_t N>
@@ -145,13 +145,15 @@ struct transposition_table {
   void resize(const std::size_t& size) noexcept;
   void update_gen() noexcept;
 
-  // __attribute__((no_sanitize("thread")))
+  // clang-format off
+  __attribute__((no_sanitize("thread")))
   [[maybe_unused]] transposition_table& insert(const transposition_table_entry& entry) noexcept;
 
-  // __attribute__((no_sanitize("thread")))
+  __attribute__((no_sanitize("thread")))
   [[nodiscard]] std::optional<transposition_table_entry> find(const zobrist::hash_type& key) noexcept;
+  // clang-format on
 
-  transposition_table(std::size_t size) noexcept : data(size * one_mb) {}
+  explicit transposition_table(const std::size_t& size) noexcept : data(size * one_mb) {}
 };
 
 }  // namespace search

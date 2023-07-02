@@ -19,12 +19,12 @@
 #include <chess/board.h>
 #include <chess/types.h>
 #include <feature/util.h>
-#include <nnue/aligned_slice.h>
 #include <nnue/aligned_scratchpad.h>
+#include <nnue/aligned_slice.h>
+#include <nnue/aligned_vector.h>
 #include <nnue/dense_relu_affine_layer.h>
 #include <nnue/feature_transformer.h>
 #include <nnue/sparse_affine_layer.h>
-#include <nnue/aligned_vector.h>
 #include <nnue/weights.h>
 #include <nnue/weights_streamer.h>
 #include <search/search_constants.h>
@@ -36,7 +36,7 @@
 
 namespace nnue {
 
-struct eval : chess::sided<eval, feature_transformer<weights::quantized_parameter_type, feature::half_ka::numel, weights::base_dim>> {
+struct eval : public chess::sided<eval, feature_transformer<weights::quantized_parameter_type, feature::half_ka::numel, weights::base_dim>> {
   static constexpr std::size_t base_dim = weights::base_dim;
   static constexpr std::size_t feature_transformer_dim = 2 * base_dim;
   static constexpr std::size_t scratchpad_depth = 256;
@@ -67,9 +67,9 @@ struct eval : chess::sided<eval, feature_transformer<weights::quantized_paramete
   }
 
   [[nodiscard]] inline search::score_type evaluate(const bool pov, const parameter_type& phase) const noexcept {
-    constexpr parameter_type one = static_cast<parameter_type>(1.0);
-    constexpr parameter_type mg = static_cast<parameter_type>(1.1);
-    constexpr parameter_type eg = static_cast<parameter_type>(0.7);
+    constexpr auto one = static_cast<parameter_type>(1.0);
+    constexpr auto mg = static_cast<parameter_type>(1.1);
+    constexpr auto eg = static_cast<parameter_type>(0.7);
 
     const parameter_type prediction = propagate(pov);
     const parameter_type eval = phase * mg * prediction + (one - phase) * eg * prediction;

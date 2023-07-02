@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <chess/types.h>
 #include <chess/square.h>
+#include <chess/types.h>
 
 namespace chess {
 
@@ -34,7 +34,7 @@ struct piece_configuration {
   constexpr void set_plane(const piece_type& pt, const square_set& plane) noexcept { get_member(pt, *this) = plane; }
 };
 
-struct sided_piece_configuration : sided<sided_piece_configuration, piece_configuration> {
+struct sided_piece_configuration : public sided<sided_piece_configuration, piece_configuration> {
   piece_configuration white;
   piece_configuration black;
 

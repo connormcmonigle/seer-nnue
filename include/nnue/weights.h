@@ -19,8 +19,8 @@
 #include <chess/board.h>
 #include <chess/types.h>
 #include <feature/util.h>
-#include <nnue/sparse_affine_layer.h>
 #include <nnue/dense_relu_affine_layer.h>
+#include <nnue/sparse_affine_layer.h>
 #include <nnue/weights_streamer.h>
 #include <search/search_constants.h>
 
@@ -43,7 +43,7 @@ struct weights {
   static constexpr parameter_type dequantization_scale = static_cast<parameter_type>(1) / (shared_quantization_scale * fc0_weight_quantization_scale);
 
   weights_streamer::signature_type signature_{0};
-  
+
   sparse_affine_layer<parameter_type, feature::half_ka::numel, base_dim> shared{};
   sparse_affine_layer<quantized_parameter_type, feature::half_ka::numel, base_dim> quantized_shared{};
 

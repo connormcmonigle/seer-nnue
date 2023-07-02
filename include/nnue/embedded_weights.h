@@ -21,12 +21,10 @@
 #define INCBIN_STYLE INCBIN_STYLE_SNAKE
 #include <incbin.h>
 
-namespace nnue {
-namespace embed {
+namespace nnue::embed {
 
 extern "C" {
 INCBIN(weights_file, EVALFILE);
 }
 
-}  // namespace embed
-}  // namespace nnue
+}  // namespace nnue::embed

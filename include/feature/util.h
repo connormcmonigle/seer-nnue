@@ -22,8 +22,7 @@
 
 #include <cstddef>
 
-namespace feature {
-namespace half_ka {
+namespace feature::half_ka {
 
 constexpr std::size_t numel = 64 * 12 * 64;
 constexpr std::size_t max_active_half_features = 32;
@@ -82,5 +81,4 @@ template <chess::color us, chess::color p>
   return major * (ks.index() ^ mirror_constant<us>)+offset<us, p>(pt) + (sq.index() ^ mirror_constant<us>);
 }
 
-}  // namespace half_ka
-}  // namespace feature
+}  // namespace feature::half_ka

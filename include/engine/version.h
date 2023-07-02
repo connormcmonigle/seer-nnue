@@ -19,8 +19,7 @@
 
 #include <string_view>
 
-namespace engine {
-namespace version {
+namespace engine::version {
 
 constexpr std::string_view engine_name = "Seer";
 constexpr std::string_view author_name = "Connor McMonigle";
@@ -28,5 +27,4 @@ constexpr std::size_t major = 2;
 constexpr std::size_t minor = 6;
 constexpr std::size_t patch = 0;
 
-}  // namespace version
-}  // namespace engine
+}  // namespace engine::version

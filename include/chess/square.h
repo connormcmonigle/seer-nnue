@@ -45,7 +45,7 @@ struct square {
 
   [[nodiscard]] std::string name() const noexcept;
 
-  constexpr square(const data_type& bb) noexcept : data{bb} {}
+  constexpr explicit square(const data_type& bb) noexcept : data{bb} {}
 
   template <typename I>
   [[nodiscard]] constexpr static square from_index(const I& index) noexcept {
@@ -193,7 +193,7 @@ struct square_set {
   }
 
   constexpr square_set() noexcept : data{0} {}
-  constexpr square_set(const square::data_type& set) noexcept : data{set} {}
+  constexpr explicit square_set(const square::data_type& set) noexcept : data{set} {}
 };
 
 [[nodiscard]] constexpr square_set operator~(const square_set& ss) noexcept { return square_set(~ss.data); }

@@ -60,8 +60,8 @@ struct butterfly_info {
   [[nodiscard]] static constexpr bool is_applicable(const context&, const chess::move& mv) noexcept { return mv.is_quiet(); }
 
   [[nodiscard]] static constexpr std::size_t compute_index(const context&, const chess::move& mv) noexcept {
-    const std::size_t from = static_cast<std::size_t>(mv.from().index());
-    const std::size_t to = static_cast<std::size_t>(mv.to().index());
+    const auto from = static_cast<std::size_t>(mv.from().index());
+    const auto to = static_cast<std::size_t>(mv.to().index());
     return from * constants::num_squares + to;
   }
 };
@@ -74,8 +74,8 @@ struct threatened_info {
   }
 
   [[nodiscard]] static constexpr std::size_t compute_index(const context&, const chess::move& mv) noexcept {
-    const std::size_t from = static_cast<std::size_t>(mv.from().index());
-    const std::size_t to = static_cast<std::size_t>(mv.to().index());
+    const auto from = static_cast<std::size_t>(mv.from().index());
+    const auto to = static_cast<std::size_t>(mv.to().index());
     return from * constants::num_squares + to;
   }
 };
@@ -88,10 +88,10 @@ struct counter_info {
   }
 
   [[nodiscard]] static constexpr std::size_t compute_index(const context& ctxt, const chess::move& mv) noexcept {
-    const std::size_t p0 = static_cast<std::size_t>(ctxt.counter.piece());
-    const std::size_t to0 = static_cast<std::size_t>(ctxt.counter.to().index());
-    const std::size_t p1 = static_cast<std::size_t>(mv.piece());
-    const std::size_t to1 = static_cast<std::size_t>(mv.to().index());
+    const auto p0 = static_cast<std::size_t>(ctxt.counter.piece());
+    const auto to0 = static_cast<std::size_t>(ctxt.counter.to().index());
+    const auto p1 = static_cast<std::size_t>(mv.piece());
+    const auto to1 = static_cast<std::size_t>(mv.to().index());
     return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
            p1 * constants::num_squares + to1;
   }
@@ -105,10 +105,10 @@ struct follow_info {
   }
 
   [[nodiscard]] static constexpr std::size_t compute_index(const context& ctxt, const chess::move& mv) noexcept {
-    const std::size_t p0 = static_cast<std::size_t>(ctxt.follow.piece());
-    const std::size_t to0 = static_cast<std::size_t>(ctxt.follow.to().index());
-    const std::size_t p1 = static_cast<std::size_t>(mv.piece());
-    const std::size_t to1 = static_cast<std::size_t>(mv.to().index());
+    const auto p0 = static_cast<std::size_t>(ctxt.follow.piece());
+    const auto to0 = static_cast<std::size_t>(ctxt.follow.to().index());
+    const auto p1 = static_cast<std::size_t>(mv.piece());
+    const auto to1 = static_cast<std::size_t>(mv.to().index());
     return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
            p1 * constants::num_squares + to1;
   }
@@ -120,9 +120,9 @@ struct capture_info {
   [[nodiscard]] static constexpr bool is_applicable(const context&, const chess::move& mv) noexcept { return mv.is_capture(); }
 
   [[nodiscard]] static constexpr std::size_t compute_index(const context&, const chess::move& mv) noexcept {
-    const std::size_t piece = static_cast<std::size_t>(mv.piece());
-    const std::size_t to = static_cast<std::size_t>(mv.to().index());
-    const std::size_t capture = static_cast<std::size_t>(mv.captured());
+    const auto piece = static_cast<std::size_t>(mv.piece());
+    const auto to = static_cast<std::size_t>(mv.to().index());
+    const auto capture = static_cast<std::size_t>(mv.captured());
     return piece * constants::num_squares * constants::num_pieces + to * constants::num_pieces + capture;
   }
 };
@@ -181,7 +181,7 @@ struct combined {
 using history_heuristic =
     history::combined<history::butterfly_info, history::threatened_info, history::counter_info, history::follow_info, history::capture_info>;
 
-struct sided_history_heuristic : chess::sided<sided_history_heuristic, history_heuristic> {
+struct sided_history_heuristic : public chess::sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;
   history_heuristic black;
 

@@ -24,10 +24,8 @@
 #include <feature/util.h>
 #include <zobrist/util.h>
 
-#include <array>
 #include <cstddef>
 #include <iostream>
-#include <limits>
 #include <string>
 #include <tuple>
 
@@ -145,7 +143,7 @@ struct board {
   inline void add_king(const move_generator_info& info, move_list& result) const noexcept;
 
   template <color c>
-  inline move_generator_info get_move_generator_info() const noexcept;
+  [[nodiscard]] inline move_generator_info get_move_generator_info() const noexcept;
 
   template <color c, typename mode>
   [[nodiscard]] inline move_list generate_moves_() const noexcept;
@@ -179,13 +177,13 @@ struct board {
 
   template <color c>
   [[nodiscard]] inline bool is_passed_push_(const move& mv) const noexcept;
-  bool is_passed_push(const move& mv) const noexcept;
+  [[nodiscard]] bool is_passed_push(const move& mv) const noexcept;
 
   template <color c>
   [[nodiscard]] std::size_t side_num_pieces() const noexcept;
   [[nodiscard]] std::size_t num_pieces() const noexcept;
 
-  bool is_trivially_drawn() const noexcept;
+  [[nodiscard]] bool is_trivially_drawn() const noexcept;
 
   template <color c>
   [[nodiscard]] board forward_(const move& mv) const noexcept;

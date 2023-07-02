@@ -24,8 +24,7 @@
 
 #include <tuple>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 template <typename T>
 struct key_type {
@@ -39,7 +38,7 @@ struct key_type {
     });
   }
 
-  key_type(const lexer::token_type& token) noexcept : token_{token} {}
+  explicit key_type(const lexer::token_type& token) noexcept : token_{token} {}
 };
 
 namespace def {
@@ -51,5 +50,4 @@ template <typename T>
 
 }  // namespace def
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

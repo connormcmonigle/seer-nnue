@@ -107,14 +107,14 @@ struct lexed_command {
 
   [[nodiscard]] lexed_command_view view() const noexcept { return lexed_command_view{tokens_.cbegin(), tokens_.cend()}; }
 
-  lexed_command(const std::string& input) noexcept {
+  explicit lexed_command(const std::string& input) noexcept {
     std::istringstream input_stream(input);
     std::copy(std::istream_iterator<lexer::token_type>(input_stream), std::istream_iterator<lexer::token_type>(), std::back_inserter(tokens_));
   }
 };
 
 struct command_lexer {
-  lexed_command lex(const std::string& input) const noexcept { return lexed_command(input); }
+  [[nodiscard]] lexed_command lex(const std::string& input) const noexcept { return lexed_command(input); }
 };
 
 }  // namespace engine

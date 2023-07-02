@@ -24,8 +24,7 @@
 #include <tuple>
 #include <type_traits>
 
-namespace util {
-namespace string {
+namespace util::string {
 
 template <typename T>
 [[nodiscard]] std::string join(const T& first, const T& last, const std::string& separator) noexcept {
@@ -34,5 +33,4 @@ template <typename T>
   return result.str();
 }
 
-}  // namespace string
-}  // namespace util
+}  // namespace util::string

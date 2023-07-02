@@ -26,13 +26,12 @@ extern "C" {
 
 #include <string>
 
-namespace search {
-namespace syzygy {
+namespace search::syzygy {
 
 enum class wdl_type { loss, draw, win };
 
 struct tb_wdl_result {
-  bool success;
+  bool success{};
   wdl_type wdl{wdl_type::draw};
 
   [[nodiscard]] static constexpr tb_wdl_result failure() noexcept { return tb_wdl_result{false}; }
@@ -45,7 +44,7 @@ struct tb_wdl_result {
 };
 
 struct tb_dtz_result {
-  bool success;
+  bool success{};
   search::score_type score{search::draw_score};
   chess::move move{chess::move::null()};
 
@@ -58,5 +57,4 @@ struct tb_dtz_result {
 
 void init(const std::string& path) noexcept;
 
-}  // namespace syzygy
 }  // namespace search

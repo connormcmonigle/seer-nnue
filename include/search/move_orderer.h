@@ -117,7 +117,7 @@ struct move_orderer_stepper {
   [[nodiscard]] constexpr chess::move current_move() const noexcept { return begin_->mv; }
 
   [[maybe_unused]] move_orderer_stepper& initialize(const move_orderer_data& data, const chess::move_list& list) noexcept;
-  inline void update_list_() noexcept;
+  inline void update_list_() const noexcept;
   void next() noexcept;
 
   move_orderer_stepper() noexcept : begin_{entries_.begin()} {}
@@ -146,7 +146,7 @@ struct move_orderer_iterator {
   [[maybe_unused]] move_orderer_iterator<mode>& operator++() noexcept;
 
   [[nodiscard]] constexpr bool operator==(const move_orderer_iterator<mode>&) const noexcept { return false; }
-  
+
   [[nodiscard]] constexpr bool operator==(const move_orderer_iterator_end_tag&) const noexcept {
     return stepper_.is_initialized() && !stepper_.has_next();
   }

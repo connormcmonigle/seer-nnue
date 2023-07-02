@@ -24,8 +24,7 @@
 
 #include <tuple>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 template <typename T, typename... Ts>
 struct sequential_combinator_type {
@@ -44,7 +43,7 @@ struct sequential_combinator_type {
     }
   }
 
-  constexpr sequential_combinator_type(const std::tuple<T, Ts...>& processors) noexcept : processors_(processors) {}
+  constexpr explicit sequential_combinator_type(const std::tuple<T, Ts...>& processors) noexcept : processors_(processors) {}
 };
 
 namespace def {
@@ -57,5 +56,4 @@ template <typename... Ts>
 
 }  // namespace def
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

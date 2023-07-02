@@ -23,8 +23,7 @@
 #include <tuple>
 #include <utility>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 template <typename... Ts>
 struct parallel_combinator_type {
@@ -35,7 +34,7 @@ struct parallel_combinator_type {
     util::tuple::for_each(processors_, [&](const auto& processor) { processor.process(view, args, receiver); });
   }
 
-  constexpr parallel_combinator_type(const std::tuple<Ts...>& processors) noexcept : processors_{processors} {}
+  constexpr explicit parallel_combinator_type(const std::tuple<Ts...>& processors) noexcept : processors_{processors} {}
 };
 
 namespace def {
@@ -48,5 +47,4 @@ template <typename... Ts>
 
 }  // namespace def
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

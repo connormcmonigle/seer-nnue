@@ -22,8 +22,7 @@
 
 #include <tuple>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 struct null_type {
   template <typename... As>
@@ -39,5 +38,4 @@ constexpr auto null = null_type{};
 
 }
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

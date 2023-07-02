@@ -33,27 +33,33 @@ namespace chess {
 
 struct move_list {
   static constexpr std::size_t max_branching_factor = 192;
+
   using iterator = std::array<move, max_branching_factor>::iterator;
   using const_iterator = std::array<move, max_branching_factor>::const_iterator;
+  using size_type = std::array<move, max_branching_factor>::size_type;
 
-  std::size_t size_{0};
+  size_type size_{0};
   std::array<move, max_branching_factor> data{};
 
   [[nodiscard]] constexpr iterator begin() noexcept { return data.begin(); }
   [[nodiscard]] constexpr iterator end() noexcept { return data.begin() + size_; }
+
   [[nodiscard]] constexpr const_iterator begin() const noexcept { return data.cbegin(); }
   [[nodiscard]] constexpr const_iterator end() const noexcept { return data.cbegin() + size_; }
 
+  [[nodiscard]] constexpr const_iterator cbegin() const noexcept { return data.cbegin(); }
+  [[nodiscard]] constexpr const_iterator cend() const noexcept { return data.cbegin() + size_; }
+
   [[nodiscard]] inline bool has(const move& mv) const noexcept { return end() != std::find(begin(), end(), mv); }
 
-  [[nodiscard]] constexpr std::size_t size() const noexcept { return size_; }
+  [[nodiscard]] constexpr size_type size() const noexcept { return size_; }
   [[nodiscard]] constexpr bool empty() const noexcept { return size_ == 0; }
 
-  [[nodiscard]] constexpr move& operator[](const std::size_t& idx) noexcept { return data[idx]; }
-  [[nodiscard]] constexpr const move& operator[](const std::size_t& idx) const noexcept { return data[idx]; }
+  [[nodiscard]] constexpr move& operator[](const size_type& idx) noexcept { return data[idx]; }
+  [[nodiscard]] constexpr const move& operator[](const size_type& idx) const noexcept { return data[idx]; }
 
   [[maybe_unused]] constexpr move_list& push(const move& mv) noexcept {
-    constexpr std::size_t last_idx = max_branching_factor - 1;
+    constexpr size_type last_idx = max_branching_factor - 1;
     data[size_] = mv;
     ++size_;
     if (size_ > last_idx) { size_ = last_idx; }

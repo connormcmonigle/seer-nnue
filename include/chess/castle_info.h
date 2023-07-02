@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <chess/types.h>
 #include <chess/square.h>
+#include <chess/types.h>
 
 namespace chess {
 

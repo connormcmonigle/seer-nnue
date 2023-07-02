@@ -31,7 +31,7 @@ std::size_t search_stack::count(const std::size_t& height, const zobrist::hash_t
 std::string search_stack::pv_string() const noexcept {
   auto bd = present_;
   std::string result{};
-  
+
   for (const auto& pv_mv : future_.begin()->pv_) {
     if (!bd.generate_moves<>().has(pv_mv)) { break; }
     result += pv_mv.name(bd.turn()) + " ";

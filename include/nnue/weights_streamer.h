@@ -49,7 +49,7 @@ struct weights_streamer {
 
   [[nodiscard]] constexpr const signature_type& signature() const noexcept { return signature_; }
 
-  weights_streamer(const std::string& name) noexcept : reader(name, std::ios_base::in | std::ios_base::binary) {}
+  explicit weights_streamer(const std::string& name) noexcept : reader(name, std::ios_base::in | std::ios_base::binary) {}
 };
 
 struct embedded_weight_streamer {
@@ -77,7 +77,7 @@ struct embedded_weight_streamer {
 
   [[nodiscard]] constexpr const signature_type& signature() const noexcept { return signature_; }
 
-  embedded_weight_streamer(const unsigned char* data) noexcept : back_ptr{data} {}
+  explicit embedded_weight_streamer(const unsigned char* data) noexcept : back_ptr{data} {}
 };
 
 }  // namespace nnue

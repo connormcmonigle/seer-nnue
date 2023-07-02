@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <chess/types.h>
 #include <chess/square.h>
+#include <chess/types.h>
 #include <zobrist/util.h>
 
 #include <array>
@@ -48,8 +48,6 @@ struct manifest_zobrist_src {
 };
 
 struct manifest {
-  static constexpr std::size_t num_squares = 64;
-
   const manifest_zobrist_src* zobrist_src_;
   zobrist::hash_type hash_{0};
   square_set pawn_{};
@@ -94,7 +92,7 @@ struct manifest {
   manifest(const manifest_zobrist_src* src) noexcept : zobrist_src_{src} {}
 };
 
-struct sided_manifest : sided<sided_manifest, manifest> {
+struct sided_manifest : public sided<sided_manifest, manifest> {
   static inline const manifest_zobrist_src w_manifest_src{};
   static inline const manifest_zobrist_src b_manifest_src{};
 
@@ -146,7 +144,7 @@ struct latent {
   latent(const latent_zobrist_src* src) noexcept : zobrist_src_{src} {}
 };
 
-struct sided_latent : sided<sided_latent, latent> {
+struct sided_latent : public sided<sided_latent, latent> {
   static inline const latent_zobrist_src w_latent_src{};
   static inline const latent_zobrist_src b_latent_src{};
   static inline const zobrist::hash_type turn_white_src = zobrist::random_bit_string();

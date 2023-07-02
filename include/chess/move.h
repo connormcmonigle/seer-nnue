@@ -104,11 +104,11 @@ struct move {
 
   template <color c>
   [[nodiscard]] std::string name() const noexcept;
-  [[nodiscard]] std::string name(const bool pov) const noexcept;
+  [[nodiscard]] std::string name(bool pov) const noexcept;
 
   move() = default;
 
-  constexpr move(const data_type& data) noexcept : data{data} {}
+  constexpr explicit move(const data_type& data) noexcept : data{data} {}
 
   constexpr move(
       square from,

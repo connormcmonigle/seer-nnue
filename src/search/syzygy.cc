@@ -17,8 +17,7 @@
 
 #include <search/syzygy.h>
 
-namespace search {
-namespace syzygy {
+namespace search::syzygy {
 
 tb_dtz_result tb_dtz_result::from_value(const chess::board& bd, const unsigned int& value) noexcept {
   auto is_same_promo = [](const chess::move& mv, const int& promo) {
@@ -86,5 +85,4 @@ tb_dtz_result probe_dtz(const chess::board& bd) noexcept {
 
 void init(const std::string& path) noexcept { tb_init(path.c_str()); }
 
-}  // namespace syzygy
 }  // namespace search

@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <chess/move.h>
 #include <zobrist/util.h>
 
 #include <algorithm>

@@ -22,9 +22,9 @@
 #include <engine/processor/null_type.h>
 
 #include <tuple>
+#include <utility>
 
-namespace engine {
-namespace processor {
+namespace engine::processor {
 
 struct consume_type {
   lexer::token_type token_{};
@@ -34,7 +34,7 @@ struct consume_type {
     view.consume(token_, [&](const lexed_command_view& next_view) { receiver.process(next_view, args); });
   }
 
-  consume_type(const lexer::token_type& token) noexcept : token_{token} {}
+  explicit consume_type(const lexer::token_type& token) noexcept : token_{token} {}
 };
 
 namespace def {
@@ -43,5 +43,4 @@ namespace def {
 
 }  // namespace def
 
-}  // namespace processor
-}  // namespace engine
+}  // namespace engine::processor

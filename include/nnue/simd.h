@@ -442,18 +442,18 @@ struct int16_add_x64 {
 
   static inline void f(std::int16_t* a, const std::int16_t* b) noexcept {
     for (std::size_t i(0); i < dim; i += num_units * per_unit<vector_256, std::int16_t>) {
-        __m256i* a_0 = (__m256i*)(a + i + 0 * per_unit<vector_256, std::int16_t>);
-        *a_0 = _mm256_add_epi16(*a_0, _mm256_load_si256((__m256i*)(b + i + 0 * per_unit<vector_256, std::int16_t>)));
+      __m256i* a_0 = (__m256i*)(a + i + 0 * per_unit<vector_256, std::int16_t>);
+      *a_0 = _mm256_add_epi16(*a_0, _mm256_load_si256((__m256i*)(b + i + 0 * per_unit<vector_256, std::int16_t>)));
 
-        __m256i* a_1 = (__m256i*)(a + i + 1 * per_unit<vector_256, std::int16_t>);
-        *a_1 = _mm256_add_epi16(*a_1, _mm256_load_si256((__m256i*)(b + i + 1 * per_unit<vector_256, std::int16_t>)));
+      __m256i* a_1 = (__m256i*)(a + i + 1 * per_unit<vector_256, std::int16_t>);
+      *a_1 = _mm256_add_epi16(*a_1, _mm256_load_si256((__m256i*)(b + i + 1 * per_unit<vector_256, std::int16_t>)));
 
-        __m256i* a_2 = (__m256i*)(a + i + 2 * per_unit<vector_256, std::int16_t>);
-        *a_2 = _mm256_add_epi16(*a_2, _mm256_load_si256((__m256i*)(b + i + 2 * per_unit<vector_256, std::int16_t>)));
+      __m256i* a_2 = (__m256i*)(a + i + 2 * per_unit<vector_256, std::int16_t>);
+      *a_2 = _mm256_add_epi16(*a_2, _mm256_load_si256((__m256i*)(b + i + 2 * per_unit<vector_256, std::int16_t>)));
 
-        __m256i* a_3 = (__m256i*)(a + i + 3 * per_unit<vector_256, std::int16_t>);
-        *a_3 = _mm256_add_epi16(*a_3, _mm256_load_si256((__m256i*)(b + i + 3 * per_unit<vector_256, std::int16_t>)));
-      }
+      __m256i* a_3 = (__m256i*)(a + i + 3 * per_unit<vector_256, std::int16_t>);
+      *a_3 = _mm256_add_epi16(*a_3, _mm256_load_si256((__m256i*)(b + i + 3 * per_unit<vector_256, std::int16_t>)));
+    }
   }
 };
 
@@ -632,16 +632,16 @@ struct float_relu_matrix_vector_product_x8_x8 {
       __m256 sum_7 = _mm256_setzero_ps();
 
       for (std::size_t j(0); j < dim0; j += per_unit<vector_256, float>) {
-          const __m256 input_region = _mm256_max_ps(zero, _mm256_load_ps(input + j));
-          sum_0 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 0) * dim0 + j), input_region), sum_0);
-          sum_1 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 1) * dim0 + j), input_region), sum_1);
-          sum_2 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 2) * dim0 + j), input_region), sum_2);
-          sum_3 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 3) * dim0 + j), input_region), sum_3);
-          sum_4 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 4) * dim0 + j), input_region), sum_4);
-          sum_5 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 5) * dim0 + j), input_region), sum_5);
-          sum_6 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 6) * dim0 + j), input_region), sum_6);
-          sum_7 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 7) * dim0 + j), input_region), sum_7);
-        }
+        const __m256 input_region = _mm256_max_ps(zero, _mm256_load_ps(input + j));
+        sum_0 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 0) * dim0 + j), input_region), sum_0);
+        sum_1 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 1) * dim0 + j), input_region), sum_1);
+        sum_2 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 2) * dim0 + j), input_region), sum_2);
+        sum_3 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 3) * dim0 + j), input_region), sum_3);
+        sum_4 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 4) * dim0 + j), input_region), sum_4);
+        sum_5 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 5) * dim0 + j), input_region), sum_5);
+        sum_6 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 6) * dim0 + j), input_region), sum_6);
+        sum_7 = _mm256_add_ps(_mm256_mul_ps(_mm256_load_ps(matrix + (i + 7) * dim0 + j), input_region), sum_7);
+      }
 
       const __m256 sum_01 = _mm256_hadd_ps(sum_0, sum_1);
       const __m256 sum_23 = _mm256_hadd_ps(sum_2, sum_3);

@@ -33,11 +33,11 @@ namespace search {
 struct stack_entry {
   zobrist::hash_type hash_{};
   score_type eval_{};
-  
+
   chess::move played_{chess::move::null()};
   chess::move killer_{chess::move::null()};
   chess::move excluded_{chess::move::null()};
-  
+
   std::array<chess::move, safe_depth> pv_{};
 
   stack_entry() noexcept { pv_.fill(chess::move::null()); }
@@ -135,8 +135,8 @@ struct stack_view {
     return *this;
   }
 
-  [[maybe_unused]] constexpr stack_view prev() const noexcept { return stack_view(view_, height_ - 1); }
-  [[maybe_unused]] constexpr stack_view next() const noexcept { return stack_view(view_, height_ + 1); }
+  [[nodiscard]] constexpr stack_view prev() const noexcept { return stack_view(view_, height_ - 1); }
+  [[nodiscard]] constexpr stack_view next() const noexcept { return stack_view(view_, height_ + 1); }
 
   constexpr stack_view(search_stack* view, const depth_type& height) : view_{view}, height_{height} { view_->update_selective_depth(height); }
   [[nodiscard]] static constexpr stack_view root(search_stack& st) noexcept { return stack_view(&st, 0); }

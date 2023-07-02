@@ -18,7 +18,9 @@
 #include <chess/pawn_info.h>
 #include <chess/table_generation.h>
 
+#include <array>
 #include <cstdint>
+#include <limits>
 #include <sstream>
 
 namespace chess {
@@ -754,10 +756,10 @@ board board::mirrored() const noexcept {
 std::tuple<board_history, board> board::after_uci_moves(const std::string& moves) const noexcept {
   board_history history{};
   auto bd = *this;
-  
+
   std::istringstream move_stream(moves);
   std::string move_name;
-  
+
   while (move_stream >> move_name) {
     const move_list list = bd.generate_moves<>();
     const auto it = std::find_if(list.begin(), list.end(), [=](const move& mv) { return mv.name(bd.turn()) == move_name; });
