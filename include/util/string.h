@@ -15,19 +15,22 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <engine/uci.h>
+#pragma once
 
-#include <iostream>
+#include <cstddef>
+#include <iterator>
+#include <sstream>
 #include <string>
+#include <tuple>
+#include <type_traits>
 
-int main(const int argc, const char* argv[]) {
-  engine::uci uci{};
+namespace util::string {
 
-  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if (perform_bench) {
-    uci.bench();
-    return 0;
-  }
-
-  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
+template <typename T>
+[[nodiscard]] std::string join(const T& first, const T& last, const std::string& separator) noexcept {
+  std::ostringstream result{};
+  std::copy(first, last, std::ostream_iterator<std::string>(result, separator.c_str()));
+  return result.str();
 }
+
+}  // namespace util::string

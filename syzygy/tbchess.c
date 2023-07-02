@@ -303,15 +303,15 @@ static const uint64_t anti2board_table[15] =
     0x0001020408102040ull,
 };
 
-static inline size_t diag2index(uint64_t b)
+static inline std::size_t diag2index(uint64_t b)
 {
     b *= 0x0101010101010101ull;
     b >>= 56;
     b >>= 1;
-    return (size_t)b;
+    return (std::size_t)b;
 }
 
-static inline size_t anti2index(uint64_t b)
+static inline std::size_t anti2index(uint64_t b)
 {
     return diag2index(b);
 }
@@ -327,8 +327,8 @@ static uint64_t bishop_attacks(unsigned sq, uint64_t occ)
     unsigned d = diag(sq), a = anti(sq);
     uint64_t d_occ = occ & (diag2board(d) & ~BOARD_EDGE);
     uint64_t a_occ = occ & (anti2board(a) & ~BOARD_EDGE);
-    size_t d_idx = diag2index(d_occ);
-    size_t a_idx = anti2index(a_occ);
+    std::size_t d_idx = diag2index(d_occ);
+    std::size_t a_idx = anti2index(a_occ);
     uint64_t d_attacks = diag_attacks_table[sq][d_idx];
     uint64_t a_attacks = anti_attacks_table[sq][a_idx];
     return d_attacks | a_attacks;
@@ -399,20 +399,20 @@ static void bishop_attacks_init(void)
 static uint64_t rank_attacks_table[64][64];
 static uint64_t file_attacks_table[64][64];
 
-static inline size_t rank2index(uint64_t b, unsigned r)
+static inline std::size_t rank2index(uint64_t b, unsigned r)
 {
     b >>= (8 * r);
     b >>= 1;
-    return (size_t)b;
+    return (std::size_t)b;
 }
 
-static inline size_t file2index(uint64_t b, unsigned f)
+static inline std::size_t file2index(uint64_t b, unsigned f)
 {
     b >>= f;
     b *= 0x0102040810204080ull;
     b >>= 56;
     b >>= 1;
-    return (size_t)b;
+    return (std::size_t)b;
 }
 
 #define rank2board(r)           (0xFFull << (8 * (r)))
@@ -424,8 +424,8 @@ static uint64_t rook_attacks(unsigned sq, uint64_t occ)
     unsigned r = rank(sq), f = file(sq);
     uint64_t r_occ = occ & (rank2board(r) & ~BOARD_RANK_EDGE);
     uint64_t f_occ = occ & (file2board(f) & ~BOARD_FILE_EDGE);
-    size_t r_idx = rank2index(r_occ, r);
-    size_t f_idx = file2index(f_occ, f);
+    std::size_t r_idx = rank2index(r_occ, r);
+    std::size_t f_idx = file2index(f_occ, f);
     uint64_t r_attacks = rank_attacks_table[sq][r_idx];
     uint64_t f_attacks = file_attacks_table[sq][f_idx];
     return r_attacks | f_attacks;

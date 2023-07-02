@@ -15,19 +15,10 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <engine/uci.h>
+#pragma once
 
-#include <iostream>
-#include <string>
+namespace util {
 
-int main(const int argc, const char* argv[]) {
-  engine::uci uci{};
+inline void unreachable() { __builtin_unreachable(); }
 
-  const bool perform_bench = (argc == 2) && (std::string(argv[1]) == "bench");
-  if (perform_bench) {
-    uci.bench();
-    return 0;
-  }
-
-  for (std::string line{}; !uci.should_quit() && std::getline(std::cin, line);) { uci.read(line); }
-}
+}  // namespace util
