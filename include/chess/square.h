@@ -113,7 +113,7 @@ struct square_set_iterator {
 
   [[nodiscard]] constexpr square operator*() const { return square{remaining & ~(remaining - static_cast<square::data_type>(1))}; }
 
-  constexpr square_set_iterator(const square::data_type& set) noexcept : remaining{set} {}
+  constexpr explicit square_set_iterator(const square::data_type& set) noexcept : remaining{set} {}
 };
 
 struct square_set {

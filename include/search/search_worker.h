@@ -42,6 +42,7 @@ struct pv_search_result<false> {
 template <>
 struct pv_search_result<true> {
   using type = std::tuple<score_type, chess::move>;
+
 };
 
 template <bool is_root>
@@ -61,14 +62,14 @@ struct search_worker {
       const depth_type& elevation) noexcept;
 
   template <bool is_pv, bool is_root = false>
-  [[nodiscard]] auto pv_search(
+  [[nodiscard]] pv_search_result_t<is_root> pv_search(
       const stack_view& ss,
       nnue::eval_node& eval_node,
       const chess::board& bd,
       score_type alpha,
       const score_type& beta,
       depth_type depth,
-      const chess::player_type& reducer) noexcept -> pv_search_result_t<is_root>;
+      const chess::player_type& reducer) noexcept;
 
   void iterative_deepening_loop() noexcept;
 

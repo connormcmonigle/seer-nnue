@@ -16,9 +16,9 @@
 */
 
 #pragma once
-
 #include <chess/square.h>
 #include <chess/types.h>
+#include <util/unreachable.h>
 
 #include <cstddef>
 
@@ -55,7 +55,7 @@ constexpr int mirror_constant = (chess::color::white == us) ? 0 : 56;
     case chess::piece_type::rook: return us_rook_offset;
     case chess::piece_type::queen: return us_queen_offset;
     case chess::piece_type::king: return us_king_offset;
-    default: return us_pawn_offset;
+    default: util::unreachable(); return us_pawn_offset;
   }
 }
 
@@ -67,7 +67,7 @@ constexpr int mirror_constant = (chess::color::white == us) ? 0 : 56;
     case chess::piece_type::rook: return them_rook_offset;
     case chess::piece_type::queen: return them_queen_offset;
     case chess::piece_type::king: return them_king_offset;
-    default: return them_pawn_offset;
+    default: util::unreachable(); return them_pawn_offset;
   }
 }
 

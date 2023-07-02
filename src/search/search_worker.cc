@@ -125,20 +125,20 @@ score_type search_worker::q_search(
 }
 
 template <bool is_pv, bool is_root>
-auto search_worker::pv_search(
+pv_search_result_t<is_root> search_worker::pv_search(
     const stack_view& ss,
     nnue::eval_node& eval_node,
     const chess::board& bd,
     score_type alpha,
     const score_type& beta,
     depth_type depth,
-    const chess::player_type& reducer) noexcept -> pv_search_result_t<is_root> {
+    const chess::player_type& reducer) noexcept {
+  static_assert(!is_root || is_pv);
+
   auto make_result = [](const score_type& score, const chess::move& mv) {
     if constexpr (is_root) { return pv_search_result_t<is_root>{score, mv}; }
     if constexpr (!is_root) { return score; }
   };
-
-  static_assert(!is_root || is_pv);
 
   // callback on entering search function
   const bool should_update = internal.keep_going() && (is_root || internal.one_of<nodes_per_update>());
@@ -465,12 +465,12 @@ void search_worker::iterative_deepening_loop() noexcept {
     }
 
     score_type delta = aspiration_delta;
-    depth_type failed_high_count{0};
+    depth_type consecutive_failed_high_count{0};
 
     for (;;) {
       internal.stack.clear_future();
 
-      const depth_type adjusted_depth = std::max(1, internal.depth - failed_high_count);
+      const depth_type adjusted_depth = std::max(1, internal.depth - consecutive_failed_high_count);
       const auto [search_score, search_move] = pv_search<true, true>(
           stack_view::root(internal.stack), root_node, internal.stack.root(), alpha, beta, adjusted_depth, chess::player_type::none);
 
@@ -480,10 +480,10 @@ void search_worker::iterative_deepening_loop() noexcept {
       if (search_score <= alpha) {
         beta = (alpha + beta) / 2;
         alpha = search_score - delta;
-        failed_high_count = 0;
+        consecutive_failed_high_count = 0;
       } else if (search_score >= beta) {
         beta = search_score + delta;
-        ++failed_high_count;
+        ++consecutive_failed_high_count;
       } else {
         // store updated information
         internal.score.store(search_score);

@@ -33,6 +33,8 @@ namespace engine {
 
 struct string_option {
   using type = std::string;
+  static constexpr std::string_view empty = "<empty>";
+
   std::string name_;
   std::optional<std::string> default_{};
 
@@ -43,7 +45,7 @@ struct string_option {
   }
 
   explicit string_option(const std::string_view& name) noexcept : name_{name} {}
-  string_option(const std::string_view& name, const std::string& def) noexcept : name_{name}, default_{def} {}
+  string_option(const std::string_view& name, const std::string_view& def) noexcept : name_{name}, default_{def} {}
 };
 
 struct spin_range {
@@ -55,6 +57,7 @@ struct spin_range {
 
 struct spin_option {
   using type = int;
+
   std::string name_;
   std::optional<int> default_ = {};
   std::optional<spin_range> range_ = {};
@@ -74,6 +77,7 @@ struct spin_option {
 
 struct check_option {
   using type = bool;
+
   std::string name_;
   std::optional<bool> default_{std::nullopt};
 

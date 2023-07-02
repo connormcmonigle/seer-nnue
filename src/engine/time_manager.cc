@@ -17,8 +17,6 @@
 
 #include <engine/time_manager.h>
 
-#include <regex>
-
 namespace engine {
 
 time_manager& time_manager::ponder_hit() noexcept {
@@ -159,5 +157,5 @@ simple_timer<T>& simple_timer<T>::lap() noexcept {
 
 }  // namespace engine
 
-template class engine::simple_timer<std::chrono::nanoseconds>;
-template class engine::simple_timer<std::chrono::milliseconds>;
+template struct engine::simple_timer<std::chrono::nanoseconds>;
+template struct engine::simple_timer<std::chrono::milliseconds>;

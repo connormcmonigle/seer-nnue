@@ -24,9 +24,7 @@
 #include <util/bit_range.h>
 
 #include <array>
-#include <cstdint>
 #include <iostream>
-#include <utility>
 
 namespace chess {
 

@@ -1,6 +1,6 @@
 EXE = seer
 SRC = ../src/seer.cc ../syzygy/tbprobe.c ../src/search/*.cc ../src/chess/*.cc ../src/engine/*.cc
-CC = clang++-12
+CC = clang++
 
 EVALFILE = weights/0xddf7a131.bin
 

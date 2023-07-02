@@ -43,7 +43,7 @@ struct base_history {
   }
 
   base_history() noexcept : history_{} {}
-  base_history(const std::vector<value_type>& history) noexcept : history_{history} {}
+  explicit base_history(const std::vector<value_type>& history) noexcept : history_{history} {}
 };
 
 struct board_history : base_history<board_history, zobrist::hash_type> {

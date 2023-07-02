@@ -18,10 +18,7 @@
 #pragma once
 
 #include <chess/board.h>
-#include <engine/bench.h>
-#include <engine/option_parser.h>
 #include <engine/time_manager.h>
-#include <engine/version.h>
 #include <nnue/weights.h>
 #include <search/search_worker.h>
 #include <search/search_worker_orchestrator.h>
@@ -29,17 +26,15 @@
 #include <atomic>
 #include <chrono>
 #include <iostream>
-#include <iterator>
 #include <string>
 #include <string_view>
 
 namespace engine {
 
 struct uci {
+  static constexpr std::string_view default_weight_path = "EMBEDDED";
   static constexpr std::size_t default_thread_count = 1;
   static constexpr std::size_t default_hash_size = 16;
-  static constexpr std::string_view default_weight_path = "EMBEDDED";
-  static constexpr std::string_view default_syzygy_path = "<empty>";
   static constexpr bool default_ponder = false;
 
   chess::board_history history{};

@@ -161,7 +161,7 @@ struct fixed_search_constants {
     return *this;
   }
 
-  fixed_search_constants(const std::size_t& thread_count = 1) noexcept { update_(thread_count); }
+  explicit fixed_search_constants(const std::size_t& thread_count = 1) noexcept { update_(thread_count); }
 };
 
 using search_constants = fixed_search_constants;

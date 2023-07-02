@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <chess/board_history.h>
 #include <chess/move.h>
 #include <chess/types.h>
 #include <search/search_constants.h>
@@ -26,8 +25,6 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <iostream>
-#include <type_traits>
 
 namespace search {
 

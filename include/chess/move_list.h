@@ -17,17 +17,12 @@
 
 #pragma once
 
-#include <chess/castle_info.h>
 #include <chess/move.h>
-#include <chess/pawn_info.h>
-#include <chess/square.h>
 #include <chess/types.h>
-#include <util/bit_range.h>
 
 #include <algorithm>
 #include <array>
 #include <iostream>
-#include <utility>
 
 namespace chess {
 

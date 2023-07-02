@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <util/unreachable.h>
+
 #include <cctype>
 #include <string_view>
 #include <type_traits>
@@ -133,7 +135,7 @@ enum class piece_type : std::uint8_t { pawn, knight, bishop, rook, queen, king }
     case piece_type::rook: return 'r';
     case piece_type::queen: return 'q';
     case piece_type::king: return 'k';
-    default: return '?';
+    default: util::unreachable(); return '?';
   }
 }
 
@@ -142,7 +144,7 @@ enum class piece_type : std::uint8_t { pawn, knight, bishop, rook, queen, king }
   switch (c) {
     case color::white: return std::toupper(p_letter);
     case color::black: return std::tolower(p_letter);
-    default: return p_letter;
+    default: util::unreachable(); return p_letter;
   }
 }
 
@@ -154,7 +156,7 @@ enum class piece_type : std::uint8_t { pawn, knight, bishop, rook, queen, king }
     case piece_type::rook: return "rook";
     case piece_type::queen: return "queen";
     case piece_type::king: return "king";
-    default: return "?";
+    default: util::unreachable(); return "king";
   }
 }
 
@@ -177,7 +179,7 @@ template <typename T>
     case piece_type::rook: return set.rook_;
     case piece_type::queen: return set.queen_;
     case piece_type::king: return set.king_;
-    default: return set.king_;
+    default: util::unreachable(); return set.king_;
   }
 }
 
@@ -190,7 +192,7 @@ template <typename T>
     case piece_type::rook: return set.rook_;
     case piece_type::queen: return set.queen_;
     case piece_type::king: return set.king_;
-    default: return set.king_;
+    default: util::unreachable(); return set.king_;
   }
 }
 

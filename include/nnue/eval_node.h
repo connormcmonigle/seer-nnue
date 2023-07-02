@@ -20,7 +20,6 @@
 #include <chess/move.h>
 #include <nnue/eval.h>
 #include <nnue/feature_reset_cache.h>
-#include <search/search_constants.h>
 
 namespace nnue {
 

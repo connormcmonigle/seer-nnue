@@ -16,8 +16,11 @@
 */
 
 #include <chess/move.h>
+#include <engine/bench.h>
+#include <engine/option_parser.h>
 #include <engine/processor/types.h>
 #include <engine/uci.h>
+#include <engine/version.h>
 #include <nnue/embedded_weights.h>
 #include <search/search_constants.h>
 #include <search/syzygy.h>
@@ -34,6 +37,7 @@ auto uci::options() noexcept {
     } else {
       weights_.load(path);
     }
+
     weights_info_string();
   });
 
@@ -48,9 +52,7 @@ auto uci::options() noexcept {
   });
 
   auto ponder = option_callback(check_option("Ponder", default_ponder), [this](const bool& value) { ponder_.store(value); });
-
-  auto syzygy_path =
-      option_callback(string_option("SyzygyPath", std::string(default_syzygy_path)), [](const std::string& path) { search::syzygy::init(path); });
+  auto syzygy_path = option_callback(string_option("SyzygyPath", string_option::empty), [](const std::string& path) { search::syzygy::init(path); });
 
   return uci_options(weight_path, hash_size, thread_count, ponder, syzygy_path);
 }

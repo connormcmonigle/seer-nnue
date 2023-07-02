@@ -24,7 +24,6 @@
 #include <feature/util.h>
 #include <zobrist/util.h>
 
-#include <cstddef>
 #include <iostream>
 #include <string>
 #include <tuple>

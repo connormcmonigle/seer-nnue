@@ -1,4 +1,3 @@
-
 /*
   Seer is a UCI chess engine by Connor McMonigle
   Copyright (C) 2021-2023  Connor McMonigle
@@ -18,28 +17,8 @@
 
 #pragma once
 
-#include <engine/command_lexer.h>
-#include <engine/processor/null_type.h>
-#include <util/tuple.h>
+namespace util {
 
-#include <tuple>
+inline void unreachable() { __builtin_unreachable(); }
 
-namespace engine::processor {
-
-struct emit_all_type {
-  template <typename... As, typename F = null_type>
-  void process(const lexed_command_view& view, const std::tuple<As...>& args, const F& receiver = def::null) const noexcept {
-    view.emit_all([&](const std::string& value, const lexed_command_view& next_view) {
-      const auto next_args = util::tuple::append(args, value);
-      receiver.process(next_view, next_args);
-    });
-  }
-};
-
-namespace def {
-
-constexpr auto emit_all = emit_all_type{};
-
-}
-
-}  // namespace engine::processor
+}  // namespace util

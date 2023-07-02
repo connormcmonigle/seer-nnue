@@ -18,16 +18,10 @@
 #pragma once
 
 #include <search/search_constants.h>
-#include <util/tuple.h>
 
-#include <atomic>
-#include <functional>
+#include <cstddef>
 #include <mutex>
 #include <optional>
-#include <sstream>
-#include <string>
-#include <string_view>
-#include <thread>
 
 namespace engine {
 
