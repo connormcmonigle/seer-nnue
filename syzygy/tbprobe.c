@@ -57,7 +57,7 @@ using namespace std;
 #define SEP_CHAR ':'
 #define FD int
 #define FD_ERR -1
-typedef std::size_t map_t;
+typedef size_t map_t;
 #else
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -257,13 +257,13 @@ inline static uint16_t read_le_u16(void *p)
   return from_le_u16(*(uint16_t *)p);
 }
 
-static std::size_t file_size(FD fd) {
+static size_t file_size(FD fd) {
 #ifdef _WIN32
   LARGE_INTEGER fileSize;
   if (GetFileSizeEx(fd, &fileSize)==0) {
     return 0;
   }
-  return (std::size_t)fileSize.QuadPart;
+  return (size_t)fileSize.QuadPart;
 #else
   struct stat buf;
   if (fstat(fd,&buf)) {
@@ -304,7 +304,7 @@ static FD open_tb(const char *str, const char *suffix)
 #else
 #ifdef _UNICODE
     wchar_t ucode_name[4096];
-    std::size_t len;
+    size_t len;
     mbstowcs_s(&len, ucode_name, 4096, file, _TRUNCATE);
     fd = CreateFile(ucode_name, GENERIC_READ, FILE_SHARE_READ, NULL,
 			  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -421,7 +421,7 @@ struct PairsData {
 
 struct EncInfo {
   struct PairsData *precomp;
-  std::size_t factor[TB_PIECES];
+  size_t factor[TB_PIECES];
   uint8_t pieces[TB_PIECES];
   uint8_t norm[TB_PIECES];
 };
@@ -667,7 +667,7 @@ static bool test_tb(const char *str, const char *suffix)
 {
   FD fd = open_tb(str, suffix);
   if (fd != FD_ERR) {
-    std::size_t size = file_size(fd);
+    size_t size = file_size(fd);
     close_tb(fd);
     if ((size & 63) != 16) {
       fprintf(stderr, "Incomplete tablebase file %s.%s\n", str, suffix);
@@ -913,7 +913,7 @@ bool tb_init(const char *path)
       }
 
   // 6- and 7-piece TBs make sense only with a 64-bit address space
-  if (sizeof(std::size_t) < 8 || TB_PIECES < 6)
+  if (sizeof(size_t) < 8 || TB_PIECES < 6)
     goto finished;
 
   for (i = 0; i < 5; i++)
@@ -1171,10 +1171,10 @@ static const uint8_t FileToFile[] = { 0, 1, 2, 3, 3, 2, 1, 0 };
 static const int WdlToMap[5] = { 1, 3, 0, 2, 0 };
 static const uint8_t PAFlags[5] = { 8, 0, 0, 0, 4 };
 
-static std::size_t Binomial[7][64];
-static std::size_t PawnIdx[2][6][24];
-static std::size_t PawnFactorFile[6][4];
-static std::size_t PawnFactorRank[6][6];
+static size_t Binomial[7][64];
+static size_t PawnIdx[2][6][24];
+static size_t PawnFactorFile[6][4];
+static size_t PawnFactorRank[6][6];
 
 static void init_indices(void)
 {
@@ -1183,8 +1183,8 @@ static void init_indices(void)
   // Binomial[k][n] = Bin(n, k)
   for (i = 0; i < 7; i++)
     for (j = 0; j < 64; j++) {
-      std::size_t f = 1;
-      std::size_t l = 1;
+      size_t f = 1;
+      size_t l = 1;
       for (k = 0; k < i; k++) {
         f *= (j - k);
         l *= (k + 1);
@@ -1193,7 +1193,7 @@ static void init_indices(void)
     }
 
   for (i = 0; i < 6; i++) {
-    std::size_t s = 0;
+    size_t s = 0;
     for (j = 0; j < 24; j++) {
       PawnIdx[0][i][j] = s;
       s += Binomial[i][PawnTwist[0][(1 + (j % 6)) * 8 + (j / 6)]];
@@ -1205,7 +1205,7 @@ static void init_indices(void)
   }
 
   for (i = 0; i < 6; i++) {
-    std::size_t s = 0;
+    size_t s = 0;
     for (j = 0; j < 24; j++) {
       PawnIdx[1][i][j] = s;
       s += Binomial[i][PawnTwist[1][(1 + (j / 4)) * 8 + (j % 4)]];
@@ -1226,11 +1226,11 @@ int leading_pawn(int *p, struct BaseEntry *be, const int enc)
   return enc == FILE_ENC ? FileToFile[p[0] & 7] : (p[0] - 8) >> 3;
 }
 
-std::size_t encode(int *p, struct EncInfo *ei, struct BaseEntry *be,
+size_t encode(int *p, struct EncInfo *ei, struct BaseEntry *be,
     const int enc)
 {
   int n = be->num;
-  std::size_t idx;
+  size_t idx;
   int k;
 
   if (p[0] & 0x04)
@@ -1286,7 +1286,7 @@ std::size_t encode(int *p, struct EncInfo *ei, struct BaseEntry *be,
       for (int i = k; i < t; i++)
         for (int j = i + 1; j < t; j++)
           if (p[i] > p[j]) Swap(p[i], p[j]);
-      std::size_t s = 0;
+      size_t s = 0;
       for (int i = k; i < t; i++) {
         int sq = p[i];
         int skips = 0;
@@ -1304,7 +1304,7 @@ std::size_t encode(int *p, struct EncInfo *ei, struct BaseEntry *be,
     for (int i = k; i < t; i++)
       for (int j = i + 1; j < t; j++)
         if (p[i] > p[j]) Swap(p[i], p[j]);
-    std::size_t s = 0;
+    size_t s = 0;
     for (int i = k; i < t; i++) {
       int sq = p[i];
       int skips = 0;
@@ -1319,27 +1319,27 @@ std::size_t encode(int *p, struct EncInfo *ei, struct BaseEntry *be,
   return idx;
 }
 
-static std::size_t encode_piece(int *p, struct EncInfo *ei, struct BaseEntry *be)
+static size_t encode_piece(int *p, struct EncInfo *ei, struct BaseEntry *be)
 {
   return encode(p, ei, be, PIECE_ENC);
 }
 
-static std::size_t encode_pawn_f(int *p, struct EncInfo *ei, struct BaseEntry *be)
+static size_t encode_pawn_f(int *p, struct EncInfo *ei, struct BaseEntry *be)
 {
   return encode(p, ei, be, FILE_ENC);
 }
 
-static std::size_t encode_pawn_r(int *p, struct EncInfo *ei, struct BaseEntry *be)
+static size_t encode_pawn_r(int *p, struct EncInfo *ei, struct BaseEntry *be)
 {
   return encode(p, ei, be, RANK_ENC);
 }
 
 // Count number of placements of k like pieces on n squares
-static std::size_t subfactor(std::size_t k, std::size_t n)
+static size_t subfactor(size_t k, size_t n)
 {
-  std::size_t f = n;
-  std::size_t l = 1;
-  for (std::size_t i = 1; i < k; i++) {
+  size_t f = n;
+  size_t l = 1;
+  for (size_t i = 1; i < k; i++) {
     f *= n - i;
     l *= i + 1;
   }
@@ -1347,7 +1347,7 @@ static std::size_t subfactor(std::size_t k, std::size_t n)
   return f / l;
 }
 
-static std::size_t init_enc_info(struct EncInfo *ei, struct BaseEntry *be,
+static size_t init_enc_info(struct EncInfo *ei, struct BaseEntry *be,
     uint8_t *tb, int shift, int t, const int enc)
 {
   bool morePawns = enc != PIECE_ENC && be->pawns[1] > 0;
@@ -1373,7 +1373,7 @@ static std::size_t init_enc_info(struct EncInfo *ei, struct BaseEntry *be,
       ei->norm[i]++;
 
   int n = 64 - k;
-  std::size_t f = 1;
+  size_t f = 1;
 
   for (int i = 0; k < be->num || i == order || i == order2; i++) {
     if (i == order) {
@@ -1410,8 +1410,8 @@ static void calc_symLen(struct PairsData *d, uint32_t s, char *tmp)
   tmp[s] = 1;
 }
 
-static struct PairsData *setup_pairs(uint8_t **ptr, std::size_t tb_size,
-    std::size_t *size, uint8_t *flags, int type)
+static struct PairsData *setup_pairs(uint8_t **ptr, size_t tb_size,
+    size_t *size, uint8_t *flags, int type)
 {
   struct PairsData *d;
   uint8_t *data = *ptr;
@@ -1444,10 +1444,10 @@ static struct PairsData *setup_pairs(uint8_t **ptr, std::size_t tb_size,
   d->minLen = minLen;
   *ptr = &data[12 + 2 * h + 3 * numSyms + (numSyms & 1)];
 
-  std::size_t num_indices = (tb_size + (1ULL << idxBits) - 1) >> idxBits;
+  size_t num_indices = (tb_size + (1ULL << idxBits) - 1) >> idxBits;
   size[0] = 6ULL * num_indices;
   size[1] = 2ULL * numBlocks;
-  size[2] = (std::size_t)realNumBlocks << blockSize;
+  size[2] = (size_t)realNumBlocks << blockSize;
 
   assert(numSyms < TB_MAX_SYMS);
   char tmp[TB_MAX_SYMS];
@@ -1490,7 +1490,7 @@ static bool init_table(struct BaseEntry *be, const char *str, int type)
 
   data += 5;
 
-  std::size_t tb_size[6][2];
+  size_t tb_size[6][2];
   int num = num_tables(be, type);
   struct EncInfo *ei = first_ei(be, type);
   int enc = !be->hasPawns ? PIECE_ENC : type != DTM ? FILE_ENC : RANK_ENC;
@@ -1503,7 +1503,7 @@ static bool init_table(struct BaseEntry *be, const char *str, int type)
   }
   data += (uintptr_t)data & 1;
 
-  std::size_t size[6][2][3];
+  size_t size[6][2][3];
   for (int t = 0; t < num; t++) {
     uint8_t flags;
     ei[t].precomp = setup_pairs(&data, tb_size[t][0], size[t][0], &flags, type);
@@ -1600,13 +1600,13 @@ static bool init_table(struct BaseEntry *be, const char *str, int type)
   return true;
 }
 
-static uint8_t *decompress_pairs(struct PairsData *d, std::size_t idx)
+static uint8_t *decompress_pairs(struct PairsData *d, size_t idx)
 {
   if (!d->idxBits)
     return d->constValue;
 
   uint32_t mainIdx = (uint32_t)(idx >> d->idxBits);
-  int litIdx = (idx & (((std::size_t)1 << d->idxBits) - 1)) - ((std::size_t)1 << (d->idxBits - 1));
+  int litIdx = (idx & (((size_t)1 << d->idxBits) - 1)) - ((size_t)1 << (d->idxBits - 1));
   uint32_t block;
   memcpy(&block, d->indexTable + 6 * mainIdx, sizeof(block));
   block = from_le_u32(block);
@@ -1621,7 +1621,7 @@ static uint8_t *decompress_pairs(struct PairsData *d, std::size_t idx)
     while (litIdx > d->sizeTable[block])
       litIdx -= d->sizeTable[block++] + 1;
 
-  uint32_t *ptr = (uint32_t *)(d->data + ((std::size_t)block << d->blockSize));
+  uint32_t *ptr = (uint32_t *)(d->data + ((size_t)block << d->blockSize));
 
   int m = d->minLen;
   uint16_t *offset = d->offset;
@@ -1765,7 +1765,7 @@ int probe_table(const Pos *pos, int s, int *success, const int type)
 
   struct EncInfo *ei = first_ei(be, type);
   int p[TB_PIECES];
-  std::size_t idx;
+  size_t idx;
   int t = 0;
   uint8_t flags = 0; // initialize to fix GCC warning
 
@@ -2476,8 +2476,8 @@ static uint16_t probe_root(Pos *pos, int *score, unsigned *results)
     uint16_t moves0[MAX_MOVES];
     uint16_t *moves = moves0;
     uint16_t *end = gen_moves(pos, moves);
-    std::size_t len = end - moves;
-    std::size_t num_draw = 0;
+    size_t len = end - moves;
+    size_t num_draw = 0;
     unsigned j = 0;
     for (unsigned i = 0; i < len; i++)
     {
@@ -2571,7 +2571,7 @@ static uint16_t probe_root(Pos *pos, int *score, unsigned *results)
 
         // Select a "random" move that preserves the draw.
         // Uses calc_key as the PRNG.
-        std::size_t count = calc_key(pos, !pos->turn) % num_draw;
+        size_t count = calc_key(pos, !pos->turn) % num_draw;
         for (unsigned i = 0; i < len; i++)
         {
             int v = scores[i];

@@ -37,7 +37,7 @@ namespace constants {
 inline constexpr std::size_t num_squares = 64;
 inline constexpr std::size_t num_pieces = 6;
 
-};  // namespace constants
+}  // namespace constants
 
 struct context {
   chess::move follow;

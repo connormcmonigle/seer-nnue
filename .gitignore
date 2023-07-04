@@ -6,3 +6,6 @@ build/*
 .vscode/*
 .idea/*
 cmake-build-debug/*
+*.o
+*.d
+*.gcda
