@@ -87,10 +87,6 @@ score_type search_worker::q_search(
     const bool delta_prune = !is_pv && !is_check && !bd.see_gt(mv, 0) && ((value + external.constants->delta_margin()) < alpha);
     if (delta_prune) { continue; }
 
-    const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && bd.see_ge(mv, external.constants->good_capture_prune_see_margin()) &&
-                                    value + external.constants->good_capture_prune_score_margin() > beta;
-    if (good_capture_prune) { return beta; }
-
     ss.set_played(mv);
 
     const chess::board bd_ = bd.forward(mv);
