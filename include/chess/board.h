@@ -215,35 +215,38 @@ struct board {
     });
   }
 
-  template <color c, typename T0, typename T1>
-  void half_feature_partial_reset_(const move& mv, T0& feature_reset_cache, T1& sided_set) const {
+  template <color pov, typename T0, typename T1>
+  void half_feature_reset_(T0& feature_reset_cache, T1& sided_set) const {
     namespace h_ka = feature::half_ka;
-    const square our_king = mv.to();
+    const square our_king = man_.us<pov>().king().item();
 
-    auto& entry = feature_reset_cache.template us<c>().look_up(our_king);
+    auto& entry = feature_reset_cache.template us<pov>().look_up(our_king);
     sided_piece_configuration& config = entry.config;
 
     over_types([&](const piece_type& pt) {
-      const square_set them_entry_plane = config.them<c>().get_plane(pt);
-      const square_set us_entry_plane = config.us<c>().get_plane(pt);
+      const square_set them_entry_plane = config.them<pov>().get_plane(pt);
+      const square_set us_entry_plane = config.us<pov>().get_plane(pt);
 
-      const square_set them_board_plane = man_.them<c>().get_plane(pt).excluding(mv.to());
-      const square_set us_board_plane = [&] {
-        if (pt == piece_type::king) { return square_set::of(our_king); }
-        return man_.us<c>().get_plane(pt).excluding(mv.from());
-      }();
+      const square_set them_board_plane = man_.them<pov>().get_plane(pt);
+      const square_set us_board_plane = man_.us<pov>().get_plane(pt);
 
-      for (const auto sq : them_entry_plane & ~them_board_plane) { entry.erase(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
-      for (const auto sq : (us_entry_plane & ~us_board_plane)) { entry.erase(h_ka::index<c, c>(our_king, pt, sq)); }
+      for (const auto sq : them_entry_plane & ~them_board_plane) { entry.erase(h_ka::index<pov, opponent<pov>>(our_king, pt, sq)); }
+      for (const auto sq : (us_entry_plane & ~us_board_plane)) { entry.erase(h_ka::index<pov, pov>(our_king, pt, sq)); }
 
-      for (const auto sq : them_board_plane & ~them_entry_plane) { entry.insert(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
-      for (const auto sq : us_board_plane & ~us_entry_plane) { entry.insert(h_ka::index<c, c>(our_king, pt, sq)); }
+      for (const auto sq : them_board_plane & ~them_entry_plane) { entry.insert(h_ka::index<pov, opponent<pov>>(our_king, pt, sq)); }
+      for (const auto sq : us_board_plane & ~us_entry_plane) { entry.insert(h_ka::index<pov, pov>(our_king, pt, sq)); }
 
-      config.them<c>().set_plane(pt, them_board_plane);
-      config.us<c>().set_plane(pt, us_board_plane);
+      config.them<pov>().set_plane(pt, them_board_plane);
+      config.us<pov>().set_plane(pt, us_board_plane);
     });
 
-    entry.copy_state_to(sided_set.template us<c>());
+    entry.copy_state_to(sided_set.template us<pov>());
+  }
+
+  template <typename T0, typename T1>
+  void feature_full_reset(T0& feature_reset_cache, T1& sided_set) const {
+    half_feature_reset_<color::white>(feature_reset_cache, sided_set);
+    half_feature_reset_<color::black>(feature_reset_cache, sided_set);
   }
 
   template <color pov, color p, typename T>
@@ -272,31 +275,18 @@ struct board {
     sided_set.template us<pov>().copy_parent_insert_erase(insert_idx, erase_idx_0);
   }
 
-  template <color c, typename T0, typename T1>
-  void feature_move_delta_(const move& mv, T0& feature_reset_cache, T1& sided_set) const {
-    namespace h_ka = feature::half_ka;
-
-    if (mv.is_castle_oo<c>() || mv.is_castle_ooo<c>()) {
-      forward_<c>(mv).feature_full_reset(sided_set);
-      return;
-    }
-
-    if (mv.is_king_move()) {
-      half_feature_partial_reset_<c>(mv, feature_reset_cache, sided_set);
-      half_feature_move_delta_<opponent<c>, c>(mv, sided_set);
-      return;
-    }
-
+  template <color c, typename T>
+  void feature_move_delta_(const move& mv, T& sided_set) const {
     half_feature_move_delta_<c, c>(mv, sided_set);
     half_feature_move_delta_<opponent<c>, c>(mv, sided_set);
   }
 
-  template <typename T0, typename T1>
-  void feature_move_delta(const move& mv, T0& feature_reset_cache, T1& sided_set) const {
+  template <typename T>
+  void feature_move_delta(const move& mv, T& sided_set) const {
     if (turn()) {
-      feature_move_delta_<color::white>(mv, feature_reset_cache, sided_set);
+      feature_move_delta_<color::white>(mv, sided_set);
     } else {
-      feature_move_delta_<color::black>(mv, feature_reset_cache, sided_set);
+      feature_move_delta_<color::black>(mv, sided_set);
     }
   }
 

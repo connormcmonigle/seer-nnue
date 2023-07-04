@@ -72,7 +72,7 @@ flto: CFLAGS += -flto -fwhole-program
 flto: binary
 
 .PHONY: plain
-flto: binary
+plain: binary
 
 .PHONY: binary
 binary: $(CXXOBJECTS) $(COBJECTS)

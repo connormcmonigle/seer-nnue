@@ -40,12 +40,24 @@ struct eval_node {
 
   [[nodiscard]] bool dirty() const noexcept { return dirty_; }
 
+  [[nodiscard]] eval dirty_evaluator_() const noexcept {
+    if (!dirty_) { return data_.eval_; }
+    return data_.context_.parent_node_->dirty_evaluator_().next_child();
+  }
+
   [[nodiscard]] const eval& evaluator() {
     if (!dirty_) { return data_.eval_; }
     dirty_ = false;
     const context ctxt = data_.context_;
-    data_.eval_ = ctxt.parent_node_->evaluator().next_child();
-    ctxt.parent_board_->feature_move_delta(ctxt.move_, *ctxt.reset_cache_, data_.eval_);
+
+    if (ctxt.move_.is_king_move()) {
+      data_.eval_ = ctxt.parent_node_->dirty_evaluator_().next_child();
+      ctxt.parent_board_->forward(ctxt.move_).feature_full_reset(*ctxt.reset_cache_, data_.eval_);
+    } else {
+      data_.eval_ = ctxt.parent_node_->evaluator().next_child();
+      ctxt.parent_board_->feature_move_delta(ctxt.move_, data_.eval_);
+    }
+
     return data_.eval_;
   }
 
