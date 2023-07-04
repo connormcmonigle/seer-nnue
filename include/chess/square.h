@@ -89,11 +89,10 @@ template <typename T>
 inline constexpr bool is_square_v = std::is_same_v<T, square> || std::is_same_v<T, tbl_square>;
 
 struct square_set_iterator {
-  using difference_type = long;
   using value_type = square;
   using pointer = const square*;
   using reference = const square&;
-  using iterator_category = std::output_iterator_tag;
+  using iterator_category = std::input_iterator_tag;
 
   square::data_type remaining;
 
