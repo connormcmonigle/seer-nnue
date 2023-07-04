@@ -50,10 +50,10 @@ default: flto
 pgo:
 	$(MAKE) clean
 	$(MAKE) profileclean
-	$(MAKE) profilegenerate EVALFILE=$(EVALFILE)
+	$(MAKE) profilegenerate EXE=$(EXE) CC=$(CC) CXX=$(CXX) EVALFILE=$(EVALFILE)
 	./$(EXE) bench
 	$(MAKE) clean
-	$(MAKE) profileuse EVALFILE=$(EVALFILE)
+	$(MAKE) profileuse EXE=$(EXE) CC=$(CC) CXX=$(CXX) EVALFILE=$(EVALFILE)
 	$(MAKE) profileclean
 
 .PHONY: profilegenerate
@@ -85,6 +85,8 @@ clean:
 
 .PHONY: profileclean
 profileclean:
-	rm -f *.gcda
+	rm -f $(CSRC:%.c=%.gcda)
+	rm -f $(CXXSRC:%.cc=%.gcda)
+
 
 -include $(CXXDEPENDS) $(CDEPENDS)
