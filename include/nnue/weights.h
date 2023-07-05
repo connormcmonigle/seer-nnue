@@ -20,6 +20,7 @@
 #include <chess/types.h>
 #include <feature/util.h>
 #include <nnue/dense_relu_affine_layer.h>
+#include <nnue/dense_relu_affine_reduction_layer.h>
 #include <nnue/sparse_affine_layer.h>
 #include <nnue/weights_streamer.h>
 #include <search/search_constants.h>
@@ -47,9 +48,9 @@ struct weights {
   sparse_affine_layer<parameter_type, feature::half_ka::numel, base_dim> shared{};
   sparse_affine_layer<quantized_parameter_type, feature::half_ka::numel, base_dim> quantized_shared{};
 
-  dense_relu_affine_layer<parameter_type, 2 * base_dim, 8> fc0{};
-  dense_relu_affine_layer<quantized_parameter_type, 2 * base_dim, 8> white_quantized_fc0{};
-  dense_relu_affine_layer<quantized_parameter_type, 2 * base_dim, 8> black_quantized_fc0{};
+  dense_relu_affine_reduction_layer<parameter_type, 2 * base_dim, 16> fc0{};
+  dense_relu_affine_reduction_layer<quantized_parameter_type, 2 * base_dim, 16> white_quantized_fc0{};
+  dense_relu_affine_reduction_layer<quantized_parameter_type, 2 * base_dim, 16> black_quantized_fc0{};
 
   dense_relu_affine_layer<parameter_type, 8, 8> fc1{};
   dense_relu_affine_layer<parameter_type, 16, 8> fc2{};

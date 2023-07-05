@@ -57,10 +57,11 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
   feature_transformer<quantized_parameter_type, feature::half_ka::numel, weights::base_dim> black;
 
   [[nodiscard]] inline parameter_type propagate(const bool pov) const noexcept {
-    const auto x1 = (pov ? weights_->white_quantized_fc0 : weights_->black_quantized_fc0)
-                        .forward(base_)
-                        .dequantized<parameter_type>(weights::dequantization_scale);
+    auto x0 = (pov ? weights_->white_quantized_fc0 : weights_->black_quantized_fc0)
+                  .forward(base_)
+                  .dequantized<parameter_type>(weights::dequantization_scale);
 
+    const auto x1 = aligned_vector<parameter_type, 8>::from(x0.data).add_(x0.as_slice().slice<8, 8>().data);
     const auto x2 = concat(x1, weights_->fc1.forward(x1));
     const auto x3 = concat(x2, weights_->fc2.forward(x2));
     return weights_->fc3.forward(x3).item();
