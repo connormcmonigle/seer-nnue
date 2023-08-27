@@ -504,3 +504,9 @@ void search_worker::iterative_deepening_loop() noexcept {
 }
 
 }  // namespace search
+
+template search::score_type search::search_worker::q_search<false, false>(
+    const stack_view& ss, nnue::eval_node& eval_node, const chess::board& bd, score_type alpha, const score_type& beta, const depth_type& elevation);
+
+template search::score_type search::search_worker::q_search<true, false>(
+    const stack_view& ss, nnue::eval_node& eval_node, const chess::board& bd, score_type alpha, const score_type& beta, const depth_type& elevation);
