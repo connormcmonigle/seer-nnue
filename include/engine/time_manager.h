@@ -84,7 +84,7 @@ struct iter_info {
 };
 
 struct time_manager {
-  static constexpr auto over_head = std::chrono::milliseconds(5);
+  static constexpr auto over_head = std::chrono::milliseconds(300);
 
   std::mutex access_mutex_;
 
