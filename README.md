@@ -31,6 +31,6 @@ Seer is an original, strong UCI chess engine. Seer relies on a neural network es
 The latest network can be found [here](https://github.com/connormcmonigle/seer-training/releases)
 ```
 cd build
-wget -O eval.bin https://github.com/connormcmonigle/seer-training/releases/download/0xddf7a131/0xddf7a131.bin
+wget -O eval.bin https://github.com/connormcmonigle/seer-training/releases/download/0x27e70f27/0x27e70f27.bin
 make pgo EVALFILE=eval.bin
 ```
