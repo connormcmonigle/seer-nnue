@@ -267,6 +267,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const chess::move killer = ss.killer();
   const chess::move follow = ss.follow();
   const chess::move counter = ss.counter();
+  const depth_type minimum_reduction = depth <= 8 ? -1 : 0;
 
   move_orderer<chess::generation_mode::all> orderer(
       move_orderer_data(&bd, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter).set_threatened(threatened));
@@ -393,7 +394,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
         if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
-        reduction = std::max(0, reduction);
+        reduction = std::max(minimum_reduction, reduction);
 
         lmr_depth = std::max(1, next_depth - reduction);
         zw_score = zero_width(lmr_depth);
