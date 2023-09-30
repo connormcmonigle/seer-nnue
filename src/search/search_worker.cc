@@ -184,7 +184,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
   // step 3. internal iterative reductions
   const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
-  if (should_iir) { --depth; }
+  if (should_iir) { depth -= 2; }
 
   // step 4. compute static eval and adjust appropriately if there's a tt hit
   const auto [static_value, value] = [&] {
