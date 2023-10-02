@@ -106,9 +106,9 @@ struct fixed_search_constants {
 
   [[nodiscard]] constexpr score_type nmp_tt_margin(const bound_type& bound, const bool& tt_move_gains) const noexcept {
     switch (bound) {
-      case bound_type::upper: return !tt_move_gains ? 65536 : 65536;
-      case bound_type::exact: return !tt_move_gains ? 65536 : 65536;
-      case bound_type::lower: return !tt_move_gains ? -65536 : 65536;
+      case bound_type::upper: return !tt_move_gains ? 0 : 3072;
+      case bound_type::exact: return !tt_move_gains ? -256 : 1536;
+      case bound_type::lower: return !tt_move_gains ? -65536 : 768;
       default: util::unreachable(); return 0;
     }
   }

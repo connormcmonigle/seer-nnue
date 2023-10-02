@@ -220,12 +220,14 @@ pv_search_result_t<is_root> search_worker::pv_search(
   if (snm_prune) { return make_result(value, chess::move::null()); }
 
   // step 8. null move pruning
-  const bool tt_move_gains = maybe.has_value() && bd.is_legal<chess::generation_mode::all>(maybe->best_move()) &&
-                             bd.see_gt(maybe->best_move(), external.constants->nmp_see_threshold());
+  auto tt_move_gains = [&] {
+    const bool is_legal = bd.is_legal<chess::generation_mode::all>(maybe->best_move());
+    return is_legal && bd.see_gt(maybe->best_move(), external.constants->nmp_see_threshold());
+  };
 
   const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
                        bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
-                       (!maybe.has_value() || maybe->score() > beta + external.constants->nmp_tt_margin(maybe->bound(), tt_move_gains));
+                       (!maybe.has_value() || maybe->score() > beta + external.constants->nmp_tt_margin(maybe->bound(), tt_move_gains()));
 
   if (try_nmp) {
     ss.set_played(chess::move::null());
