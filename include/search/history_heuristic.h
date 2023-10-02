@@ -185,9 +185,8 @@ struct combined {
     constexpr value_type history_max = 400;
 
     auto single_update = [&, this](const auto& mv, const value_type& gain) {
-      const value_type value = compute_value(ctxt, mv);
       util::tuple::for_each(tables_, [=](auto& tbl) {
-        if (tbl.is_applicable(ctxt, mv)) { tbl.at(ctxt, mv) += formula(value, gain); }
+        if (tbl.is_applicable(ctxt, mv)) { tbl.at(ctxt, mv) += formula(tbl.at(ctxt, mv), gain); }
       });
     };
 
