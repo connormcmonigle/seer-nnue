@@ -265,11 +265,18 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
   // step 10. initialize move orderer (setting tt move first if applicable)
   const chess::move killer = ss.killer();
+  const chess::move previous_follow = ss.previous_follow();
+  const chess::move previous_counter = ss.previous_counter();
   const chess::move follow = ss.follow();
   const chess::move counter = ss.counter();
 
-  move_orderer<chess::generation_mode::all> orderer(
-      move_orderer_data(&bd, &internal.hh.us(bd.turn())).set_killer(killer).set_follow(follow).set_counter(counter).set_threatened(threatened));
+  move_orderer<chess::generation_mode::all> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn()))
+                                                        .set_killer(killer)
+                                                        .set_previous_follow(previous_follow)
+                                                        .set_previous_counter(previous_counter)
+                                                        .set_follow(follow)
+                                                        .set_counter(counter)
+                                                        .set_threatened(threatened));
 
   if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
 
@@ -291,7 +298,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
     const std::size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
     ss.set_played(mv);
 
-    const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened}, mv);
+    const counter_type history_value =
+        internal.hh.us(bd.turn()).compute_value(history::context{previous_follow, previous_counter, follow, counter, threatened}, mv);
 
     const chess::board bd_ = bd.forward(mv);
 
@@ -434,7 +442,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     }();
 
     if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
-      internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
+      internal.hh.us(bd.turn()).update(history::context{previous_follow, previous_counter, follow, counter, threatened}, best_move, moves_tried, depth);
       ss.set_killer(best_move);
     }
 
