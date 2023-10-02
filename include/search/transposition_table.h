@@ -36,7 +36,6 @@
 namespace search {
 
 constexpr std::size_t cache_line_size = 64;
-enum class bound_type { upper, lower, exact };
 
 struct transposition_table_entry {
   static constexpr zobrist::hash_type empty_key = zobrist::hash_type{};

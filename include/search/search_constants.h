@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <util/unreachable.h>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -67,6 +69,8 @@ using counter_type = std::int32_t;
 
 using see_type = std::int32_t;
 
+enum class bound_type { upper, lower, exact };
+
 inline constexpr std::size_t nodes_per_update = 512;
 
 struct fixed_search_constants {
@@ -99,6 +103,15 @@ struct fixed_search_constants {
   }
 
   [[nodiscard]] constexpr see_type nmp_see_threshold() const noexcept { return 200; }
+
+  [[nodiscard]] constexpr score_type nmp_tt_margin(const bound_type& bound, const bool& tt_move_gains) const noexcept {
+    switch (bound) {
+      case bound_type::upper: return !tt_move_gains ? 65536 : 65536;
+      case bound_type::exact: return !tt_move_gains ? 65536 : 65536;
+      case bound_type::lower: return !tt_move_gains ? -65536 : 65536;
+      default: util::unreachable(); return 0;
+    }
+  }
 
   [[nodiscard]] constexpr depth_type singular_extension_depth_margin() const noexcept { return 3; }
 
