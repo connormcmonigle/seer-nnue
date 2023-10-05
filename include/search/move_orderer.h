@@ -38,6 +38,7 @@ namespace search {
 
 struct move_orderer_data {
   chess::move killer{chess::move::null()};
+  chess::move previous_follow{chess::move::null()};
   chess::move follow{chess::move::null()};
   chess::move counter{chess::move::null()};
   chess::move first{chess::move::null()};
@@ -49,6 +50,11 @@ struct move_orderer_data {
 
   [[maybe_unused]] constexpr move_orderer_data& set_killer(const chess::move& mv) noexcept {
     killer = mv;
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr move_orderer_data& set_previous_follow(const chess::move& mv) noexcept {
+    previous_follow = mv;
     return *this;
   }
 
