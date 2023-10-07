@@ -67,41 +67,35 @@ struct butterfly_info {
 };
 
 struct counter_info {
-  static constexpr std::size_t N =
-      constants::num_threat_states * constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
+  static constexpr std::size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
 
   [[nodiscard]] static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) noexcept {
     return !ctxt.counter.is_null() && mv.is_quiet();
   }
 
   [[nodiscard]] static constexpr std::size_t compute_index(const context& ctxt, const chess::move& mv) noexcept {
-    const auto t = static_cast<std::size_t>(ctxt.threatened.is_member(mv.from()));
     const auto p0 = static_cast<std::size_t>(ctxt.counter.piece());
     const auto to0 = static_cast<std::size_t>(ctxt.counter.to().index());
     const auto p1 = static_cast<std::size_t>(mv.piece());
     const auto to1 = static_cast<std::size_t>(mv.to().index());
-    return t * constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces +
-           p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
+    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
            p1 * constants::num_squares + to1;
   }
 };
 
 struct follow_info {
-  static constexpr std::size_t N =
-      constants::num_threat_states * constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
+  static constexpr std::size_t N = constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces;
 
   [[nodiscard]] static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) noexcept {
     return !ctxt.follow.is_null() && mv.is_quiet();
   }
 
   [[nodiscard]] static constexpr std::size_t compute_index(const context& ctxt, const chess::move& mv) noexcept {
-    const auto t = static_cast<std::size_t>(ctxt.threatened.is_member(mv.from()));
     const auto p0 = static_cast<std::size_t>(ctxt.follow.piece());
     const auto to0 = static_cast<std::size_t>(ctxt.follow.to().index());
     const auto p1 = static_cast<std::size_t>(mv.piece());
     const auto to1 = static_cast<std::size_t>(mv.to().index());
-    return t * constants::num_squares * constants::num_pieces * constants::num_squares * constants::num_pieces +
-           p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
+    return p0 * constants::num_squares * constants::num_pieces * constants::num_squares + to0 * constants::num_pieces * constants::num_squares +
            p1 * constants::num_squares + to1;
   }
 };
