@@ -52,7 +52,7 @@ struct context {
   return (gain * history_multiplier) - (x * std::abs(gain) / history_divisor);
 }
 
-struct butterfly_info {
+struct threat_info {
   static constexpr std::size_t N = constants::num_threat_states * constants::num_squares * constants::num_squares;
 
   [[nodiscard]] static constexpr bool is_applicable(const context&, const chess::move& mv) noexcept { return mv.is_quiet(); }
@@ -164,7 +164,7 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic = history::combined<history::butterfly_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic = history::combined<history::threat_info, history::counter_info, history::follow_info, history::capture_info>;
 
 struct sided_history_heuristic : public chess::sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;
