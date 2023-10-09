@@ -36,6 +36,7 @@ namespace constants {
 
 inline constexpr std::size_t num_squares = 64;
 inline constexpr std::size_t num_pieces = 6;
+inline constexpr std::size_t num_threat_states = 2;
 
 }  // namespace constants
 
@@ -51,29 +52,17 @@ struct context {
   return (gain * history_multiplier) - (x * std::abs(gain) / history_divisor);
 }
 
-struct butterfly_info {
-  static constexpr std::size_t N = constants::num_squares * constants::num_squares;
+struct threat_info {
+  static constexpr std::size_t N = constants::num_threat_states * constants::num_squares * constants::num_squares;
 
   [[nodiscard]] static constexpr bool is_applicable(const context&, const chess::move& mv) noexcept { return mv.is_quiet(); }
 
-  [[nodiscard]] static constexpr std::size_t compute_index(const context&, const chess::move& mv) noexcept {
+  [[nodiscard]] static constexpr std::size_t compute_index(const context& ctxt, const chess::move& mv) noexcept {
+    const auto t = static_cast<std::size_t>(ctxt.threatened.is_member(mv.from()));
     const auto from = static_cast<std::size_t>(mv.from().index());
     const auto to = static_cast<std::size_t>(mv.to().index());
-    return from * constants::num_squares + to;
-  }
-};
 
-struct threatened_info {
-  static constexpr std::size_t N = constants::num_squares * constants::num_squares;
-
-  [[nodiscard]] static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) noexcept {
-    return ctxt.threatened.is_member(mv.from()) && mv.is_quiet();
-  }
-
-  [[nodiscard]] static constexpr std::size_t compute_index(const context&, const chess::move& mv) noexcept {
-    const auto from = static_cast<std::size_t>(mv.from().index());
-    const auto to = static_cast<std::size_t>(mv.to().index());
-    return from * constants::num_squares + to;
+    return t * constants::num_squares * constants::num_squares + from * constants::num_squares + to;
   }
 };
 
@@ -175,8 +164,7 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic =
-    history::combined<history::butterfly_info, history::threatened_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic = history::combined<history::threat_info, history::counter_info, history::follow_info, history::capture_info>;
 
 struct sided_history_heuristic : public chess::sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;

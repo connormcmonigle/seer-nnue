@@ -379,13 +379,11 @@ pv_search_result_t<is_root> search_worker::pv_search(
         // adjust reduction
         if (improving) { --reduction; }
         if (bd_.is_check()) { --reduction; }
-        if (bd.is_passed_push(mv)) { --reduction; }
         if (bd.creates_threat(mv)) { --reduction; }
         if (mv == killer) { --reduction; }
 
         if (!is_pv) { ++reduction; }
         if (did_double_extend) { ++reduction; }
-        if (!bd.see_ge(mv, 0) && mv.is_quiet()) { ++reduction; }
 
         // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
         // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
