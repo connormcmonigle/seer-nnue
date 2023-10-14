@@ -161,8 +161,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
     if (const syzygy::tb_dtz_result result = syzygy::probe_dtz(bd); result.success) { return make_result(result.score, result.move); }
   }
 
-  const score_type original_alpha = alpha;
-
   const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
   if (maybe.has_value()) {
     const transposition_table_entry entry = maybe.value();
@@ -171,6 +169,9 @@ pv_search_result_t<is_root> search_worker::pv_search(
                             (entry.bound() == bound_type::upper && entry.score() <= alpha));
     if (is_cutoff) { return make_result(entry.score(), entry.best_move()); }
   }
+
+  const score_type original_alpha = alpha;
+  const bool tt_pv = is_pv || (maybe.has_value() && maybe->tt_pv());
 
   if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(bd); !is_root && result.success) {
     ++internal.tb_hits;
@@ -382,7 +383,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
         if (bd.creates_threat(mv)) { --reduction; }
         if (mv == killer) { --reduction; }
 
-        if (!is_pv) { ++reduction; }
+        if (!tt_pv) { ++reduction; }
         if (did_double_extend) { ++reduction; }
 
         // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
@@ -436,7 +437,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
       ss.set_killer(best_move);
     }
 
-    const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth);
+    const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);
     external.tt->insert(entry);
   }
 
