@@ -384,7 +384,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
         if (bd.creates_threat(mv)) { --reduction; }
         if (mv == killer) { --reduction; }
 
-        if (!tt_pv) { ++reduction; }
+        if (!tt_pv) { reduction += 2; }
         if (did_double_extend) { ++reduction; }
 
         // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
