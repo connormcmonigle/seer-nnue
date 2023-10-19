@@ -40,7 +40,7 @@ enum class bound_type { upper, lower, exact };
 
 struct transposition_table_entry {
   static constexpr zobrist::hash_type empty_key = zobrist::hash_type{};
-  static constexpr std::size_t gen_bits = 7;
+  static constexpr std::size_t gen_bits = 6;
   using gen_type = std::uint8_t;
 
   using bound_ = util::bit_range<bound_type, 0, 2>;
@@ -48,7 +48,8 @@ struct transposition_table_entry {
   using best_move_ = util::next_bit_range<score_, chess::move::data_type, chess::move::width>;
   using depth_ = util::next_bit_range<best_move_, std::uint8_t>;
   using gen_ = util::next_bit_range<depth_, gen_type, gen_bits>;
-  using was_exact_or_lb_ = util::next_bit_flag<gen_>;
+  using tt_pv_ = util::next_bit_flag<gen_>;
+  using was_exact_or_lb_ = util::next_bit_flag<tt_pv_>;
 
   zobrist::hash_type key_{empty_key};
   zobrist::hash_type value_{};
@@ -60,7 +61,9 @@ struct transposition_table_entry {
   [[nodiscard]] constexpr gen_type gen() const noexcept { return gen_::get(value_); }
   [[nodiscard]] constexpr depth_type depth() const noexcept { return static_cast<depth_type>(depth_::get(value_)); }
   [[nodiscard]] constexpr chess::move best_move() const noexcept { return chess::move{best_move_::get(value_)}; }
+
   [[nodiscard]] constexpr bool was_exact_or_lb() const noexcept { return was_exact_or_lb_::get(value_); }
+  [[nodiscard]] constexpr bool tt_pv() const noexcept { return tt_pv_::get(value_); }
 
   [[nodiscard]] constexpr bool is_empty() const noexcept { return key_ == empty_key; }
   [[nodiscard]] constexpr bool is_current(const gen_type& gen) const noexcept { return gen == gen_::get(value_); }
@@ -84,12 +87,20 @@ struct transposition_table_entry {
   }
 
   constexpr transposition_table_entry(
-      const zobrist::hash_type& key, const bound_type& bound, const score_type& score, const chess::move& mv, const depth_type& depth) noexcept
+      const zobrist::hash_type& key,
+      const bound_type& bound,
+      const score_type& score,
+      const chess::move& mv,
+      const depth_type& depth,
+      const bool& tt_pv = false) noexcept
       : key_{key} {
     bound_::set(value_, bound);
     score_::set(value_, static_cast<score_::type>(score));
+
     best_move_::set(value_, mv.data);
     depth_::set(value_, static_cast<depth_::type>(depth));
+
+    tt_pv_::set(value_, tt_pv);
     was_exact_or_lb_::set(value_, bound != bound_type::upper);
     key_ ^= value_;
   }
