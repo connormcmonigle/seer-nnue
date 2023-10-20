@@ -116,7 +116,7 @@ struct fixed_search_constants {
   }
 
   [[nodiscard]] constexpr score_type snmp_margin(const bool& improving, const bool& threats, const depth_type& depth) const noexcept {
-    constexpr score_type m = 288;
+    constexpr score_type m = 224;
     constexpr score_type b = 128;
     return m * static_cast<score_type>(depth - (improving && !threats)) + (threats ? b : 0);
   }
