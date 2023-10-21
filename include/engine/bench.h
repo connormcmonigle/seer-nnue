@@ -100,7 +100,7 @@ struct bench_info {
 
 [[maybe_unused]] std::ostream& operator<<(std::ostream& os, const bench_info& info) noexcept;
 
-[[nodiscard]] bench_info get_bench_info(const nnue::weights& weights) noexcept;
+[[nodiscard]] bench_info get_bench_info(const nnue::quantized_weights& weights) noexcept;
 
 [[nodiscard]] std::size_t perft(const chess::board& bd, const search::depth_type& depth) noexcept;
 [[nodiscard]] bench_info get_perft_info(const chess::board& bd, const search::depth_type& depth) noexcept;

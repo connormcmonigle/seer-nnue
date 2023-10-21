@@ -49,8 +49,14 @@ struct dense_relu_affine_layer {
   }
 
   template <typename streamer_type>
-  [[maybe_unused]] dense_relu_affine_layer<T, dim0, dim1>& load_(streamer_type& ws) noexcept {
-    ws.template stream<T>(W, W_numel).template stream<dot_type<T>>(b, b_numel);
+  [[maybe_unused]] dense_relu_affine_layer<T, dim0, dim1>& load_(streamer_type& streamer) noexcept {
+    streamer.template stream<T>(W, W_numel).template stream<dot_type<T>>(b, b_numel);
+    return *this;
+  }
+
+  template <typename exporter_type>
+  [[maybe_unused]] const dense_relu_affine_layer<T, dim0, dim1>& write_(exporter_type& exporter) const noexcept {
+    exporter.template write<T>(W, W_numel).template write<dot_type<T>>(b, b_numel);
     return *this;
   }
 

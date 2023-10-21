@@ -32,7 +32,9 @@
 namespace engine {
 
 struct uci {
-  static constexpr std::string_view default_weight_path = "EMBEDDED";
+  static constexpr std::string_view embedded_weight_path = "EMBEDDED";
+  static constexpr std::string_view unused_weight_path = "UNUSED";
+
   static constexpr std::size_t default_thread_count = 1;
   static constexpr std::size_t default_hash_size = 16;
   static constexpr bool default_ponder = false;
@@ -40,7 +42,7 @@ struct uci {
   chess::board_history history{};
   chess::board position = chess::board::start_pos();
 
-  nnue::weights weights_{};
+  nnue::quantized_weights weights_{};
   search::worker_orchestrator orchestrator_;
 
   std::atomic_bool ponder_{false};
@@ -76,6 +78,7 @@ struct uci {
   void eval() noexcept;
   void probe() noexcept;
   void perft(const search::depth_type& depth) noexcept;
+  void export_weights(const std::string& export_path) noexcept;
 
   void read(const std::string& line) noexcept;
 

@@ -21,15 +21,19 @@
 #include <feature/util.h>
 #include <nnue/dense_relu_affine_layer.h>
 #include <nnue/sparse_affine_layer.h>
+#include <nnue/weights_exporter.h>
 #include <nnue/weights_streamer.h>
 #include <search/search_constants.h>
 
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 namespace nnue {
+
+struct quantized_weights;
 
 struct weights {
   using parameter_type = float;
@@ -45,11 +49,66 @@ struct weights {
   weights_streamer::signature_type signature_{0};
 
   sparse_affine_layer<parameter_type, feature::half_ka::numel, base_dim> shared{};
-  sparse_affine_layer<quantized_parameter_type, feature::half_ka::numel, base_dim> quantized_shared{};
-
   dense_relu_affine_layer<parameter_type, 2 * base_dim, 8> fc0{};
-  dense_relu_affine_layer<quantized_parameter_type, 2 * base_dim, 8> white_quantized_fc0{};
-  dense_relu_affine_layer<quantized_parameter_type, 2 * base_dim, 8> black_quantized_fc0{};
+
+  dense_relu_affine_layer<parameter_type, 8, 8> fc1{};
+  dense_relu_affine_layer<parameter_type, 16, 8> fc2{};
+  dense_relu_affine_layer<parameter_type, 24, 1> fc3{};
+
+  [[nodiscard]] constexpr const weights_streamer::signature_type& signature() const noexcept { return signature_; }
+
+  [[nodiscard]] constexpr std::size_t num_parameters() const noexcept {
+    return shared.num_parameters() + fc0.num_parameters() + fc1.num_parameters() + fc2.num_parameters() + fc3.num_parameters();
+  }
+
+  template <typename Q>
+  Q to() const noexcept {
+    Q quantized{};
+
+    quantized.signature_ = signature_;
+    quantized.shared = shared.quantized<quantized_parameter_type>(shared_quantization_scale);
+    quantized.fc0 = fc0.quantized<quantized_parameter_type>(fc0_weight_quantization_scale, fc0_bias_quantization_scale);
+
+    quantized.white_fc0 = quantized.fc0;
+    quantized.black_fc0 = quantized.white_fc0.half_input_flipped();
+
+    quantized.fc1 = fc1;
+    quantized.fc2 = fc2;
+    quantized.fc3 = fc3;
+
+    return quantized;
+  }
+
+  template <typename streamer_type>
+  [[maybe_unused]] weights& load(streamer_type& streamer) noexcept {
+    shared.load_(streamer);
+    fc0.load_(streamer);
+    fc1.load_(streamer);
+    fc2.load_(streamer);
+    fc3.load_(streamer);
+    signature_ = streamer.signature();
+    return *this;
+  }
+
+  [[maybe_unused]] weights& load(const std::string& path) noexcept {
+    auto streamer = weights_streamer(path);
+    return load(streamer);
+  }
+};
+
+struct quantized_weights {
+  using parameter_type = weights::parameter_type;
+  using quantized_parameter_type = weights::quantized_parameter_type;
+
+  static constexpr std::size_t base_dim = 768;
+
+  weights_streamer::signature_type signature_{0};
+
+  sparse_affine_layer<quantized_parameter_type, feature::half_ka::numel, base_dim> shared{};
+
+  dense_relu_affine_layer<quantized_parameter_type, 2 * base_dim, 8> fc0{};
+  dense_relu_affine_layer<quantized_parameter_type, 2 * base_dim, 8> white_fc0{};
+  dense_relu_affine_layer<quantized_parameter_type, 2 * base_dim, 8> black_fc0{};
 
   dense_relu_affine_layer<parameter_type, 8, 8> fc1{};
   dense_relu_affine_layer<parameter_type, 16, 8> fc2{};
@@ -62,24 +121,42 @@ struct weights {
   }
 
   template <typename streamer_type>
-  [[maybe_unused]] weights& load(streamer_type& ws) noexcept {
-    shared.load_(ws);
-    fc0.load_(ws);
-    fc1.load_(ws);
-    fc2.load_(ws);
-    fc3.load_(ws);
-    signature_ = ws.signature();
+  [[maybe_unused]] quantized_weights& load(streamer_type& streamer) noexcept {
+    streamer.stream(&signature_);
+    
+    shared.load_(streamer);
+    fc0.load_(streamer);
+    fc1.load_(streamer);
+    fc2.load_(streamer);
+    fc3.load_(streamer);
 
-    quantized_shared = shared.quantized<quantized_parameter_type>(shared_quantization_scale);
-    white_quantized_fc0 = fc0.quantized<quantized_parameter_type>(fc0_weight_quantization_scale, fc0_bias_quantization_scale);
-    black_quantized_fc0 = white_quantized_fc0.half_input_flipped();
+    white_fc0 = fc0;
+    black_fc0 = white_fc0.half_input_flipped();
 
     return *this;
   }
 
-  [[maybe_unused]] weights& load(const std::string& path) noexcept {
-    auto ws = weights_streamer(path);
-    return load(ws);
+  template <typename exporter_type>
+  [[maybe_unused]] const quantized_weights& write(exporter_type& exporter) const noexcept {
+    exporter.write(&signature_);
+    
+    shared.write_(exporter);
+    fc0.write_(exporter);
+    fc1.write_(exporter);
+    fc2.write_(exporter);
+    fc3.write_(exporter);
+
+    return *this;
+  }
+
+  [[maybe_unused]] quantized_weights& load(const std::string& path) noexcept {
+    auto streamer = weights_streamer(path);
+    return load(streamer);
+  }
+
+  [[maybe_unused]] const quantized_weights& write(const std::string& path) const noexcept {
+    auto exporter = weights_exporter(path);
+    return write(exporter);
   }
 };
 

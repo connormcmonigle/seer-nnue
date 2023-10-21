@@ -33,9 +33,10 @@ struct weights_streamer {
   std::fstream reader;
 
   template <typename T>
-  [[maybe_unused]] weights_streamer& stream(T* dst, const std::size_t request) noexcept {
+  [[maybe_unused]] weights_streamer& stream(T* dst, const std::size_t request = static_cast<std::size_t>(1)) noexcept {
     constexpr std::size_t signature_bytes = std::min(sizeof(signature_type), sizeof(T));
     std::array<char, sizeof(T)> single_element{};
+
     for (std::size_t i(0); i < request; ++i) {
       reader.read(single_element.data(), single_element.size());
       std::memcpy(dst + i, single_element.data(), single_element.size());
@@ -44,6 +45,7 @@ struct weights_streamer {
       std::memcpy(&x, single_element.data(), signature_bytes);
       signature_ ^= x;
     }
+
     return *this;
   }
 
@@ -60,9 +62,10 @@ struct embedded_weight_streamer {
   const unsigned char* back_ptr;
 
   template <typename T>
-  [[maybe_unused]] embedded_weight_streamer& stream(T* dst, const std::size_t request) noexcept {
+  [[maybe_unused]] embedded_weight_streamer& stream(T* dst, const std::size_t request = static_cast<std::size_t>(1)) noexcept {
     constexpr std::size_t signature_bytes = std::min(sizeof(signature_type), sizeof(T));
     std::array<unsigned char, sizeof(T)> single_element{};
+
     for (std::size_t i(0); i < request; ++i) {
       std::memcpy(single_element.data(), back_ptr, single_element.size());
       back_ptr += single_element.size();
@@ -72,6 +75,7 @@ struct embedded_weight_streamer {
       std::memcpy(&x, single_element.data(), signature_bytes);
       signature_ ^= x;
     }
+
     return *this;
   }
 

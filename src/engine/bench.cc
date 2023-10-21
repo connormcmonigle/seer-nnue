@@ -23,7 +23,7 @@ std::ostream& operator<<(std::ostream& os, const bench_info& info) noexcept {
   return os << info.total_nodes << " nodes " << info.nodes_per_second << " nps";
 }
 
-bench_info get_bench_info(const nnue::weights& weights) noexcept {
+bench_info get_bench_info(const nnue::quantized_weights& weights) noexcept {
   using worker_type = search::search_worker;
   std::shared_ptr<search::search_constants> constants = std::make_shared<search::search_constants>(1);
   std::shared_ptr<search::transposition_table> tt = std::make_shared<search::transposition_table>(bench_config::tt_mb_size);

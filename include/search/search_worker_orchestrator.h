@@ -30,7 +30,7 @@ namespace search {
 struct worker_orchestrator {
   static constexpr std::size_t primary_id = 0;
 
-  const nnue::weights* weights_;
+  const nnue::quantized_weights* weights_;
   std::shared_ptr<transposition_table> tt_{nullptr};
   std::shared_ptr<search_constants> constants_{nullptr};
 
@@ -53,7 +53,7 @@ struct worker_orchestrator {
   [[nodiscard]] search_worker& primary_worker() noexcept;
 
   worker_orchestrator(
-      const nnue::weights* weights,
+      const nnue::quantized_weights* weights,
       std::size_t hash_table_size,
       std::function<void(const search_worker&)> on_iter = [](auto&&...) {},
       std::function<void(const search_worker&)> on_update = [](auto&&...) {}) noexcept;

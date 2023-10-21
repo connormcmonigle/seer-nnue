@@ -22,6 +22,8 @@
 #include <engine/uci.h>
 #include <engine/version.h>
 #include <nnue/embedded_weights.h>
+#include <nnue/weights_exporter.h>
+#include <nnue/weights_streamer.h>
 #include <search/search_constants.h>
 #include <search/syzygy.h>
 
@@ -30,14 +32,24 @@
 namespace engine {
 
 auto uci::options() noexcept {
-  auto weight_path = option_callback(string_option("Weights", std::string(default_weight_path)), [this](const std::string& path) {
-    if (path == std::string(default_weight_path)) {
+  auto quantized_weight_path = option_callback(string_option("QuantizedWeights", std::string(embedded_weight_path)), [this](const std::string& path) {
+    if (path == std::string(embedded_weight_path)) {
       nnue::embedded_weight_streamer embedded(nnue::embed::weights_file_data);
       weights_.load(embedded);
     } else {
       weights_.load(path);
     }
 
+    weights_info_string();
+  });
+
+  auto weight_path = option_callback(string_option("Weights", std::string(unused_weight_path)), [this](const std::string& path) {
+    if (path == std::string(unused_weight_path)) { return; }
+
+    nnue::weights raw_weights{};
+    raw_weights.load(path);
+
+    weights_ = raw_weights.to<nnue::quantized_weights>();
     weights_info_string();
   });
 
@@ -54,7 +66,7 @@ auto uci::options() noexcept {
   auto ponder = option_callback(check_option("Ponder", default_ponder), [this](const bool& value) { ponder_.store(value); });
   auto syzygy_path = option_callback(string_option("SyzygyPath", string_option::empty), [](const std::string& path) { search::syzygy::init(path); });
 
-  return uci_options(weight_path, hash_size, thread_count, ponder, syzygy_path);
+  return uci_options(quantized_weight_path, weight_path, hash_size, thread_count, ponder, syzygy_path);
 }
 
 bool uci::should_quit() const noexcept { return should_quit_.load(); }
@@ -161,6 +173,14 @@ void uci::bench() noexcept {
   os << get_bench_info(weights_) << std::endl;
 }
 
+void uci::export_weights(const std::string& export_path) noexcept {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (orchestrator_.is_searching()) { return; }
+
+  nnue::weights_exporter exporter(export_path);
+  weights_.write(exporter);
+}
+
 void uci::eval() noexcept {
   std::lock_guard<std::mutex> lock(mutex_);
   if (orchestrator_.is_searching()) { return; }
@@ -249,6 +269,7 @@ void uci::read(const std::string& line) noexcept {
     sequential(consume("quit"), invoke([&] { quit(); })),
 
     // extensions
+    sequential(consume("export"), emit<std::string>, invoke([&] (const std::string& export_path) { export_weights(export_path); })),
     sequential(consume("perft"), emit<search::depth_type>, invoke([&] (const search::depth_type& depth) { perft(depth); })),
     sequential(consume("bench"), invoke([&] { bench(); })),
     sequential(consume("probe"), invoke([&] { probe(); })),
