@@ -187,6 +187,10 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
   if (should_iir) { --depth; }
 
+  const bool should_tt_pv_iir = is_pv && maybe.has_value() && maybe->tt_pv() && maybe->bound() != bound_type::upper && maybe->score() >= beta &&
+                                maybe->depth() >= depth && depth >= external.constants->iir_depth();
+  if (should_tt_pv_iir) { --depth; }
+
   // step 4. compute static eval and adjust appropriately if there's a tt hit
   const auto [static_value, value] = [&] {
     const auto maybe_eval = internal.cache.find(bd.hash());
