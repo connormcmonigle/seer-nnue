@@ -100,7 +100,7 @@ struct search_worker {
   void stop() noexcept { internal.go.store(false); }
 
   search_worker(
-      const nnue::weights* weights,
+      const nnue::quantized_weights* weights,
       std::shared_ptr<transposition_table> tt,
       std::shared_ptr<search_constants> constants,
       std::function<void(const search_worker&)> on_iter = [](auto&&...) {},

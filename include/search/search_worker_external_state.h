@@ -28,14 +28,14 @@ namespace search {
 struct search_worker;
 
 struct search_worker_external_state {
-  const nnue::weights* weights;
+  const nnue::quantized_weights* weights;
   std::shared_ptr<transposition_table> tt;
   std::shared_ptr<search_constants> constants;
   std::function<void(const search_worker&)> on_iter;
   std::function<void(const search_worker&)> on_update;
 
   search_worker_external_state(
-      const nnue::weights* weights_,
+      const nnue::quantized_weights* weights_,
       std::shared_ptr<transposition_table> tt_,
       std::shared_ptr<search_constants> constants_,
       std::function<void(const search_worker&)>& on_iter_,

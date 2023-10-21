@@ -63,10 +63,10 @@ struct feature_reset_cache {
 
   [[nodiscard]] feature_reset_cache_entry& look_up(const chess::square& sq) noexcept { return entries_[sq.index()]; }
 
-  void reinitialize(const weights* weights) noexcept {
+  void reinitialize(const quantized_weights* weights) noexcept {
     for (std::size_t i(0); i < num_squares; ++i) {
       const auto slice = scratchpad_.get_nth_slice<entry_type::dim>(i);
-      entries_[i].reinitialize(&weights->quantized_shared, slice);
+      entries_[i].reinitialize(&weights->shared, slice);
     }
   }
 };
@@ -75,7 +75,7 @@ struct sided_feature_reset_cache : public chess::sided<sided_feature_reset_cache
   feature_reset_cache white;
   feature_reset_cache black;
 
-  void reinitialize(const weights* weights) noexcept {
+  void reinitialize(const quantized_weights* weights) noexcept {
     white.reinitialize(weights);
     black.reinitialize(weights);
   }

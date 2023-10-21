@@ -40,7 +40,7 @@ struct uci {
   chess::board_history history{};
   chess::board position = chess::board::start_pos();
 
-  nnue::weights weights_{};
+  nnue::quantized_weights weights_{};
   search::worker_orchestrator orchestrator_;
 
   std::atomic_bool ponder_{false};
@@ -76,6 +76,7 @@ struct uci {
   void eval() noexcept;
   void probe() noexcept;
   void perft(const search::depth_type& depth) noexcept;
+  void export_weights(const std::string& export_path) noexcept;
 
   void read(const std::string& line) noexcept;
 

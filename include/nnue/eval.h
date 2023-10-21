@@ -45,7 +45,7 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
   using quantized_parameter_type = weights::quantized_parameter_type;
   using scratchpad_type = aligned_scratchpad<quantized_parameter_type, scratchpad_depth * feature_transformer_dim>;
 
-  const weights* weights_;
+  const quantized_weights* weights_;
   scratchpad_type* scratchpad_;
 
   std::size_t scratchpad_idx_;
@@ -57,7 +57,7 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
   feature_transformer<quantized_parameter_type, feature::half_ka::numel, weights::base_dim> black;
 
   [[nodiscard]] inline parameter_type propagate(const bool pov) const noexcept {
-    const auto x1 = (pov ? weights_->white_quantized_fc0 : weights_->black_quantized_fc0)
+    const auto x1 = (pov ? weights_->white_fc0 : weights_->black_fc0)
                         .forward(base_)
                         .dequantized<parameter_type>(weights::dequantization_scale);
 
@@ -84,14 +84,14 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
     return eval(weights_, scratchpad_, scratchpad_idx_, next_scratchpad_idx);
   }
 
-  eval(const weights* src, scratchpad_type* scratchpad, const std::size_t& parent_scratchpad_idx, const std::size_t& scratchpad_idx) noexcept
+  eval(const quantized_weights* src, scratchpad_type* scratchpad, const std::size_t& parent_scratchpad_idx, const std::size_t& scratchpad_idx) noexcept
       : weights_{src},
         scratchpad_{scratchpad},
         scratchpad_idx_{scratchpad_idx},
         parent_base_(scratchpad_->get_nth_slice<feature_transformer_dim>(parent_scratchpad_idx)),
         base_(scratchpad_->get_nth_slice<feature_transformer_dim>(scratchpad_idx_)),
-        white{&src->quantized_shared, parent_base_.slice<base_dim>(), base_.slice<base_dim>()},
-        black{&src->quantized_shared, parent_base_.slice<base_dim, base_dim>(), base_.slice<base_dim, base_dim>()} {}
+        white{&src->shared, parent_base_.slice<base_dim>(), base_.slice<base_dim>()},
+        black{&src->shared, parent_base_.slice<base_dim, base_dim>(), base_.slice<base_dim, base_dim>()} {}
 };
 
 }  // namespace nnue

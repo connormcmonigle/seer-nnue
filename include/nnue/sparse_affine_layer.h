@@ -64,8 +64,14 @@ struct sparse_affine_layer {
   }
 
   template <typename streamer_type>
-  sparse_affine_layer<T, dim0, dim1>& load_(streamer_type& ws) {
-    ws.template stream<T>(W, W_numel).template stream<T>(b, b_numel);
+  sparse_affine_layer<T, dim0, dim1>& load_(streamer_type& streamer) noexcept {
+    streamer.template stream<T>(W, W_numel).template stream<T>(b, b_numel);
+    return *this;
+  }
+
+  template <typename exporter_type>
+  const sparse_affine_layer<T, dim0, dim1>& write_(exporter_type& exporter) const noexcept {
+    exporter.template write<T>(W, W_numel).template write<T>(b, b_numel);
     return *this;
   }
 
