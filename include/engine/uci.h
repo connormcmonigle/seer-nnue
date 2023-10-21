@@ -32,7 +32,9 @@
 namespace engine {
 
 struct uci {
-  static constexpr std::string_view default_weight_path = "EMBEDDED";
+  static constexpr std::string_view embedded_weight_path = "EMBEDDED";
+  static constexpr std::string_view unused_weight_path = "UNUSED";
+
   static constexpr std::size_t default_thread_count = 1;
   static constexpr std::size_t default_hash_size = 16;
   static constexpr bool default_ponder = false;

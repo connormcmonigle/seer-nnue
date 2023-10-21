@@ -32,8 +32,8 @@
 namespace engine {
 
 auto uci::options() noexcept {
-  auto quantized_weight_path = option_callback(string_option("QuantizedWeights", std::string(default_weight_path)), [this](const std::string& path) {
-    if (path == std::string(default_weight_path)) {
+  auto quantized_weight_path = option_callback(string_option("QuantizedWeights", std::string(embedded_weight_path)), [this](const std::string& path) {
+    if (path == std::string(embedded_weight_path)) {
       nnue::embedded_weight_streamer embedded(nnue::embed::weights_file_data);
       weights_.load(embedded);
     } else {
@@ -43,11 +43,13 @@ auto uci::options() noexcept {
     weights_info_string();
   });
 
-  auto weight_path = option_callback(string_option("Weights", string_option::empty), [this](const std::string& path) {
+  auto weight_path = option_callback(string_option("Weights", std::string(unused_weight_path)), [this](const std::string& path) {
+    if (path == std::string(unused_weight_path)) { return; }
+
     nnue::weights raw_weights{};
     raw_weights.load(path);
 
-    weights_ = raw_weights.to_quantized_weights<>();
+    weights_ = raw_weights.to<nnue::quantized_weights>();
     weights_info_string();
   });
 

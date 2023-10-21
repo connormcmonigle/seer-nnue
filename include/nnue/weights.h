@@ -61,8 +61,8 @@ struct weights {
     return shared.num_parameters() + fc0.num_parameters() + fc1.num_parameters() + fc2.num_parameters() + fc3.num_parameters();
   }
 
-  template <typename Q = quantized_weights>
-  Q to_quantized_weights() const noexcept {
+  template <typename Q>
+  Q to() const noexcept {
     Q quantized{};
 
     quantized.signature_ = signature_;
