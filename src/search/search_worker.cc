@@ -380,9 +380,10 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
         // adjust reduction
         if (improving) { --reduction; }
+        if (mv == killer) { --reduction; }
         if (bd_.is_check()) { --reduction; }
         if (bd.creates_threat(mv)) { --reduction; }
-        if (mv == killer) { --reduction; }
+        if (mv.is_capture() && history_value > 0) { --reduction; }
 
         if (!tt_pv) { ++reduction; }
         if (did_double_extend) { ++reduction; }
