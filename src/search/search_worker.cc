@@ -301,6 +301,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     // step 11. pruning
     if (try_pruning) {
+      const depth_type lmr_depth = std::max(1, depth - external.constants->reduction(depth, idx));
+
       const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
       if (lm_prune) { break; }
@@ -310,8 +312,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
       if (futility_prune) { continue; }
 
-      const bool quiet_see_prune = mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() &&
-                                   !bd.see_ge(mv, external.constants->quiet_see_prune_threshold(depth));
+      const bool quiet_see_prune = mv.is_quiet() && lmr_depth <= external.constants->quiet_see_prune_depth() &&
+                                   !bd.see_ge(mv, external.constants->quiet_see_prune_threshold(lmr_depth));
 
       if (quiet_see_prune) { continue; }
 
