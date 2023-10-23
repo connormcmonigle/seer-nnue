@@ -32,7 +32,7 @@ void move_orderer_stepper::next() noexcept {
 }
 
 move_orderer_stepper& move_orderer_stepper::initialize(const move_orderer_data& data, const chess::move_list& list) noexcept {
-  const history::context ctxt{data.follow, data.counter, data.threatened};
+  const history::context ctxt{data.follow, data.counter, data.threatened, data.pawn_hash};
 
   end_ = std::transform(list.begin(), list.end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
     if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see_gt(mv, 0), data.hh->compute_value(ctxt, mv)); }

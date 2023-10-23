@@ -37,6 +37,7 @@ namespace constants {
 inline constexpr std::size_t num_squares = 64;
 inline constexpr std::size_t num_pieces = 6;
 inline constexpr std::size_t num_threat_states = 2;
+inline constexpr std::size_t num_pawn_states = 512;
 
 }  // namespace constants
 
@@ -44,6 +45,7 @@ struct context {
   chess::move follow;
   chess::move counter;
   chess::square_set threatened;
+  zobrist::hash_type pawn_hash;
 };
 
 [[nodiscard]] inline value_type formula(const value_type& x, const value_type& gain) noexcept {
@@ -51,6 +53,23 @@ struct context {
   constexpr value_type history_divisor = 512;
   return (gain * history_multiplier) - (x * std::abs(gain) / history_divisor);
 }
+
+struct pawn_structure_info {
+  static constexpr std::size_t N = constants::num_pawn_states * constants::num_pieces * constants::num_squares;
+
+  [[nodiscard]] static constexpr bool is_applicable(const context&, const chess::move& mv) noexcept { return mv.is_quiet(); }
+
+  [[nodiscard]] static constexpr std::size_t compute_index(const context& ctxt, const chess::move& mv) noexcept {
+    constexpr std::size_t mask = constants::num_pawn_states - 1;
+    static_assert((constants::num_pawn_states & mask) == 0);
+
+    const auto pawns = static_cast<std::size_t>(ctxt.pawn_hash & mask);
+    const auto p = static_cast<std::size_t>(mv.piece());
+    const auto to = static_cast<std::size_t>(mv.to().index());
+
+    return pawns * constants::num_pieces * constants::num_squares + p * constants::num_squares + to;
+  }
+};
 
 struct threat_info {
   static constexpr std::size_t N = constants::num_threat_states * constants::num_squares * constants::num_squares;
@@ -164,7 +183,8 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic = history::combined<history::threat_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic =
+    history::combined<history::threat_info, history::pawn_structure_info, history::counter_info, history::follow_info, history::capture_info>;
 
 struct sided_history_heuristic : public chess::sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;
