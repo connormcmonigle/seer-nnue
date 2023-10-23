@@ -21,6 +21,7 @@
 #include <chess/types.h>
 #include <search/search_constants.h>
 #include <util/tuple.h>
+#include <zobrist/util.h>
 
 #include <algorithm>
 #include <array>
@@ -57,7 +58,7 @@ struct context {
 struct pawn_structure_info {
   static constexpr std::size_t N = constants::num_pawn_states * constants::num_pieces * constants::num_squares;
 
-  [[nodiscard]] static constexpr bool is_applicable(const context&, const chess::move& mv) noexcept { return mv.is_quiet(); }
+  [[nodiscard]] static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) noexcept { return ctxt.pawn_hash && mv.is_quiet(); }
 
   [[nodiscard]] static constexpr std::size_t compute_index(const context& ctxt, const chess::move& mv) noexcept {
     constexpr std::size_t mask = constants::num_pawn_states - 1;
