@@ -56,6 +56,8 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
   feature_transformer<quantized_parameter_type, feature::half_ka::numel, weights::base_dim> white;
   feature_transformer<quantized_parameter_type, feature::half_ka::numel, weights::base_dim> black;
 
+  [[nodiscard]] bool is_hot(const std::size_t& idx) const noexcept { return base_.data[idx] > quantized_parameter_type{}; }
+
   [[nodiscard]] inline parameter_type propagate(const bool pov) const noexcept {
     const auto x1 = (pov ? weights_->white_fc0 : weights_->black_fc0)
                         .forward(base_)
