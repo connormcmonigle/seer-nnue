@@ -18,9 +18,11 @@
 #pragma once
 
 #include <chess/move.h>
+#include <nnue/eval.h>
 #include <nnue/feature_reset_cache.h>
 #include <search/eval_cache.h>
 #include <search/history_heuristic.h>
+#include <search/lsh_move_cache.h>
 #include <search/search_stack.h>
 
 #include <atomic>
@@ -34,6 +36,7 @@ struct search_worker_internal_state {
   nnue::eval::scratchpad_type scratchpad{};
   sided_history_heuristic hh{};
   eval_cache cache{};
+  lsh_move_cache<lsh::lsh_min_hasher<nnue::eval::feature_transformer_dim, 4>, 512> move_cache{};
   std::unordered_map<chess::move, std::size_t, chess::move_hash> node_distribution{};
 
   std::atomic_bool go{false};
@@ -59,6 +62,7 @@ struct search_worker_internal_state {
     stack = search_stack{chess::board_history{}, chess::board::start_pos()};
     hh.clear();
     cache.clear();
+    move_cache.reset();
     node_distribution.clear();
 
     go.store(false);

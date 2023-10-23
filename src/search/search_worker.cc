@@ -51,7 +51,7 @@ score_type search_worker::q_search(
   const auto [static_value, value] = [&] {
     const auto maybe_eval = internal.cache.find(bd.hash());
     const score_type static_value = is_check ? ss.loss_score() :
-                                    !is_pv && maybe_eval.has_value() ?
+                                               !is_pv && maybe_eval.has_value() ?
                                                maybe_eval.value() :
                                                eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
@@ -191,7 +191,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const auto [static_value, value] = [&] {
     const auto maybe_eval = internal.cache.find(bd.hash());
     const score_type static_value = is_check ? ss.loss_score() :
-                                    !is_pv && maybe_eval.has_value() ?
+                                               !is_pv && maybe_eval.has_value() ?
                                                maybe_eval.value() :
                                                eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
@@ -277,6 +277,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
   // list of attempted moves for updating histories
   chess::move_list moves_tried{};
+  sided_lsh_move_cache_entry* move_cache_entry =
+      internal.move_cache.at([eval = eval_node.evaluator()](const std::size_t& idx) { return eval.is_hot(idx); });
 
   // move loop
   score_type best_score = ss.loss_score();
@@ -433,6 +435,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
       return bound_type::upper;
     }();
 
+    if (bound == bound_type::lower) { move_cache_entry->us(bd.turn()).insert(best_move); }
     if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
       internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened}, best_move, moves_tried, depth);
       ss.set_killer(best_move);
