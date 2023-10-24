@@ -37,6 +37,7 @@ manifest_zobrist_src::manifest_zobrist_src() noexcept {
 template <typename S>
 manifest& manifest::add_piece(const piece_type& pt, const S& at) noexcept {
   static_assert(is_square_v<S>, "at must be of square type");
+  if (pt == piece_type::pawn) { pawn_hash_ ^= zobrist_src_->get(pt, at); }
   hash_ ^= zobrist_src_->get(pt, at);
   all_ |= at.bit_board();
   get_plane(pt) |= at.bit_board();
@@ -46,6 +47,7 @@ manifest& manifest::add_piece(const piece_type& pt, const S& at) noexcept {
 template <typename S>
 manifest& manifest::remove_piece(const piece_type& pt, const S& at) noexcept {
   static_assert(is_square_v<S>, "at must be of square type");
+  if (pt == piece_type::pawn) { pawn_hash_ ^= zobrist_src_->get(pt, at); }
   hash_ ^= zobrist_src_->get(pt, at);
   all_ &= ~at.bit_board();
   get_plane(pt) &= ~at.bit_board();
