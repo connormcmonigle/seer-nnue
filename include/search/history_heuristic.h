@@ -39,7 +39,7 @@ constexpr std::size_t num_squares = 64;
 constexpr std::size_t num_pieces = 6;
 constexpr std::size_t num_threat_states = 2;
 
-constexpr std::size_t num_pawn_states = 512;
+constexpr std::size_t num_pawn_states = 1024;
 constexpr std::size_t pawn_hash_mask = num_pawn_states - 1;
 static_assert((num_pawn_states & pawn_hash_mask) == 0);
 
