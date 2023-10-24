@@ -33,8 +33,6 @@
 
 namespace nnue {
 
-struct quantized_weights;
-
 struct weights {
   using parameter_type = float;
   using quantized_parameter_type = std::int16_t;
@@ -123,7 +121,7 @@ struct quantized_weights {
   template <typename streamer_type>
   [[maybe_unused]] quantized_weights& load(streamer_type& streamer) noexcept {
     streamer.stream(&signature_);
-    
+
     shared.load_(streamer);
     fc0.load_(streamer);
     fc1.load_(streamer);
@@ -139,7 +137,7 @@ struct quantized_weights {
   template <typename exporter_type>
   [[maybe_unused]] const quantized_weights& write(exporter_type& exporter) const noexcept {
     exporter.write(&signature_);
-    
+
     shared.write_(exporter);
     fc0.write_(exporter);
     fc1.write_(exporter);

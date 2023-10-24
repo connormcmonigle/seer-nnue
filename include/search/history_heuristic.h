@@ -35,10 +35,13 @@ using value_type = search::counter_type;
 
 namespace constants {
 
-inline constexpr std::size_t num_squares = 64;
-inline constexpr std::size_t num_pieces = 6;
-inline constexpr std::size_t num_threat_states = 2;
-inline constexpr std::size_t num_pawn_states = 512;
+constexpr std::size_t num_squares = 64;
+constexpr std::size_t num_pieces = 6;
+constexpr std::size_t num_threat_states = 2;
+
+constexpr std::size_t num_pawn_states = 512;
+constexpr std::size_t pawn_hash_mask = num_pawn_states - 1;
+static_assert((num_pawn_states & pawn_hash_mask) == 0);
 
 }  // namespace constants
 
@@ -61,10 +64,7 @@ struct pawn_structure_info {
   [[nodiscard]] static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) noexcept { return ctxt.pawn_hash && mv.is_quiet(); }
 
   [[nodiscard]] static constexpr std::size_t compute_index(const context& ctxt, const chess::move& mv) noexcept {
-    constexpr std::size_t mask = constants::num_pawn_states - 1;
-    static_assert((constants::num_pawn_states & mask) == 0);
-
-    const auto pawns = static_cast<std::size_t>(ctxt.pawn_hash & mask);
+    const auto pawns = static_cast<std::size_t>(ctxt.pawn_hash & constants::pawn_hash_mask);
     const auto p = static_cast<std::size_t>(mv.piece());
     const auto to = static_cast<std::size_t>(mv.to().index());
 
