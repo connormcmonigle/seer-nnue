@@ -15,11 +15,13 @@ INCLUDE = ../include
 INCBIN = ../incbin
 SYZYGY = ../syzygy
 
-CXXFLAGS += -std=c++$(CXXSTANDARD)
-CXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp
-CXXFLAGS += -Wall -Wextra -pedantic
-CXXFLAGS += -fconstexpr-ops-limit=$(OPSLIMIT)
-CXXFLAGS += -DEVALFILE=\"$(EVALFILE)\"
+BASECXXFLAGS += -std=c++$(CXXSTANDARD)
+BASECXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp
+BASECXXFLAGS += -Wall -Wextra -pedantic
+BASECXXFLAGS += -fconstexpr-ops-limit=$(OPSLIMIT)
+BASECXXFLAGS += -DEVALFILE=\"$(EVALFILE)\"
+CXXFLAGS += $(BASECXXFLAGS)
+
 
 CPPFLAGS += -MMD
 CPPFLAGS += -I$(INCLUDE)
