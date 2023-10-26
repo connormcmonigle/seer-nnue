@@ -108,6 +108,9 @@ time_manager& time_manager::init(const bool& pov, const go::moves_to_go& data) n
   min_budget = 2 * (remaining - over_head) / (3 * data.moves_to_go);
   max_budget = 10 * (remaining - over_head) / (3 * data.moves_to_go);
 
+  min_budget = std::min(4 * (remaining - over_head) / 5, *min_budget);
+  max_budget = std::min(4 * (remaining - over_head) / 5, *max_budget);
+
   return *this;
 }
 
