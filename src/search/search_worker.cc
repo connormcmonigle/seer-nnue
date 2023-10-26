@@ -51,7 +51,7 @@ score_type search_worker::q_search(
   const auto [static_value, value] = [&] {
     const auto maybe_eval = internal.cache.find(bd.hash());
     const score_type static_value = is_check ? ss.loss_score() :
-                                               !is_pv && maybe_eval.has_value() ?
+                                    !is_pv && maybe_eval.has_value() ?
                                                maybe_eval.value() :
                                                eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
@@ -191,7 +191,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const auto [static_value, value] = [&] {
     const auto maybe_eval = internal.cache.find(bd.hash());
     const score_type static_value = is_check ? ss.loss_score() :
-                                               !is_pv && maybe_eval.has_value() ?
+                                    !is_pv && maybe_eval.has_value() ?
                                                maybe_eval.value() :
                                                eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
@@ -336,6 +336,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     // step 12. extensions
     bool multicut = false;
+    score_type singular_beta_value;
+
     const depth_type extension = [&, mv = mv] {
       const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
                                 mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
@@ -354,14 +356,19 @@ pv_search_result_t<is_root> search_worker::pv_search(
         }
 
         if (excluded_score < singular_beta) { return 1; }
-        if (excluded_score >= beta) { multicut = true; }
+
+        if (singular_beta >= beta) {
+          multicut = true;
+          singular_beta_value = singular_beta;
+        }
+
         if constexpr (!is_pv) { return -1; }
       }
 
       return 0;
     }();
 
-    if (!is_root && multicut) { return make_result(beta, chess::move::null()); }
+    if (!is_root && multicut) { return make_result(singular_beta_value, chess::move::null()); }
 
     const score_type score = [&, this, idx = idx, mv = mv] {
       const depth_type next_depth = depth + extension - 1;
