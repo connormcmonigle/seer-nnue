@@ -58,6 +58,8 @@ struct timed_move_state {
   }
 };
 
+struct sudden_death : public timed_move_state {};
+
 struct increment : public timed_move_state {
   int white_increment;
   int black_increment;
@@ -106,9 +108,10 @@ struct time_manager {
   [[maybe_unused]] time_manager& init(const bool& pov, const go::depth& data) noexcept;
   [[maybe_unused]] time_manager& init(const bool& pov, const go::nodes& data) noexcept;
 
-  [[maybe_unused]] time_manager& init(const bool& pov, const go::increment& data) noexcept;
   [[maybe_unused]] time_manager& init(const bool& pov, const go::move_time& data) noexcept;
+  [[maybe_unused]] time_manager& init(const bool& pov, const go::increment& data) noexcept;
   [[maybe_unused]] time_manager& init(const bool& pov, const go::moves_to_go& data) noexcept;
+  [[maybe_unused]] time_manager& init(const bool& pov, const go::sudden_death& data) noexcept;
 
   [[nodiscard]] std::chrono::milliseconds elapsed() const noexcept;
   [[nodiscard]] bool should_stop_on_update(const update_info& info) noexcept;

@@ -118,13 +118,18 @@ void uci::info_string(const search::search_worker& worker) noexcept {
 }
 
 template <typename T, typename... Ts>
-void uci::go(Ts&&... args) noexcept {
+void uci::init_time_manager(Ts&&... args) noexcept {
   std::lock_guard<std::mutex> lock(mutex_);
   if (orchestrator_.is_searching()) { return; }
 
   manager_.init(position.turn(), T{std::forward<Ts>(args)...});
-  timer_.lap();
+}
 
+void uci::go() noexcept {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (orchestrator_.is_searching()) { return; }
+
+  timer_.lap();
   orchestrator_.go(history, position);
 }
 
@@ -250,18 +255,21 @@ void uci::read(const std::string& line) noexcept {
     )),
 
     sequential(consume("go"), parallel(
-      sequential(consume("infinite"), invoke([&] { go<go::infinite>(); })),      
-      sequential(consume("nodes"), emit<std::size_t>, invoke([&] (const std::size_t& nodes) { go<go::nodes>(nodes); })),
-      sequential(consume("depth"), emit<search::depth_type>, invoke([&] (const search::depth_type& depth) { go<go::depth>(depth); })),
+      sequential(consume("infinite"), invoke([&] { init_time_manager<go::infinite>(); })),      
+      sequential(consume("nodes"), emit<std::size_t>, invoke([&] (const std::size_t& nodes) { init_time_manager<go::nodes>(nodes); })),
+      sequential(consume("depth"), emit<search::depth_type>, invoke([&] (const search::depth_type& depth) { init_time_manager<go::depth>(depth); })),
 
       sequential(condition("ponder"), parallel(
-        sequential(key<int>("movetime"), invoke([&](const auto& ... args) { go<go::move_time>(args...); })),
+        sequential(key<int>("movetime"), invoke([&](const auto& ... args) { init_time_manager<go::move_time>(args...); })),
         
         sequential(key<int>("wtime"), key<int>("btime"), parallel(
-          sequential(key<int>("movestogo"), invoke([&](const auto& ... args) { go<go::moves_to_go>(args...); })),
-          sequential(key<int>("winc"), key<int>("binc"), invoke([&](const auto& ... args) { go<go::increment>(args...); }))
+          sequential(invoke([&](const auto& ... args) { init_time_manager<go::sudden_death>(args...); })),
+          sequential(key<int>("movestogo"), invoke([&](const auto& ... args) { init_time_manager<go::moves_to_go>(args...); })),
+          sequential(key<int>("winc"), key<int>("binc"), invoke([&](const auto& ... args) { init_time_manager<go::increment>(args...); }))
         ))
-      ))
+      )),
+
+      invoke([&] { go(); })
     )),
 
     sequential(consume("ponderhit"), invoke([&] { ponder_hit(); })),

@@ -66,7 +66,8 @@ struct uci {
   void info_string(const search::search_worker& worker) noexcept;
 
   template <typename T, typename... Ts>
-  void go(Ts&&... args) noexcept;
+  void init_time_manager(Ts&&... args) noexcept;
+  void go() noexcept;
 
   void ponder_hit() noexcept;
   void stop() noexcept;

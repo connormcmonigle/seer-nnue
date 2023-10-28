@@ -114,6 +114,22 @@ time_manager& time_manager::init(const bool& pov, const go::moves_to_go& data) n
   return *this;
 }
 
+time_manager& time_manager::init(const bool& pov, const go::sudden_death& data) noexcept {
+  std::lock_guard<std::mutex> access_lk(access_mutex_);
+
+  reset_();
+  const auto remaining = data.our_time_ms(pov);
+
+  ponder = data.ponder;
+  min_budget = (remaining - over_head) / 25;
+  max_budget = (remaining - over_head) / 10;
+
+  min_budget = std::min(4 * (remaining - over_head) / 5, *min_budget);
+  max_budget = std::min(4 * (remaining - over_head) / 5, *max_budget);
+
+  return *this;
+}
+
 std::chrono::milliseconds time_manager::elapsed() const noexcept {
   return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - search_start);
 }
