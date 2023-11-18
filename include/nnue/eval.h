@@ -68,8 +68,8 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
 
   [[nodiscard]] inline search::score_type evaluate(const bool pov, const parameter_type& phase) const noexcept {
     constexpr auto one = static_cast<parameter_type>(1.0);
-    constexpr auto mg = static_cast<parameter_type>(1.0);
-    constexpr auto eg = static_cast<parameter_type>(0.7);
+    constexpr auto mg = static_cast<parameter_type>(0.8);
+    constexpr auto eg = static_cast<parameter_type>(0.65);
 
     const parameter_type prediction = propagate(pov);
     const parameter_type eval = phase * mg * prediction + (one - phase) * eg * prediction;
