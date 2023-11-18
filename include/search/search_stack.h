@@ -122,7 +122,7 @@ struct stack_view {
   }
 
   [[maybe_unused]] inline const stack_view& prepend_to_pv(const chess::move& pv_mv) const noexcept {
-    const auto& child_pv = next().pv();
+    const auto& child_pv = view_->at(height_ + 1).pv_;
     auto output_iter = view_->at(height_).pv_.begin();
     *(output_iter++) = pv_mv;
     std::copy(child_pv.begin(), child_pv.begin() + std::distance(output_iter, view_->at(height_).pv_.end()), output_iter);
