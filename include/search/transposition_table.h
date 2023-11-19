@@ -41,7 +41,9 @@ enum class bound_type { upper, lower, exact };
 struct transposition_table_entry {
   static constexpr zobrist::hash_type empty_key = zobrist::hash_type{};
   static constexpr std::size_t gen_bits = 6;
+
   using gen_type = std::uint8_t;
+  using priority_type = std::uint32_t;
 
   using bound_ = util::bit_range<bound_type, 0, 2>;
   using score_ = util::next_bit_range<bound_, std::int16_t>;
@@ -86,6 +88,22 @@ struct transposition_table_entry {
     return *this;
   }
 
+  [[nodiscard]] constexpr priority_type priority(const gen_type& gen) const noexcept {
+    using depth_value = util::bit_range<std::uint8_t, 0, 8>;
+    using is_tt_pv_value = util::next_bit_flag<depth_value>;
+    using is_current_gen_value = util::next_bit_flag<is_tt_pv_value>;
+    using is_not_empty_value = util::next_bit_flag<is_current_gen_value>;
+
+    priority_type priority{};
+
+    depth_value::set(priority, depth_::get(value_));
+    is_tt_pv_value::set(priority, tt_pv_::get(value_));
+    is_current_gen_value::set(priority, gen == gen_::get(value_));
+    is_not_empty_value::set(priority, key_ != empty_key);
+
+    return priority;
+  }
+
   constexpr transposition_table_entry(
       const zobrist::hash_type& key,
       const bound_type& bound,
@@ -124,13 +142,15 @@ struct alignas(cache_line_size) bucket {
   [[nodiscard]] constexpr transposition_table_entry* to_replace(
       const transposition_table_entry::gen_type& gen, const zobrist::hash_type& key) noexcept {
     auto worst = std::begin(data);
+    auto worst_priority = worst->priority(gen);
+
     for (auto iter = std::begin(data); iter != std::end(data); ++iter) {
       if (iter->key() == key) { return iter; }
 
-      const bool is_worse = (!iter->is_current(gen) && worst->is_current(gen)) || (iter->is_empty() && !worst->is_empty()) ||
-                            ((iter->is_current(gen) == worst->is_current(gen)) && (iter->depth() < worst->depth()));
-
-      if (is_worse) { worst = iter; }
+      if (const auto iter_priority = iter->priority(gen); iter_priority < worst_priority) {
+        worst = iter;
+        worst_priority = iter_priority;
+      }
     }
 
     return worst;
