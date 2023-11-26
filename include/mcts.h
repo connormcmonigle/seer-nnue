@@ -240,7 +240,8 @@ struct tree_walker {
       }
 
       if (const std::optional<probability_type> outcome = exact_outcome(history, state); outcome.has_value()) {
-        tree->backup(index, outcome.value());
+        const probability_type outcome_value = outcome.value();
+        tree->backup(index, complement(outcome_value));
         break;
       }
 
