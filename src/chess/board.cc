@@ -27,7 +27,7 @@ namespace chess {
 
 template <typename T>
 constexpr T material_value(const piece_type& pt) {
-  constexpr std::array<T, 6> values = {100, 300, 300, 450, 900, std::numeric_limits<T>::max()};
+  constexpr std::array<T, 6> values = {100, 422, 422, 642, 1015, std::numeric_limits<T>::max()};
   return values[static_cast<std::size_t>(pt)];
 }
 
