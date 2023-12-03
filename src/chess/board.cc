@@ -203,7 +203,7 @@ inline void board::add_en_passant(move_list& mv_ls) const noexcept {
 
 template <color c, typename mode>
 inline void board::add_castle(const move_generator_info& info, move_list& result) const noexcept {
-  if constexpr (!mode::noisy) { return; }
+  if constexpr (!mode::quiet) { return; }
   if (lat_.us<c>().oo() && !(castle_info<c>.oo_mask & (info.king_danger | info.occ)).any()) {
     result.push(castle_info<c>.start_king, castle_info<c>.oo_rook, piece_type::king, true, piece_type::rook);
   }
