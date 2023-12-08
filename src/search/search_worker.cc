@@ -87,6 +87,9 @@ score_type search_worker::q_search(
     const bool delta_prune = !is_pv && !is_check && !bd.see_gt(mv, 0) && ((value + external.constants->delta_margin()) < alpha);
     if (delta_prune) { break; }
 
+    const bool in_check_delta_prune = !is_pv && is_check && idx != 0 && mv.is_quiet() && ((best_score + external.constants->delta_margin()) < alpha);
+    if (in_check_delta_prune) { break; }
+
     const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && bd.see_ge(mv, external.constants->good_capture_prune_see_margin()) &&
                                     value + external.constants->good_capture_prune_score_margin() > beta;
     if (good_capture_prune) { return beta; }
