@@ -42,9 +42,17 @@ struct manifest_zobrist_src {
   }
 
   template <typename S>
-  [[nodiscard]] zobrist::hash_type get(const piece_type& pt, const S& at) const noexcept;
+  [[nodiscard]] constexpr zobrist::hash_type get(const piece_type& pt, const S& at) const noexcept {
+    static_assert(is_square_v<S>, "at must be of square type");
+    return get_plane(pt)[at.index()];
+  }
 
-  manifest_zobrist_src() noexcept;
+  constexpr manifest_zobrist_src(zobrist::xorshift_generator generator) noexcept {
+    over_types([&, this](const piece_type pt) {
+      plane_t& pt_plane = get_plane(pt);
+      for (auto& elem : pt_plane) { elem = generator.next(); }
+    });
+  }
 };
 
 struct manifest {
@@ -96,8 +104,8 @@ struct manifest {
 };
 
 struct sided_manifest : public sided<sided_manifest, manifest> {
-  static inline const manifest_zobrist_src w_manifest_src{};
-  static inline const manifest_zobrist_src b_manifest_src{};
+  static constexpr manifest_zobrist_src w_manifest_src{zobrist::xorshift_generator(zobrist::entrpoy_0)};
+  static constexpr manifest_zobrist_src b_manifest_src{zobrist::xorshift_generator(zobrist::entropy_1)};
 
   manifest white;
   manifest black;
@@ -110,9 +118,9 @@ struct sided_manifest : public sided<sided_manifest, manifest> {
 
 struct latent_zobrist_src {
   static constexpr std::size_t num_squares = 64;
-  zobrist::hash_type oo_;
-  zobrist::hash_type ooo_;
-  std::array<zobrist::hash_type, num_squares> ep_mask_;
+  zobrist::hash_type oo_{};
+  zobrist::hash_type ooo_{};
+  std::array<zobrist::hash_type, num_squares> ep_mask_{};
 
   [[nodiscard]] zobrist::hash_type get_oo() const noexcept { return oo_; }
   [[nodiscard]] zobrist::hash_type get_ooo() const noexcept { return ooo_; }
@@ -120,7 +128,11 @@ struct latent_zobrist_src {
   template <typename S>
   [[nodiscard]] zobrist::hash_type get_ep_mask(const S& at) const noexcept;
 
-  latent_zobrist_src() noexcept;
+  constexpr latent_zobrist_src(zobrist::xorshift_generator generator) noexcept {
+    oo_ = generator.next();
+    ooo_ = generator.next();
+    for (auto& elem : ep_mask_) { elem = generator.next(); }
+  }
 };
 
 struct latent {
@@ -149,10 +161,10 @@ struct latent {
 };
 
 struct sided_latent : public sided<sided_latent, latent> {
-  static inline const latent_zobrist_src w_latent_src{};
-  static inline const latent_zobrist_src b_latent_src{};
-  static inline const zobrist::hash_type turn_white_src = zobrist::random_bit_string();
-  static inline const zobrist::hash_type turn_black_src = zobrist::random_bit_string();
+  static constexpr latent_zobrist_src w_latent_src{zobrist::xorshift_generator(zobrist::entropy_2)};
+  static constexpr latent_zobrist_src b_latent_src{zobrist::xorshift_generator(zobrist::entropy_3)};
+  static constexpr zobrist::hash_type turn_white_src = zobrist::xorshift_generator(zobrist::entropy_4).next();
+  static constexpr zobrist::hash_type turn_black_src = zobrist::xorshift_generator(zobrist::entropy_5).next();
 
   std::size_t half_clock{0};
   std::size_t ply_count{0};

@@ -21,13 +21,6 @@
 
 namespace search {
 
-std::size_t search_stack::count(const std::size_t& height, const zobrist::hash_type& hash) const noexcept {
-  const std::size_t future_count =
-      std::count_if(future_.cbegin(), future_.cbegin() + height, [&](const stack_entry& entry) { return hash == entry.hash_; });
-
-  return future_count + past_.count(hash);
-}
-
 std::string search_stack::pv_string() const noexcept {
   auto bd = present_;
   std::string result{};
@@ -48,6 +41,6 @@ search_stack& search_stack::clear_future() noexcept {
   return *this;
 }
 
-search_stack::search_stack(const chess::board_history& past, const chess::board& present) noexcept : past_{past}, present_{present} {}
+search_stack::search_stack(const chess::board_history& past, const chess::board& present) noexcept : history_{past}, present_{present} {}
 
 }  // namespace search

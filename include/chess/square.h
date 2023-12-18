@@ -115,6 +115,12 @@ struct square_set_iterator {
   constexpr explicit square_set_iterator(const square::data_type& set) noexcept : remaining{set} {}
 };
 
+struct square_set;
+[[nodiscard]] constexpr square_set operator~(const square_set& ss) noexcept;
+[[nodiscard]] constexpr square_set operator&(const square_set& a, const square_set& b) noexcept;
+[[nodiscard]] constexpr square_set operator|(const square_set& a, const square_set& b) noexcept;
+[[nodiscard]] constexpr square_set operator^(const square_set& a, const square_set& b) noexcept;
+
 struct square_set {
   static constexpr square::data_type one = static_cast<square::data_type>(1);
   using iterator = square_set_iterator;
@@ -190,6 +196,8 @@ struct square_set {
     auto bit_wise_or = [](auto&&... args) { return (args | ...); };
     return square_set(bit_wise_or(bit_board(std::forward<Ts>(ts))...));
   }
+
+  [[nodiscard]] static constexpr square_set all() noexcept { return ~square_set{}; }
 
   constexpr square_set() noexcept : data{0} {}
   constexpr explicit square_set(const square::data_type& set) noexcept : data{set} {}

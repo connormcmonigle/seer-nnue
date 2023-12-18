@@ -24,30 +24,44 @@
 
 namespace chess {
 
-template <typename T, typename U>
-struct base_history {
-  using value_type = U;
-  std::vector<value_type> history_;
+template <typename T, std::size_t N>
+struct circular_fixed_size_history {
+  static_assert((N != 0) && ((N & (N - 1)) == 0), "N must be a power of 2");
 
-  [[nodiscard]] constexpr T& cast() noexcept { return static_cast<T&>(*this); }
-  [[nodiscard]] const T& cast() const noexcept { return static_cast<const T&>(*this); }
+  using value_type = T;
+  static constexpr std::size_t mask = N - 1;
 
-  [[maybe_unused]] T& clear() noexcept {
-    history_.clear();
-    return cast();
+  std::size_t size_{};
+  T data_[N]{};
+
+  [[nodiscard]] constexpr T& at(const std::size_t& idx) noexcept { return data_[idx & mask]; }
+  [[nodiscard]] constexpr const T& at(const std::size_t& idx) const noexcept { return data_[idx & mask]; }
+
+  [[nodiscard]] constexpr T& future_at(const std::size_t& height) noexcept { return data_[(size_ + height) & mask]; }
+  [[nodiscard]] constexpr const T& future_at(const std::size_t& height) const noexcept { return data_[(size_ + height) & mask]; }
+
+  [[nodiscard]] std::size_t size() const noexcept { return size_; }
+  [[nodiscard]] std::size_t future_size(const std::size_t& height) const noexcept { return size_ + height; }
+
+  [[maybe_unused]] constexpr circular_fixed_size_history<T, N>& clear() noexcept {
+    size_ = std::size_t{};
+    return *this;
   }
 
-  [[maybe_unused]] T& push(const value_type& elem) noexcept {
-    history_.push_back(elem);
-    return cast();
+  [[maybe_unused]] constexpr circular_fixed_size_history<T, N>& push(const T& value) noexcept {
+    data_[size_ & mask] = value;
+    ++size_;
+    return *this;
   }
 
-  base_history() noexcept : history_{} {}
-  explicit base_history(const std::vector<value_type>& history) noexcept : history_{history} {}
+  [[nodiscard]] constexpr std::size_t count(const std::size_t& height, const T& value) const noexcept {
+    std::size_t count_value{};
+#pragma omp simd reduction(+ : count_value)
+    for (std::size_t i = 0; i < (size_ + height); ++i) { count_value += value == data_[i & mask]; }
+    return count_value;
+  }
 };
 
-struct board_history : base_history<board_history, zobrist::hash_type> {
-  [[nodiscard]] std::size_t count(const zobrist::hash_type& hash) const noexcept { return std::count(history_.crbegin(), history_.crend(), hash); }
-};
+using board_history = circular_fixed_size_history<zobrist::hash_type, 4096>;
 
 }  // namespace chess

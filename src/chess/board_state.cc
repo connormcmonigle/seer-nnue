@@ -22,19 +22,6 @@
 namespace chess {
 
 template <typename S>
-zobrist::hash_type manifest_zobrist_src::get(const piece_type& pt, const S& at) const noexcept {
-  static_assert(is_square_v<S>, "at must be of square type");
-  return get_plane(pt)[at.index()];
-}
-
-manifest_zobrist_src::manifest_zobrist_src() noexcept {
-  over_types([this](const piece_type pt) {
-    plane_t& pt_plane = get_plane(pt);
-    std::transform(pt_plane.begin(), pt_plane.end(), pt_plane.begin(), [](auto&&...) { return zobrist::random_bit_string(); });
-  });
-}
-
-template <typename S>
 manifest& manifest::add_piece(const piece_type& pt, const S& at) noexcept {
   static_assert(is_square_v<S>, "at must be of square type");
   if (pt == piece_type::pawn) { pawn_hash_ ^= zobrist_src_->get(pt, at); }
@@ -58,12 +45,6 @@ template <typename S>
 zobrist::hash_type latent_zobrist_src::get_ep_mask(const S& at) const noexcept {
   static_assert(is_square_v<S>, "at must be of square type");
   return ep_mask_[at.index()];
-}
-
-latent_zobrist_src::latent_zobrist_src() noexcept {
-  oo_ = zobrist::random_bit_string();
-  ooo_ = zobrist::random_bit_string();
-  std::transform(ep_mask_.begin(), ep_mask_.end(), ep_mask_.begin(), [](auto&&...) { return zobrist::random_bit_string(); });
 }
 
 latent& latent::set_oo(const bool val) noexcept {

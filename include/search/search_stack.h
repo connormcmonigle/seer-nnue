@@ -31,7 +31,6 @@
 namespace search {
 
 struct stack_entry {
-  zobrist::hash_type hash_{};
   score_type eval_{};
 
   chess::move played_{chess::move::null()};
@@ -46,7 +45,7 @@ struct stack_entry {
 struct search_stack {
   depth_type selective_depth_{0};
 
-  chess::board_history past_;
+  chess::board_history history_;
   chess::board present_;
   std::array<stack_entry, safe_depth> future_{};
 
@@ -59,8 +58,6 @@ struct search_stack {
     selective_depth_ = std::max(selective_depth_, height);
     return *this;
   }
-
-  [[nodiscard]] std::size_t count(const std::size_t& height, const zobrist::hash_type& hash) const noexcept;
 
   [[nodiscard]] std::string pv_string() const noexcept;
   [[nodiscard]] chess::move ponder_move() const noexcept;
@@ -82,7 +79,7 @@ struct stack_view {
 
   [[nodiscard]] constexpr const chess::board& root_position() const noexcept { return view_->root(); }
 
-  [[nodiscard]] inline bool is_two_fold(const zobrist::hash_type& hash) const noexcept { return view_->count(height_, hash) >= 1; }
+  [[nodiscard]] constexpr bool is_two_fold(const zobrist::hash_type& hash) const noexcept { return view_->history_.count(height_, hash) >= 1; }
 
   [[nodiscard]] constexpr chess::move counter() const noexcept {
     if (height_ <= 0) { return chess::move::null(); }
@@ -107,7 +104,7 @@ struct stack_view {
   [[nodiscard]] constexpr bool improving() const noexcept { return (height_ >= 2) && view_->at(height_ - 2).eval_ < view_->at(height_).eval_; }
 
   [[maybe_unused]] constexpr const stack_view& set_hash(const zobrist::hash_type& hash) const noexcept {
-    view_->at(height_).hash_ = hash;
+    view_->history_.future_at(height_) = hash;
     return *this;
   }
 
