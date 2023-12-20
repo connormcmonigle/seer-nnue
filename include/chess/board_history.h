@@ -17,12 +17,24 @@
 
 #pragma once
 
+#include <chess/types.h>
 #include <zobrist/util.h>
 
 #include <algorithm>
 #include <vector>
 
 namespace chess {
+
+struct sided_zobrist_hash : public sided<sided_zobrist_hash, zobrist::hash_type> {
+  zobrist::hash_type white;
+  zobrist::hash_type black;
+  zobrist::hash_type hash;
+
+  constexpr sided_zobrist_hash() : white{}, black{}, hash{} {}
+
+  constexpr sided_zobrist_hash(const zobrist::hash_type& white, const zobrist::hash_type& black, const zobrist::hash_type& hash) noexcept
+      : white{white}, black{black}, hash{hash} {}
+};
 
 template <typename T, std::size_t N>
 struct circular_fixed_size_history {
@@ -54,14 +66,15 @@ struct circular_fixed_size_history {
     return *this;
   }
 
-  [[nodiscard]] constexpr std::size_t count(const std::size_t& height, const T& value) const noexcept {
+  template <typename U>
+  [[nodiscard]] constexpr std::size_t count(const std::size_t& height, const U& value) const noexcept {
     std::size_t count_value{};
 #pragma omp simd reduction(+ : count_value)
-    for (std::size_t i = 0; i < (size_ + height); ++i) { count_value += value == data_[i & mask]; }
+    for (std::size_t i = 0; i < (size_ + height); ++i) { count_value += value == data_[i & mask].hash; }
     return count_value;
   }
 };
 
-using board_history = circular_fixed_size_history<zobrist::hash_type, 4096>;
+using board_history = circular_fixed_size_history<sided_zobrist_hash, 4096>;
 
 }  // namespace chess

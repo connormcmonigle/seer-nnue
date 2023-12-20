@@ -79,7 +79,9 @@ struct stack_view {
 
   [[nodiscard]] constexpr const chess::board& root_position() const noexcept { return view_->root(); }
 
-  [[nodiscard]] constexpr bool is_two_fold(const zobrist::hash_type& hash) const noexcept { return view_->history_.count(height_, hash) >= 1; }
+  [[nodiscard]] inline bool upcoming_cycle_exists(const chess::board& bd) const noexcept {
+    return bd.upcoming_cycle_exists(height_, view_->history_);
+  }
 
   [[nodiscard]] constexpr chess::move counter() const noexcept {
     if (height_ <= 0) { return chess::move::null(); }
@@ -103,7 +105,7 @@ struct stack_view {
 
   [[nodiscard]] constexpr bool improving() const noexcept { return (height_ >= 2) && view_->at(height_ - 2).eval_ < view_->at(height_).eval_; }
 
-  [[maybe_unused]] constexpr const stack_view& set_hash(const zobrist::hash_type& hash) const noexcept {
+  [[maybe_unused]] constexpr const stack_view& set_hash(const chess::sided_zobrist_hash& hash) const noexcept {
     view_->history_.future_at(height_) = hash;
     return *this;
   }

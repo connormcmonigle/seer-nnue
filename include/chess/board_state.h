@@ -72,6 +72,7 @@ struct manifest {
   [[nodiscard]] constexpr zobrist::hash_type pawn_hash() const noexcept { return pawn_hash_; }
 
   [[nodiscard]] constexpr square_set& get_plane(const piece_type pt) noexcept { return get_member(pt, *this); }
+  [[nodiscard]] constexpr const square_set& get_plane(const piece_type pt) const noexcept { return get_member(pt, *this); }
 
   [[nodiscard]] constexpr piece_type occ(const tbl_square& at) const noexcept { return occ(at.to_square()); }
 
@@ -92,7 +93,6 @@ struct manifest {
   [[nodiscard]] constexpr const square_set& queen() const noexcept { return queen_; }
   [[nodiscard]] constexpr const square_set& king() const noexcept { return king_; }
 
-  [[nodiscard]] constexpr const square_set& get_plane(const piece_type pt) const noexcept { return get_member(pt, *this); }
 
   template <typename S>
   [[maybe_unused]] manifest& add_piece(const piece_type& pt, const S& at) noexcept;
@@ -104,7 +104,7 @@ struct manifest {
 };
 
 struct sided_manifest : public sided<sided_manifest, manifest> {
-  static constexpr manifest_zobrist_src w_manifest_src{zobrist::xorshift_generator(zobrist::entrpoy_0)};
+  static constexpr manifest_zobrist_src w_manifest_src{zobrist::xorshift_generator(zobrist::entropy_0)};
   static constexpr manifest_zobrist_src b_manifest_src{zobrist::xorshift_generator(zobrist::entropy_1)};
 
   manifest white;

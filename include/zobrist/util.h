@@ -26,7 +26,7 @@ namespace zobrist {
 using hash_type = std::uint64_t;
 using half_hash_type = std::uint32_t;
 
-constexpr hash_type entrpoy_0 = 0x8c57d3cb77fabf02;
+constexpr hash_type entropy_0 = 0x8c57d3cb77fabf02;
 constexpr hash_type entropy_1 = 0xfe2951fb31cae837;
 constexpr hash_type entropy_2 = 0x7b4f806efae54dc5;
 constexpr hash_type entropy_3 = 0x2db772e1b89c6650;

@@ -18,8 +18,6 @@
 #pragma once
 
 #include <engine/command_lexer.h>
-#include <engine/processor/null_type.h>
-#include <engine/processor/parallel_combinator_type.h>
 
 #include <tuple>
 
@@ -30,9 +28,9 @@ struct receiver_combinator_type {
   A processor_;
   B receiver_;
 
-  template <typename... As, typename F = null_type>
-  void process(const lexed_command_view& view, const std::tuple<As...>& args, const F& receiver = def::null) const noexcept {
-    processor_.process(view, args, parallel_combinator_type(std::tuple{receiver_, receiver}));
+  template <typename... As>
+  void process(const lexed_command_view& view, const std::tuple<As...>& args) const noexcept {
+    processor_.process(view, args, receiver_);
   }
 
   constexpr receiver_combinator_type(const A& processor, const B& receiver) noexcept : processor_{processor}, receiver_{receiver} {}

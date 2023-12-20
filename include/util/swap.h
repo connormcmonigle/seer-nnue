@@ -20,7 +20,7 @@
 namespace util {
 
 template <typename T>
-constexpr void swap(T& a, T& b) {
+constexpr void copy_swap(T& a, T& b) {
   T c = a;
   a = b;
   b = c;
