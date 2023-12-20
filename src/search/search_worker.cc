@@ -37,8 +37,11 @@ score_type search_worker::q_search(
   ++internal.nodes;
   const bool is_check = bd.is_check();
 
-  if (ss.is_two_fold(bd.hash())) { return draw_score; }
   if (bd.is_trivially_drawn()) { return draw_score; }
+  if (ss.upcoming_cycle_exists(bd)) {
+    if (draw_score >= beta) { return draw_score; }
+    alpha = std::max(draw_score, alpha);
+  }
 
   const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
   if (maybe.has_value()) {
@@ -76,7 +79,7 @@ score_type search_worker::q_search(
   score_type best_score = value;
   chess::move best_move = chess::move::null();
 
-  ss.set_hash(bd.hash()).set_eval(static_value);
+  ss.set_hash(bd.sided_hash()).set_eval(static_value);
   int legal_count{0};
   for (const auto& [idx, mv] : orderer) {
     ++legal_count;
@@ -151,10 +154,14 @@ pv_search_result_t<is_root> search_worker::pv_search(
   // step 2. check if node is terminal
   const bool is_check = bd.is_check();
 
-  if (!is_root && ss.is_two_fold(bd.hash())) { return make_result(draw_score, chess::move::null()); }
   if (!is_root && bd.is_trivially_drawn()) { return make_result(draw_score, chess::move::null()); }
   if (!is_root && bd.is_rule50_draw() && (!is_check || bd.generate_moves<chess::generation_mode::all>().size() != 0)) {
     return make_result(draw_score, chess::move::null());
+  }
+
+  if (!is_root && ss.upcoming_cycle_exists(bd)) {
+    if (draw_score >= beta) { return make_result(draw_score, chess::move::null()); }
+    alpha = std::max(draw_score, alpha);
   }
 
   if constexpr (is_root) {
@@ -210,7 +217,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
 
   // step 6. add position and static eval to stack
-  ss.set_hash(bd.hash()).set_eval(static_value);
+  ss.set_hash(bd.sided_hash()).set_eval(static_value);
   const bool improving = !is_check && ss.improving();
   const chess::square_set threatened = bd.them_threat_mask();
 
@@ -296,8 +303,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
     if (mv == ss.excluded()) { continue; }
 
     const std::size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
-    ss.set_played(mv);
-
     const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened, pawn_hash}, mv);
 
     const chess::board bd_ = bd.forward(mv);
@@ -362,6 +367,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
     }();
 
     if (!is_root && multicut) { return make_result(beta, chess::move::null()); }
+
+    ss.set_played(mv);
 
     const score_type score = [&, this, idx = idx, mv = mv] {
       const depth_type next_depth = depth + extension - 1;

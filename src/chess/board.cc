@@ -15,6 +15,7 @@
 
 #include <chess/board.h>
 #include <chess/castle_info.h>
+#include <chess/cuckoo_hash_table.h>
 #include <chess/pawn_info.h>
 #include <chess/table_generation.h>
 
@@ -586,6 +587,44 @@ bool board::is_legal(const move& mv) const noexcept {
 }
 
 template <color c>
+[[nodiscard]] inline bool board::upcoming_cycle_exists_(const std::size_t& height, const board_history& history) const noexcept {
+  const std::size_t size = history.future_size(height);
+  const std::size_t limit = std::min(size, lat_.half_clock);
+
+  const sided_zobrist_hash hash = sided_hash();
+  const zobrist::hash_type us_hash = hash.us<c>();
+  const zobrist::hash_type them_hash = hash.them<c>();
+
+  for (std::size_t reverse_idx = 3; reverse_idx <= limit; reverse_idx += 2) {
+    const std::size_t idx = size - reverse_idx;
+    const zobrist::hash_type delta = us_hash ^ history.at(idx).us<c>();
+    
+    if (delta == cuckoo_hash_table::value_type::initial_hash) { continue; }
+    if (them_hash != history.at(idx).them<c>()) { continue; }
+
+    const std::optional<cuckoo_hash_table_entry> entry = cuckoo_hash_table::instance.look_up(delta);
+    
+    if (entry.has_value()) {
+      const square_set candidates = square_set::of(entry->one(), entry->two());
+      const square_set available = man_.us<c>().get_plane(entry->piece());
+
+      if (!(available & candidates).any()) { return false; }
+
+      const square_set occ = man_.white.all() | man_.black.all();
+      const square_set ray = ray_between_tbl.look_up(entry->one(), entry->two());
+
+      if (!(occ & ray).any()) { return true; }
+    }
+  }
+
+  return false;
+}
+
+[[nodiscard]] bool board::upcoming_cycle_exists(const std::size_t& height, const board_history& history) const noexcept {
+  return turn() ? upcoming_cycle_exists_<color::white>(height, history) : upcoming_cycle_exists_<color::black>(height, history);
+}
+
+template <color c>
 inline bool board::is_check_() const noexcept {
   return std::get<0>(checkers<c>(man_.white.all() | man_.black.all())).any();
 }
@@ -764,7 +803,7 @@ std::tuple<board_history, board> board::after_uci_moves(const std::string& moves
     const move_list list = bd.generate_moves<>();
     const auto it = std::find_if(list.begin(), list.end(), [=](const move& mv) { return mv.name(bd.turn()) == move_name; });
     assert((it != list.end()));
-    history.push(bd.hash());
+    history.push(bd.sided_hash());
     bd = bd.forward(*it);
   }
   return std::tuple(history, bd);

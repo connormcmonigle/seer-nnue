@@ -17,23 +17,13 @@
 
 #pragma once
 
-#include <engine/command_lexer.h>
+namespace util {
 
-#include <tuple>
+template <typename T>
+constexpr void copy_swap(T& a, T& b) {
+  T c = a;
+  a = b;
+  b = c;
+}
 
-namespace engine::processor {
-
-template <typename A, typename B>
-struct receiver_combinator_type {
-  A processor_;
-  B receiver_;
-
-  template <typename... As>
-  void process(const lexed_command_view& view, const std::tuple<As...>& args) const noexcept {
-    processor_.process(view, args, receiver_);
-  }
-
-  constexpr receiver_combinator_type(const A& processor, const B& receiver) noexcept : processor_{processor}, receiver_{receiver} {}
-};
-
-}  // namespace engine::processor
+}

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <chess/types.h>
 #include <zobrist/util.h>
 
 #include <algorithm>
@@ -24,30 +25,45 @@
 
 namespace chess {
 
-template <typename T, typename U>
-struct base_history {
-  using value_type = U;
-  std::vector<value_type> history_;
+struct sided_zobrist_hash : public sided<sided_zobrist_hash, zobrist::hash_type> {
+  zobrist::hash_type white;
+  zobrist::hash_type black;
 
-  [[nodiscard]] constexpr T& cast() noexcept { return static_cast<T&>(*this); }
-  [[nodiscard]] const T& cast() const noexcept { return static_cast<const T&>(*this); }
-
-  [[maybe_unused]] T& clear() noexcept {
-    history_.clear();
-    return cast();
-  }
-
-  [[maybe_unused]] T& push(const value_type& elem) noexcept {
-    history_.push_back(elem);
-    return cast();
-  }
-
-  base_history() noexcept : history_{} {}
-  explicit base_history(const std::vector<value_type>& history) noexcept : history_{history} {}
+  constexpr sided_zobrist_hash() : white{}, black{} {}
+  constexpr sided_zobrist_hash(const zobrist::hash_type& white, const zobrist::hash_type& black) noexcept : white{white}, black{black} {}
 };
 
-struct board_history : base_history<board_history, zobrist::hash_type> {
-  [[nodiscard]] std::size_t count(const zobrist::hash_type& hash) const noexcept { return std::count(history_.crbegin(), history_.crend(), hash); }
+template <typename T, std::size_t N>
+struct circular_fixed_size_history {
+  static_assert((N != 0) && ((N & (N - 1)) == 0), "N must be a power of 2");
+
+  using value_type = T;
+  static constexpr std::size_t mask = N - 1;
+
+  std::size_t size_{};
+  T data_[N]{};
+
+  [[nodiscard]] constexpr T& at(const std::size_t& idx) noexcept { return data_[idx & mask]; }
+  [[nodiscard]] constexpr const T& at(const std::size_t& idx) const noexcept { return data_[idx & mask]; }
+
+  [[nodiscard]] constexpr T& future_at(const std::size_t& height) noexcept { return data_[(size_ + height) & mask]; }
+  [[nodiscard]] constexpr const T& future_at(const std::size_t& height) const noexcept { return data_[(size_ + height) & mask]; }
+
+  [[nodiscard]] std::size_t size() const noexcept { return size_; }
+  [[nodiscard]] std::size_t future_size(const std::size_t& height) const noexcept { return size_ + height; }
+
+  [[maybe_unused]] constexpr circular_fixed_size_history<T, N>& clear() noexcept {
+    size_ = std::size_t{};
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr circular_fixed_size_history<T, N>& push(const T& value) noexcept {
+    data_[size_ & mask] = value;
+    ++size_;
+    return *this;
+  }
 };
+
+using board_history = circular_fixed_size_history<sided_zobrist_hash, 4096>;
 
 }  // namespace chess

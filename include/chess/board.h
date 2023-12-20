@@ -69,6 +69,9 @@ struct board {
   [[nodiscard]] inline bool is_rule50_draw() const noexcept { return lat_.half_clock >= 100; }
   [[nodiscard]] inline zobrist::hash_type hash() const noexcept { return man_.hash() ^ lat_.hash(); }
   [[nodiscard]] inline zobrist::hash_type pawn_hash() const noexcept { return man_.pawn_hash(); }
+  [[nodiscard]] inline sided_zobrist_hash sided_hash() const noexcept {
+    return sided_zobrist_hash(man_.white.hash() ^ lat_.white.hash(), man_.black.hash() ^ lat_.black.hash());
+  }
 
   template <color c>
   [[nodiscard]] std::tuple<piece_type, square> least_valuable_attacker(const square& tgt, const square_set& ignore) const noexcept;
@@ -156,6 +159,11 @@ struct board {
 
   template <typename mode>
   [[nodiscard]] bool is_legal(const move& mv) const noexcept;
+
+  template <color c>
+  [[nodiscard]] inline bool upcoming_cycle_exists_(const std::size_t& height, const board_history& history) const noexcept;
+
+  [[nodiscard]] bool upcoming_cycle_exists(const std::size_t& height, const board_history& history) const noexcept;
 
   template <color c>
   [[nodiscard]] inline bool is_check_() const noexcept;

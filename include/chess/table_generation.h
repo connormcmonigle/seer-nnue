@@ -179,6 +179,32 @@ struct pawn_push_tbl_ {
   }
 };
 
+struct ray_between_tbl_ {
+  static constexpr std::size_t num_squares = 64;
+  std::array<square_set, num_squares * num_squares> data{};
+
+  template <typename T>
+  [[nodiscard]] constexpr const square_set& look_up(const T& from, const T& to) const noexcept {
+    static_assert(is_square_v<T>, "can only look up squares");
+    return data[from.index() * num_squares + to.index()];
+  }
+
+  constexpr ray_between_tbl_() noexcept {
+    auto do_ray = [this](const tbl_square from, const delta d) {
+      square_set mask{};
+      for (auto to = from.add(d); to.is_valid(); to = to.add(d)) {
+        data[from.index() * num_squares + to.index()] = mask;
+        mask.insert(to);
+      }
+    };
+
+    over_all([do_ray](const tbl_square from) {
+      for (const delta d : bishop_deltas()) { do_ray(from, d); }
+      for (const delta d : rook_deltas()) { do_ray(from, d); }
+    });
+  }
+};
+
 template <typename F, typename D>
 constexpr void over_all_slide_masks(const D& deltas, F&& f) noexcept {
   auto do_ray = [f](const tbl_square from, const delta d) {
@@ -266,6 +292,8 @@ inline constexpr stepper_attack_tbl pawn_attack_tbl = stepper_attack_tbl{piece_t
 
 template <color c>
 inline constexpr passer_tbl_<c> passer_tbl = passer_tbl_<c>{};
+
+inline constexpr ray_between_tbl_ ray_between_tbl{};
 
 inline constexpr stepper_attack_tbl knight_attack_tbl{piece_type::knight, knight_deltas()};
 inline constexpr stepper_attack_tbl king_attack_tbl{piece_type::king, king_deltas()};

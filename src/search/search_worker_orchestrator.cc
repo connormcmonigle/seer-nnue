@@ -18,6 +18,7 @@
 #include <search/search_worker_orchestrator.h>
 
 #include <algorithm>
+#include <numeric>
 
 namespace search {
 
