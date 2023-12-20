@@ -70,7 +70,7 @@ struct board {
   [[nodiscard]] inline zobrist::hash_type hash() const noexcept { return man_.hash() ^ lat_.hash(); }
   [[nodiscard]] inline zobrist::hash_type pawn_hash() const noexcept { return man_.pawn_hash(); }
   [[nodiscard]] inline sided_zobrist_hash sided_hash() const noexcept {
-    return sided_zobrist_hash(man_.white.hash() ^ lat_.white.hash(), man_.black.hash() ^ lat_.black.hash(), man_.hash() ^ lat_.hash());
+    return sided_zobrist_hash(man_.white.hash() ^ lat_.white.hash(), man_.black.hash() ^ lat_.black.hash());
   }
 
   template <color c>

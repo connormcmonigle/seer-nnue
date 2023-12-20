@@ -28,12 +28,9 @@ namespace chess {
 struct sided_zobrist_hash : public sided<sided_zobrist_hash, zobrist::hash_type> {
   zobrist::hash_type white;
   zobrist::hash_type black;
-  zobrist::hash_type hash;
 
-  constexpr sided_zobrist_hash() : white{}, black{}, hash{} {}
-
-  constexpr sided_zobrist_hash(const zobrist::hash_type& white, const zobrist::hash_type& black, const zobrist::hash_type& hash) noexcept
-      : white{white}, black{black}, hash{hash} {}
+  constexpr sided_zobrist_hash() : white{}, black{} {}
+  constexpr sided_zobrist_hash(const zobrist::hash_type& white, const zobrist::hash_type& black) noexcept : white{white}, black{black} {}
 };
 
 template <typename T, std::size_t N>
@@ -64,14 +61,6 @@ struct circular_fixed_size_history {
     data_[size_ & mask] = value;
     ++size_;
     return *this;
-  }
-
-  template <typename U>
-  [[nodiscard]] constexpr std::size_t count(const std::size_t& height, const U& value) const noexcept {
-    std::size_t count_value{};
-#pragma omp simd reduction(+ : count_value)
-    for (std::size_t i = 0; i < (size_ + height); ++i) { count_value += value == data_[i & mask].hash; }
-    return count_value;
   }
 };
 
