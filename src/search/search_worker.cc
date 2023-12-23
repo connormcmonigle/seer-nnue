@@ -502,11 +502,11 @@ void search_worker::iterative_deepening_loop() noexcept {
     // update aspiration window once reasonable evaluation is obtained
     if (internal.depth >= external.constants->aspiration_depth()) {
       const score_type previous_score = internal.score;
-      alpha = previous_score - aspiration_delta;
-      beta = previous_score + aspiration_delta;
+      alpha = previous_score - external.constants->aspiration_delta();
+      beta = previous_score + external.constants->aspiration_delta();
     }
 
-    score_type delta = aspiration_delta;
+    score_type delta = external.constants->aspiration_delta();
     depth_type consecutive_failed_high_count{0};
 
     for (;;) {

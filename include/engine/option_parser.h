@@ -98,7 +98,7 @@ struct check_option {
 };
 
 struct float_option {
-  using type = float;
+  using type = double;
 
   std::string name_;
   std::optional<type> default_{std::nullopt};
@@ -110,7 +110,7 @@ struct float_option {
   }
 
   explicit float_option(const std::string_view& name) noexcept : name_{name} {}
-  float_option(const std::string_view& name, const bool& def) noexcept : name_{name}, default_{def} {}
+  float_option(const std::string_view& name, const double& def) noexcept : name_{name}, default_{def} {}
 };
 
 std::ostream& operator<<(std::ostream& ostr, const string_option& opt) noexcept;
