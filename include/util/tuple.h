@@ -25,12 +25,12 @@ namespace util::tuple {
 
 template <typename T, typename F, std::size_t... I>
 constexpr void for_each_impl(T&& data, F&& f, std::index_sequence<I...>) noexcept {
-  auto map = [&f](auto&& x) {
+  [[maybe_unused]] auto map = [&f](auto&& x) {
     f(x);
     return 0;
   };
 
-  [[maybe_unused]] const auto ignored = {map(std::get<I>(data))...};
+  [[maybe_unused]] const auto ignored = {0, map(std::get<I>(data))...};
 }
 
 template <typename T, typename F>

@@ -38,4 +38,10 @@ std::ostream& operator<<(std::ostream& ostr, const check_option& opt) noexcept {
   return ostr;
 }
 
+std::ostream& operator<<(std::ostream& ostr, const float_option& opt) noexcept {
+  ostr << "option name " << opt.name_ << " type string";
+  if (opt.default_.has_value()) { ostr << " default " << opt.default_.value(); }
+  return ostr;
+}
+
 }  // namespace engine
