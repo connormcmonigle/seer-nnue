@@ -63,8 +63,6 @@ inline constexpr score_type tb_loss_score = -tb_win_score;
 
 inline constexpr score_type draw_score = 0;
 
-inline constexpr score_type aspiration_delta = 20;
-
 using counter_type = std::int32_t;
 
 using see_type = std::int32_t;
@@ -91,6 +89,8 @@ struct fixed_search_constants {
   [[nodiscard]] constexpr depth_type singular_extension_depth() const noexcept { return 6; }
   [[nodiscard]] constexpr depth_type probcut_depth() const noexcept { return 5; }
   [[nodiscard]] constexpr depth_type iir_depth() const noexcept { return 4; }
+
+  [[nodiscard]] constexpr depth_type aspiration_delta() const noexcept { return 20; }
 
   [[nodiscard]] constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const noexcept {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
@@ -169,6 +169,18 @@ struct fixed_search_constants {
   explicit fixed_search_constants(const std::size_t& thread_count = 1) noexcept { update_(thread_count); }
 };
 
+#define INTEGRAL_OPTION(VALUE, A, B)                                                                               \
+  engine::option_callback(engine::spin_option(#VALUE, VALUE, engine::spin_range((A), (B))), [this](const int& x) { \
+    VALUE = x;                                                                                                     \
+    update_(thread_count_);                                                                                        \
+  })
+
+#define FLOATING_OPTION(VALUE)                                                        \
+  engine::option_callback(engine::float_option(#VALUE, VALUE), [this](const double& x) { \
+    VALUE = x;                                                                           \
+    update_(thread_count_);                                                              \
+  })
+
 struct tuning_search_constants : fixed_search_constants {
   static constexpr bool tuning = true;
   static constexpr depth_type lmr_tbl_dim = 64;
@@ -188,6 +200,8 @@ struct tuning_search_constants : fixed_search_constants {
   depth_type singular_extension_depth_{fixed().singular_extension_depth()};
   depth_type probcut_depth_{fixed().probcut_depth()};
   depth_type iir_depth_{fixed().iir_depth()};
+
+  score_type aspiration_delta_{fixed().aspiration_delta()};
 
   see_type nmp_see_threshold_{fixed().nmp_see_threshold()};
   depth_type singular_extension_depth_margin_{fixed().singular_extension_depth_margin()};
@@ -228,11 +242,12 @@ struct tuning_search_constants : fixed_search_constants {
   [[nodiscard]] constexpr depth_type probcut_depth() const noexcept { return probcut_depth_; }
   [[nodiscard]] constexpr depth_type iir_depth() const noexcept { return iir_depth_; }
 
+  [[nodiscard]] constexpr score_type aspiration_delta() const noexcept { return aspiration_delta_; }
+
   [[nodiscard]] constexpr see_type nmp_see_threshold() const noexcept { return nmp_see_threshold_; }
 
   [[nodiscard]] constexpr depth_type singular_extension_depth_margin() const noexcept { return singular_extension_depth_margin_; }
   [[nodiscard]] constexpr score_type singular_double_extension_margin() const noexcept { return singular_double_extension_margin_; }
-
 
   [[nodiscard]] constexpr score_type futility_margin(const depth_type& depth) const noexcept {
     return futility_margin_m_ * static_cast<score_type>(depth);
@@ -261,12 +276,10 @@ struct tuning_search_constants : fixed_search_constants {
 
   [[nodiscard]] constexpr score_type delta_margin() const noexcept { return delta_margin_; }
 
-
   [[nodiscard]] constexpr see_type good_capture_prune_see_margin() const noexcept { return good_capture_prune_see_margin_; }
   [[nodiscard]] constexpr score_type good_capture_prune_score_margin() const noexcept { return good_capture_prune_score_margin_; }
 
   [[nodiscard]] constexpr score_type probcut_beta(const score_type& beta) const noexcept { return beta + probcut_beta_b_; }
-
 
   [[nodiscard]] constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const noexcept {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
@@ -283,7 +296,45 @@ struct tuning_search_constants : fixed_search_constants {
     return *this;
   }
 
-  auto options() noexcept { return engine::uci_options<>(); }
+  auto options() noexcept {
+    // clang-format off
+    return engine::uci_options(
+      INTEGRAL_OPTION(reduce_depth_, 1, 5),
+      INTEGRAL_OPTION(aspiration_depth_, 1, 7),
+      INTEGRAL_OPTION(nmp_depth_, 1, 5),
+      INTEGRAL_OPTION(snmp_depth_, 3, 11),
+      INTEGRAL_OPTION(futility_prune_depth_, 5, 11),
+      INTEGRAL_OPTION(quiet_see_prune_depth_, 4, 13),
+      INTEGRAL_OPTION(noisy_see_prune_depth_, 4, 13),
+      INTEGRAL_OPTION(singular_extension_depth_, 4, 10),
+      INTEGRAL_OPTION(probcut_depth_, 4, 8),
+      INTEGRAL_OPTION(iir_depth_, 2, 5),
+
+      INTEGRAL_OPTION(aspiration_delta_, 5, 35),
+      INTEGRAL_OPTION(nmp_see_threshold_, 150, 1000),
+      INTEGRAL_OPTION(singular_extension_depth_margin_, 1, 5),
+      INTEGRAL_OPTION(singular_double_extension_margin_, 70, 500),
+      INTEGRAL_OPTION(futility_margin_m_, 500, 2500),
+      INTEGRAL_OPTION(snmp_margin_m_, 100, 400),
+      INTEGRAL_OPTION(snmp_margin_b_, 25, 250),
+      
+      INTEGRAL_OPTION(quiet_see_prune_threshold_m_, -200, -25),
+      INTEGRAL_OPTION(noisy_see_prune_threshold_m_, -400, -100),
+      INTEGRAL_OPTION(history_prune_threshold_m_, -2048, -512),
+      
+      INTEGRAL_OPTION(history_reduction_div_, 4096, 8192),
+      INTEGRAL_OPTION(delta_margin_, 50, 450),
+
+      INTEGRAL_OPTION(good_capture_prune_see_margin_, 150, 1000),
+      INTEGRAL_OPTION(good_capture_prune_score_margin_, 128, 1024),
+      
+      INTEGRAL_OPTION(probcut_beta_b_, 100, 1000),
+
+      FLOATING_OPTION(lmr_b_),
+      FLOATING_OPTION(lmr_div_)
+    );
+    // clang-format on
+  }
 
   explicit tuning_search_constants(const std::size_t& thread_count = 1) noexcept { update_(thread_count); }
 };
