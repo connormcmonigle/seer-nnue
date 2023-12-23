@@ -172,6 +172,12 @@ void uci::id_info() noexcept {
   os << "uciok" << std::endl;
 }
 
+void uci::tune_config() noexcept {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (orchestrator_.is_searching()) { return; }
+  os << orchestrator_.constants_->options().ob_spsa_config() << std::endl;
+}
+
 void uci::bench() noexcept {
   std::lock_guard<std::mutex> lock(mutex_);
   if (orchestrator_.is_searching()) { return; }
@@ -284,6 +290,7 @@ void uci::read(const std::string& line) noexcept {
     // extensions
     sequential(consume("export"), emit<std::string>, invoke([&] (const std::string& export_path) { export_weights(export_path); })),
     sequential(consume("perft"), emit<search::depth_type>, invoke([&] (const search::depth_type& depth) { perft(depth); })),
+    sequential(consume("config"), invoke([&] { tune_config(); })),
     sequential(consume("bench"), invoke([&] { bench(); })),
     sequential(consume("probe"), invoke([&] { probe(); })),
     sequential(consume("eval"), invoke([&] { eval(); }))

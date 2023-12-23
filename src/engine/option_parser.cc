@@ -38,9 +38,16 @@ std::ostream& operator<<(std::ostream& ostr, const check_option& opt) noexcept {
   return ostr;
 }
 
-std::ostream& operator<<(std::ostream& ostr, const float_option& opt) noexcept {
+std::ostream& operator<<(std::ostream& ostr, const tune_int_option& opt) noexcept {
+  ostr << "option name " << opt.name_ << " type spin";
+  ostr << " default " << opt.default_;
+  ostr << " min " << opt.range_.min << " max " << opt.range_.max;
+  return ostr;
+}
+
+std::ostream& operator<<(std::ostream& ostr, const tune_float_option& opt) noexcept {
   ostr << "option name " << opt.name_ << " type string";
-  if (opt.default_.has_value()) { ostr << " default " << opt.default_.value(); }
+  ostr << " default " << opt.default_;
   return ostr;
 }
 
