@@ -78,6 +78,8 @@ std::size_t worker_orchestrator::tb_hits() const noexcept {
 
 search_worker& worker_orchestrator::primary_worker() noexcept { return *workers_[primary_id]; }
 
+std::shared_ptr<search_constants> worker_orchestrator::constants() noexcept { return constants_; }
+
 worker_orchestrator::worker_orchestrator(
     const nnue::quantized_weights* weights,
     std::size_t hash_table_size,

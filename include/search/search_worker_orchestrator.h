@@ -51,6 +51,7 @@ struct worker_orchestrator {
   [[nodiscard]] std::size_t tb_hits() const noexcept;
 
   [[nodiscard]] search_worker& primary_worker() noexcept;
+  [[nodiscard]] std::shared_ptr<search_constants> constants() noexcept;
 
   worker_orchestrator(
       const nnue::quantized_weights* weights,

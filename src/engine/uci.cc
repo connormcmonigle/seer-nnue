@@ -168,6 +168,7 @@ void uci::id_info() noexcept {
   os << "id name " << version::engine_name << " " << version::major << '.' << version::minor << '.' << version::patch << std::endl;
   os << "id author " << version::author_name << std::endl;
   os << options();
+  os << orchestrator_.constants()->options();
   os << "uciok" << std::endl;
 }
 
@@ -205,9 +206,9 @@ void uci::probe() noexcept {
   if (orchestrator_.is_searching()) { return; }
 
   if (position.is_rule50_draw()) {
-    std::cout << "rule 50 draw" << std::endl;
+    os << "rule 50 draw" << std::endl;
   } else if (const search::syzygy::tb_wdl_result result = search::syzygy::probe_wdl(position); result.success) {
-    std::cout << "success: " << [&] {
+    os << "success: " << [&] {
       switch (result.wdl) {
         case search::syzygy::wdl_type::loss: return "loss";
         case search::syzygy::wdl_type::draw: return "draw";
@@ -216,14 +217,14 @@ void uci::probe() noexcept {
       }
     }() << std::endl;
   } else {
-    std::cout << "fail" << std::endl;
+    os << "fail" << std::endl;
   }
 }
 
 void uci::perft(const search::depth_type& depth) noexcept {
   std::lock_guard<std::mutex> lock(mutex_);
   if (orchestrator_.is_searching()) { return; }
-  std::cout << get_perft_info(position, depth) << std::endl;
+  os << get_perft_info(position, depth) << std::endl;
 }
 
 void uci::read(const std::string& line) noexcept {
@@ -234,7 +235,9 @@ void uci::read(const std::string& line) noexcept {
   const auto processor = parallel(
     sequential(consume("uci"), invoke([&] { id_info(); })),
     sequential(consume("isready"), invoke([&] { ready(); })),
+
     options().processor(),
+    orchestrator_.constants()->options().processor(),
 
     sequential(consume("ucinewgame"), invoke([&] { new_game(); })),
     sequential(consume("position"), parallel(

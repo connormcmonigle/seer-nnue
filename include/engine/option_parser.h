@@ -97,12 +97,30 @@ struct check_option {
   check_option(const std::string_view& name, const bool& def) noexcept : name_{name}, default_{def} {}
 };
 
+struct float_option {
+  using type = float;
+
+  std::string name_;
+  std::optional<type> default_{std::nullopt};
+
+  template <typename F>
+  [[nodiscard]] auto processor_for(F&& target) const noexcept {
+    using namespace processor::def;
+    return sequential(consume("setoption"), consume("name"), consume(name_), consume("value"), emit<type>, invoke(target));
+  }
+
+  explicit float_option(const std::string_view& name) noexcept : name_{name} {}
+  float_option(const std::string_view& name, const bool& def) noexcept : name_{name}, default_{def} {}
+};
+
 std::ostream& operator<<(std::ostream& ostr, const string_option& opt) noexcept;
 std::ostream& operator<<(std::ostream& ostr, const spin_option& opt) noexcept;
 std::ostream& operator<<(std::ostream& ostr, const check_option& opt) noexcept;
+std::ostream& operator<<(std::ostream& ostr, const float_option& opt) noexcept;
 
 template <typename T>
-inline constexpr bool is_option_v = std::is_same_v<T, spin_option> || std::is_same_v<T, string_option> || std::is_same_v<T, check_option>;
+inline constexpr bool is_option_v =
+    std::is_same_v<T, spin_option> || std::is_same_v<T, string_option> || std::is_same_v<T, check_option> || std::is_same_v<T, float_option>;
 
 template <typename T>
 struct option_callback {

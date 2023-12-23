@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <engine/option_parser.h>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -75,6 +77,7 @@ struct fixed_search_constants final {
   std::size_t thread_count_;
   std::array<depth_type, lmr_tbl_dim * lmr_tbl_dim> lmr_tbl{};
 
+  [[nodiscard]] const fixed_search_constants& fixed() const noexcept { return *this; }
   [[nodiscard]] const std::size_t& thread_count() const noexcept { return thread_count_; }
 
   [[nodiscard]] constexpr depth_type reduce_depth() const noexcept { return 2; }
@@ -164,9 +167,130 @@ struct fixed_search_constants final {
     return *this;
   }
 
+  auto options() noexcept { return engine::uci_options<>(); }
+
   explicit fixed_search_constants(const std::size_t& thread_count = 1) noexcept { update_(thread_count); }
 };
 
-using search_constants = fixed_search_constants;
+struct tuning_search_constants : fixed_search_constants {
+  static constexpr bool tuning = true;
+  static constexpr depth_type lmr_tbl_dim = 64;
+  std::size_t thread_count_;
+  std::array<depth_type, lmr_tbl_dim * lmr_tbl_dim> lmr_tbl{};
+
+  depth_type reduce_depth_{fixed().reduce_depth()};
+  depth_type aspiration_depth_{fixed().aspiration_depth()};
+
+  depth_type nmp_depth_{fixed().nmp_depth()};
+  depth_type snmp_depth_{fixed().snmp_depth()};
+  depth_type futility_prune_depth_{fixed().futility_prune_depth()};
+
+  depth_type quiet_see_prune_depth_{fixed().quiet_see_prune_depth()};
+  depth_type noisy_see_prune_depth_{fixed().noisy_see_prune_depth()};
+
+  depth_type singular_extension_depth_{fixed().singular_extension_depth()};
+  depth_type probcut_depth_{fixed().probcut_depth()};
+  depth_type iir_depth_{fixed().iir_depth()};
+
+  see_type nmp_see_threshold_{fixed().nmp_see_threshold()};
+  depth_type singular_extension_depth_margin_{fixed().singular_extension_depth_margin()};
+  score_type singular_double_extension_margin_{fixed().singular_double_extension_margin()};
+
+  score_type futility_margin_m_{1536};
+
+  score_type snmp_margin_m_{288};
+  score_type snmp_margin_b_{128};
+
+  see_type quiet_see_prune_threshold_m_{-50};
+  see_type noisy_see_prune_threshold_m_{-100};
+
+  counter_type history_prune_threshold_m_{-1024};
+  counter_type history_reduction_div_{5000};
+
+  score_type delta_margin_{fixed().delta_margin()};
+
+  see_type good_capture_prune_see_margin_{fixed().good_capture_prune_see_margin()};
+  score_type good_capture_prune_score_margin_{fixed().good_capture_prune_score_margin()};
+
+  score_type probcut_beta_b_{320};
+
+  double lmr_b_{0.75};
+  double lmr_div_{2.25};
+
+  [[nodiscard]] constexpr depth_type reduce_depth() const noexcept { return reduce_depth_; }
+  [[nodiscard]] constexpr depth_type aspiration_depth() const noexcept { return aspiration_depth_; }
+  [[nodiscard]] constexpr depth_type nmp_depth() const noexcept { return nmp_depth_; }
+
+  [[nodiscard]] constexpr depth_type snmp_depth() const noexcept { return snmp_depth_; }
+  [[nodiscard]] constexpr depth_type futility_prune_depth() const noexcept { return futility_prune_depth_; }
+
+  [[nodiscard]] constexpr depth_type quiet_see_prune_depth() const noexcept { return quiet_see_prune_depth_; }
+  [[nodiscard]] constexpr depth_type noisy_see_prune_depth() const noexcept { return noisy_see_prune_depth_; }
+
+  [[nodiscard]] constexpr depth_type singular_extension_depth() const noexcept { return singular_extension_depth_; }
+  [[nodiscard]] constexpr depth_type probcut_depth() const noexcept { return probcut_depth_; }
+  [[nodiscard]] constexpr depth_type iir_depth() const noexcept { return iir_depth_; }
+
+  [[nodiscard]] constexpr see_type nmp_see_threshold() const noexcept { return nmp_see_threshold_; }
+
+  [[nodiscard]] constexpr depth_type singular_extension_depth_margin() const noexcept { return singular_extension_depth_margin_; }
+  [[nodiscard]] constexpr score_type singular_double_extension_margin() const noexcept { return singular_double_extension_margin_; }
+
+
+  [[nodiscard]] constexpr score_type futility_margin(const depth_type& depth) const noexcept {
+    return futility_margin_m_ * static_cast<score_type>(depth);
+  }
+
+  [[nodiscard]] constexpr score_type snmp_margin(const bool& improving, const bool& threats, const depth_type& depth) const noexcept {
+    return snmp_margin_m_ * static_cast<score_type>(depth - (improving && !threats)) + (threats ? snmp_margin_b_ : 0);
+  }
+
+  [[nodiscard]] constexpr see_type quiet_see_prune_threshold(const depth_type& depth) const noexcept {
+    return quiet_see_prune_threshold_m_ * static_cast<see_type>(depth);
+  }
+  [[nodiscard]] constexpr see_type noisy_see_prune_threshold(const depth_type& depth) const noexcept {
+    return noisy_see_prune_threshold_m_ * static_cast<see_type>(depth);
+  }
+
+  [[nodiscard]] constexpr counter_type history_prune_threshold(const depth_type& depth) const noexcept {
+    return history_prune_threshold_m_ * static_cast<counter_type>(depth * depth);
+  }
+
+  [[nodiscard]] constexpr depth_type history_reduction(const counter_type& history_value) const noexcept {
+    constexpr depth_type limit = 2;
+    const depth_type raw = -static_cast<depth_type>(history_value / history_reduction_div_);
+    return std::clamp(raw, -limit, limit);
+  }
+
+  [[nodiscard]] constexpr score_type delta_margin() const noexcept { return delta_margin_; }
+
+
+  [[nodiscard]] constexpr see_type good_capture_prune_see_margin() const noexcept { return good_capture_prune_see_margin_; }
+  [[nodiscard]] constexpr score_type good_capture_prune_score_margin() const noexcept { return good_capture_prune_score_margin_; }
+
+  [[nodiscard]] constexpr score_type probcut_beta(const score_type& beta) const noexcept { return beta + probcut_beta_b_; }
+
+
+  [[nodiscard]] constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const noexcept {
+    constexpr depth_type last_idx = lmr_tbl_dim - 1;
+    return lmr_tbl[std::min(last_idx, depth) * lmr_tbl_dim + std::min(last_idx, move_idx)];
+  }
+
+  [[maybe_unused]] tuning_search_constants& update_(const std::size_t& thread_count) noexcept {
+    thread_count_ = thread_count;
+    for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {
+      for (depth_type played{1}; played < lmr_tbl_dim; ++played) {
+        lmr_tbl[depth * lmr_tbl_dim + played] = static_cast<depth_type>(lmr_b_ + std::log(depth) * std::log(played) / lmr_div_);
+      }
+    }
+    return *this;
+  }
+
+  auto options() noexcept { return engine::uci_options<>(); }
+
+  explicit tuning_search_constants(const std::size_t& thread_count = 1) noexcept { update_(thread_count); }
+};
+
+using search_constants = tuning_search_constants;
 
 }  // namespace search
