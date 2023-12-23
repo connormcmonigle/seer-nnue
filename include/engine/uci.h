@@ -74,6 +74,7 @@ struct uci {
 
   void ready() noexcept;
   void id_info() noexcept;
+  void tune_config() noexcept;
 
   void bench() noexcept;
   void eval() noexcept;

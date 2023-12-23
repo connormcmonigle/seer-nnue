@@ -169,17 +169,20 @@ struct fixed_search_constants {
   explicit fixed_search_constants(const std::size_t& thread_count = 1) noexcept { update_(thread_count); }
 };
 
-#define INTEGRAL_OPTION(VALUE, A, B)                                                                               \
-  engine::option_callback(engine::spin_option(#VALUE, VALUE, engine::spin_range((A), (B))), [this](const int& x) { \
-    VALUE = x;                                                                                                     \
-    update_(thread_count_);                                                                                        \
-  })
+#define INTEGRAL_OPTION(VALUE, A, B, C_END, R_END)                                                                                             \
+  engine::option_callback(                                                                                                                     \
+      engine::tune_int_option(#VALUE, VALUE, engine::value_range<int>((A), (B))).set_c_end((C_END)).set_r_end((R_END)), [this](const int& x) { \
+        VALUE = x;                                                                                                                             \
+        update_(thread_count_);                                                                                                                \
+      })
 
-#define FLOATING_OPTION(VALUE)                                                        \
-  engine::option_callback(engine::float_option(#VALUE, VALUE), [this](const double& x) { \
-    VALUE = x;                                                                           \
-    update_(thread_count_);                                                              \
-  })
+#define FLOATING_OPTION(VALUE, A, B, C_END, R_END)                                                                           \
+  engine::option_callback(                                                                                                   \
+      engine::tune_float_option(#VALUE, VALUE, engine::value_range<double>((A), (B))).set_c_end((C_END)).set_r_end((R_END)), \
+      [this](const double& x) {                                                                                              \
+        VALUE = x;                                                                                                           \
+        update_(thread_count_);                                                                                              \
+      })
 
 struct tuning_search_constants : fixed_search_constants {
   static constexpr bool tuning = true;
@@ -309,46 +312,46 @@ struct tuning_search_constants : fixed_search_constants {
   auto options() noexcept {
     // clang-format off
     return engine::uci_options(
-      INTEGRAL_OPTION(reduce_depth_, 1, 5),
-      INTEGRAL_OPTION(aspiration_depth_, 1, 7),
-      INTEGRAL_OPTION(nmp_depth_, 1, 5),
-      INTEGRAL_OPTION(snmp_depth_, 3, 11),
-      INTEGRAL_OPTION(futility_prune_depth_, 5, 11),
-      INTEGRAL_OPTION(quiet_see_prune_depth_, 4, 13),
-      INTEGRAL_OPTION(noisy_see_prune_depth_, 4, 13),
-      INTEGRAL_OPTION(singular_extension_depth_, 4, 10),
-      INTEGRAL_OPTION(probcut_depth_, 4, 8),
-      INTEGRAL_OPTION(iir_depth_, 2, 5),
+      INTEGRAL_OPTION(reduce_depth_, 1, 5, 1, 0.002),
+      INTEGRAL_OPTION(aspiration_depth_, 1, 7, 1, 0.002),
+      INTEGRAL_OPTION(nmp_depth_, 1, 5, 1, 0.002),
+      INTEGRAL_OPTION(snmp_depth_, 3, 11, 1, 0.002),
+      INTEGRAL_OPTION(futility_prune_depth_, 5, 11, 1, 0.002),
+      INTEGRAL_OPTION(quiet_see_prune_depth_, 4, 13, 1, 0.002),
+      INTEGRAL_OPTION(noisy_see_prune_depth_, 4, 13, 1, 0.002),
+      INTEGRAL_OPTION(singular_extension_depth_, 4, 10, 1, 0.002),
+      INTEGRAL_OPTION(probcut_depth_, 4, 8, 1, 0.002),
+      INTEGRAL_OPTION(iir_depth_, 2, 5, 1, 0.002),
 
-      INTEGRAL_OPTION(aspiration_delta_, 5, 35),
+      INTEGRAL_OPTION(aspiration_delta_, 5, 35, 4, 0.002),
+    
+      INTEGRAL_OPTION(nmp_see_threshold_, 150, 1000, 25, 0.002),
+      INTEGRAL_OPTION(nmp_reduction_depth_b_, 2, 11, 1, 0.002),
+      INTEGRAL_OPTION(nmp_reduction_depth_div_, 3, 9, 1, 0.002),
+      INTEGRAL_OPTION(nmp_reduction_eval_delta_div_, 100, 400, 10, 0.002),
+      INTEGRAL_OPTION(nmp_reduction_eval_delta_based_depth_limit_, 2, 5, 1, 0.002),
+
+      INTEGRAL_OPTION(singular_extension_depth_margin_, 1, 5, 1, 0.002),
+      INTEGRAL_OPTION(singular_double_extension_margin_, 70, 500, 10, 0.002),
+
+      INTEGRAL_OPTION(futility_margin_m_, 500, 2500, 10, 0.002),
+      INTEGRAL_OPTION(snmp_margin_m_, 100, 400, 10, 0.002),
+      INTEGRAL_OPTION(snmp_margin_b_, 25, 250, 10, 0.002),
       
-      INTEGRAL_OPTION(nmp_see_threshold_, 150, 1000),
-      INTEGRAL_OPTION(nmp_reduction_depth_b_, 2, 11),
-      INTEGRAL_OPTION(nmp_reduction_depth_div_, 3, 9),
-      INTEGRAL_OPTION(nmp_reduction_eval_delta_div_, 100, 400),
-      INTEGRAL_OPTION(nmp_reduction_eval_delta_based_depth_limit_, 2, 5),
-
-      INTEGRAL_OPTION(singular_extension_depth_margin_, 1, 5),
-      INTEGRAL_OPTION(singular_double_extension_margin_, 70, 500),
-
-      INTEGRAL_OPTION(futility_margin_m_, 500, 2500),
-      INTEGRAL_OPTION(snmp_margin_m_, 100, 400),
-      INTEGRAL_OPTION(snmp_margin_b_, 25, 250),
+      INTEGRAL_OPTION(quiet_see_prune_threshold_m_, -200, -25, 25, 0.002),
+      INTEGRAL_OPTION(noisy_see_prune_threshold_m_, -400, -100, 25, 0.002),
+      INTEGRAL_OPTION(history_prune_threshold_m_, -2048, -512, 250, 0.002),
       
-      INTEGRAL_OPTION(quiet_see_prune_threshold_m_, -200, -25),
-      INTEGRAL_OPTION(noisy_see_prune_threshold_m_, -400, -100),
-      INTEGRAL_OPTION(history_prune_threshold_m_, -2048, -512),
-      
-      INTEGRAL_OPTION(history_reduction_div_, 4096, 8192),
-      INTEGRAL_OPTION(delta_margin_, 50, 450),
+      INTEGRAL_OPTION(history_reduction_div_, 4096, 8192, 450, 0.002),
+      INTEGRAL_OPTION(delta_margin_, 50, 450, 10, 0.002),
 
-      INTEGRAL_OPTION(good_capture_prune_see_margin_, 150, 1000),
-      INTEGRAL_OPTION(good_capture_prune_score_margin_, 128, 1024),
+      INTEGRAL_OPTION(good_capture_prune_see_margin_, 150, 1000, 50, 0.002),
+      INTEGRAL_OPTION(good_capture_prune_score_margin_, 128, 1024, 10, 0.002),
       
-      INTEGRAL_OPTION(probcut_beta_b_, 100, 1000),
+      INTEGRAL_OPTION(probcut_beta_b_, 100, 1000, 10, 0.002),
 
-      FLOATING_OPTION(lmr_b_),
-      FLOATING_OPTION(lmr_div_)
+      FLOATING_OPTION(lmr_b_, 0.0, 2.5, 0.1, 0.002),
+      FLOATING_OPTION(lmr_div_, 1.0, 3.0, 0.1, 0.002)
     );
     // clang-format on
   }
