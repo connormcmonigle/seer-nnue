@@ -346,7 +346,7 @@ struct tuning_search_constants : fixed_search_constants {
       INTEGRAL_OPTION(history_prune_threshold_m_, -2048, -512, 250, 0.002),
       
       INTEGRAL_OPTION(history_reduction_div_, 4096, 8192, 450, 0.002),
-      INTEGRAL_OPTION(delta_margin_, 50, 450, 10, 0.002),
+      INTEGRAL_OPTION(delta_margin_, 256, 1024, 10, 0.002),
 
       INTEGRAL_OPTION(good_capture_prune_see_margin_, 150, 1000, 50, 0.002),
       INTEGRAL_OPTION(good_capture_prune_score_margin_, 128, 1024, 10, 0.002),
