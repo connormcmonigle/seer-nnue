@@ -207,6 +207,11 @@ struct tuning_search_constants : fixed_search_constants {
   depth_type singular_extension_depth_margin_{fixed().singular_extension_depth_margin()};
   score_type singular_double_extension_margin_{fixed().singular_double_extension_margin()};
 
+  score_type nmp_reduction_depth_b_{4};
+  score_type nmp_reduction_depth_div_{6};
+  score_type nmp_reduction_eval_delta_div_{256};
+  score_type nmp_reduction_eval_delta_based_depth_limit_{3};
+
   score_type futility_margin_m_{1536};
 
   score_type snmp_margin_m_{288};
@@ -243,6 +248,11 @@ struct tuning_search_constants : fixed_search_constants {
   [[nodiscard]] constexpr depth_type iir_depth() const noexcept { return iir_depth_; }
 
   [[nodiscard]] constexpr score_type aspiration_delta() const noexcept { return aspiration_delta_; }
+
+  [[nodiscard]] constexpr depth_type nmp_reduction(const depth_type& depth, const score_type& beta, const score_type& value) const noexcept {
+    return nmp_reduction_depth_b_ + depth / nmp_reduction_depth_div_ +
+           std::min(nmp_reduction_eval_delta_based_depth_limit_, (value - beta) / nmp_reduction_eval_delta_div_);
+  }
 
   [[nodiscard]] constexpr see_type nmp_see_threshold() const noexcept { return nmp_see_threshold_; }
 
@@ -311,9 +321,16 @@ struct tuning_search_constants : fixed_search_constants {
       INTEGRAL_OPTION(iir_depth_, 2, 5),
 
       INTEGRAL_OPTION(aspiration_delta_, 5, 35),
+      
       INTEGRAL_OPTION(nmp_see_threshold_, 150, 1000),
+      INTEGRAL_OPTION(nmp_reduction_depth_b_, 2, 11),
+      INTEGRAL_OPTION(nmp_reduction_depth_div_, 3, 9),
+      INTEGRAL_OPTION(nmp_reduction_eval_delta_div_, 100, 400),
+      INTEGRAL_OPTION(nmp_reduction_eval_delta_based_depth_limit_, 2, 5),
+
       INTEGRAL_OPTION(singular_extension_depth_margin_, 1, 5),
       INTEGRAL_OPTION(singular_double_extension_margin_, 70, 500),
+
       INTEGRAL_OPTION(futility_margin_m_, 500, 2500),
       INTEGRAL_OPTION(snmp_margin_m_, 100, 400),
       INTEGRAL_OPTION(snmp_margin_b_, 25, 250),
