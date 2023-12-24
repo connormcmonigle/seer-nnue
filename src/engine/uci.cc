@@ -175,7 +175,7 @@ void uci::id_info() noexcept {
 void uci::tune_config() noexcept {
   std::lock_guard<std::mutex> lock(mutex_);
   if (orchestrator_.is_searching()) { return; }
-  os << orchestrator_.constants_->options().ob_spsa_config() << std::endl;
+  os << orchestrator_.constants()->options().ob_spsa_config() << std::endl;
 }
 
 void uci::bench() noexcept {
@@ -235,7 +235,6 @@ void uci::read(const std::string& line) noexcept {
   using namespace processor::def;
 
   // clang-format off
-  
   const auto processor = parallel(
     sequential(consume("uci"), invoke([&] { id_info(); })),
     sequential(consume("isready"), invoke([&] { ready(); })),
@@ -293,7 +292,6 @@ void uci::read(const std::string& line) noexcept {
     sequential(consume("probe"), invoke([&] { probe(); })),
     sequential(consume("eval"), invoke([&] { eval(); }))
   );
-
   // clang-format on
 
   const auto lexed = command_lexer{}.lex(line);

@@ -169,7 +169,7 @@ struct fixed_search_constants {
   explicit fixed_search_constants(const std::size_t& thread_count = 1) noexcept { update_(thread_count); }
 };
 
-#define INTEGRAL_OPTION(VALUE, A, B, C_END, R_END) tuning_option_<std::int32_t>(#VALUE, VALUE, (A), (B), (C_END), (R_END))
+#define INTEGRAL_OPTION(VALUE, A, B, C_END, R_END) tuning_option_<int>(#VALUE, VALUE, (A), (B), (C_END), (R_END))
 #define FLOATING_OPTION(VALUE, A, B, C_END, R_END) tuning_option_<double>(#VALUE, VALUE, (A), (B), (C_END), (R_END))
 
 struct tuning_search_constants : fixed_search_constants {
@@ -178,8 +178,8 @@ struct tuning_search_constants : fixed_search_constants {
 
   template<typename T>
   auto tuning_option_(std::string name, T& value, T a, T b, double c_end, double r_end) {
-    const auto option = engine::tune_option<T>(name, value, engine::value_range(a, b)).set_c_end((c_end)).set_r_end((r_end));
-    return engine::option_callback(option, [this, &value](const double& x) {
+    const auto option = engine::tune_option<T>(name, value, engine::value_range(a, b)).set_c_end(c_end).set_r_end(r_end);
+    return engine::option_callback(option, [this, &value](const T& x) {
       value = x;
       update_(thread_count_);
     });
