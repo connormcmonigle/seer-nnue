@@ -407,7 +407,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
         reduction = std::max(0, reduction);
 
-        lmr_depth = std::max(1, next_depth - reduction);
+        lmr_depth = std::max(0, next_depth - reduction);
         zw_score = zero_width(lmr_depth);
       }
 
