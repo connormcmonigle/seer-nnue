@@ -405,7 +405,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
         if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
-        reduction = std::max(0, reduction);
+        reduction = std::max(-1, reduction);
 
         lmr_depth = std::max(1, next_depth - reduction);
         zw_score = zero_width(lmr_depth);
