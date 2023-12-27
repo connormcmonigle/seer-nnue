@@ -461,7 +461,7 @@ void search_worker::iterative_deepening_loop() noexcept {
   internal.reset_cache.reinitialize(external.weights);
   nnue::eval_node root_node = nnue::eval_node::clean_node([this] {
     nnue::eval result(external.weights, &internal.scratchpad, 0, 0);
-    internal.stack.root().feature_full_reset(result);
+    internal.stack.root().full_feature_reset(result);
     return result;
   }());
 

@@ -192,7 +192,7 @@ void uci::eval() noexcept {
 
   auto scratchpad = std::make_unique<nnue::eval::scratchpad_type>();
   auto evaluator = nnue::eval(&weights_, scratchpad.get(), 0, 0);
-  position.feature_full_reset(evaluator);
+  position.full_feature_reset(evaluator);
 
   os << "phase: " << position.phase<nnue::weights::parameter_type>() << std::endl;
   os << "score(phase): " << evaluator.evaluate(position.turn(), position.phase<nnue::weights::parameter_type>()) << std::endl;

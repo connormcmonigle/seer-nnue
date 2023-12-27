@@ -199,8 +199,10 @@ struct board {
 
   [[nodiscard]] board mirrored() const noexcept;
 
+  [[nodiscard]] constexpr bool requires_feature_reset(const move& mv) const noexcept { return mv.is_king_move(); }
+
   template <typename T>
-  void feature_full_reset(T& sided_set) const {
+  void full_feature_reset(T& sided_set) const {
     namespace h_ka = feature::half_ka;
 
     const square white_king = man_.white.king().item();
@@ -224,8 +226,64 @@ struct board {
     });
   }
 
+  template <typename T0, typename T1>
+  void full_feature_reset_with_cache(T0& feature_reset_cache, T1& sided_set) const {
+    namespace h_ka = feature::half_ka;
+
+    const square white_king = man_.white.king().item();
+    const square black_king = man_.black.king().item();
+
+    sided_set.white.clear();
+    sided_set.black.clear();
+
+    auto& white_entry = feature_reset_cache.white.look_up(white_king);
+    auto& black_entry = feature_reset_cache.black.look_up(black_king);
+
+    sided_piece_configuration& white_config = white_entry.config;
+    sided_piece_configuration& black_config = black_entry.config;
+
+    over_types([&](const piece_type& pt) {
+      auto& entry = white_entry;
+      auto& config = white_config;
+
+      const square_set white_entry_plane = config.white.get_plane(pt);
+      const square_set black_entry_plane = config.black.get_plane(pt);
+      const square_set white_board_plane = man_.white.get_plane(pt);
+      const square_set black_board_plane = man_.black.get_plane(pt);
+
+      for (const auto sq : white_entry_plane & ~white_board_plane) { entry.erase(h_ka::index<color::white, color::white>(white_king, pt, sq)); }
+      for (const auto sq : black_entry_plane & ~black_board_plane) { entry.erase(h_ka::index<color::white, color::black>(white_king, pt, sq)); }
+      for (const auto sq : white_board_plane & ~white_entry_plane) { entry.insert(h_ka::index<color::white, color::white>(white_king, pt, sq)); }
+      for (const auto sq : black_board_plane & ~black_entry_plane) { entry.insert(h_ka::index<color::white, color::black>(white_king, pt, sq)); }
+
+      config.white.set_plane(pt, white_board_plane);
+      config.black.set_plane(pt, black_board_plane);
+    });
+
+    over_types([&](const piece_type& pt) {
+      auto& entry = black_entry;
+      auto& config = black_config;
+
+      const square_set white_entry_plane = config.white.get_plane(pt);
+      const square_set black_entry_plane = config.black.get_plane(pt);
+      const square_set white_board_plane = man_.white.get_plane(pt);
+      const square_set black_board_plane = man_.black.get_plane(pt);
+
+      for (const auto sq : white_entry_plane & ~white_board_plane) { entry.erase(h_ka::index<color::black, color::white>(black_king, pt, sq)); }
+      for (const auto sq : black_entry_plane & ~black_board_plane) { entry.erase(h_ka::index<color::black, color::black>(black_king, pt, sq)); }
+      for (const auto sq : white_board_plane & ~white_entry_plane) { entry.insert(h_ka::index<color::black, color::white>(black_king, pt, sq)); }
+      for (const auto sq : black_board_plane & ~black_entry_plane) { entry.insert(h_ka::index<color::black, color::black>(black_king, pt, sq)); }
+
+      config.white.set_plane(pt, white_board_plane);
+      config.black.set_plane(pt, black_board_plane);
+    });
+
+    white_entry.copy_state_to(sided_set.white);
+    black_entry.copy_state_to(sided_set.black);
+  }
+
   template <color c, typename T0, typename T1>
-  void half_feature_partial_reset_(const move& mv, T0& feature_reset_cache, T1& sided_set) const {
+  void half_feature_partial_reset_with_cache_(const move& mv, T0& feature_reset_cache, T1& sided_set) const {
     namespace h_ka = feature::half_ka;
     const square our_king = mv.to();
 
@@ -243,7 +301,7 @@ struct board {
       }();
 
       for (const auto sq : them_entry_plane & ~them_board_plane) { entry.erase(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
-      for (const auto sq : (us_entry_plane & ~us_board_plane)) { entry.erase(h_ka::index<c, c>(our_king, pt, sq)); }
+      for (const auto sq : us_entry_plane & ~us_board_plane) { entry.erase(h_ka::index<c, c>(our_king, pt, sq)); }
 
       for (const auto sq : them_board_plane & ~them_entry_plane) { entry.insert(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
       for (const auto sq : us_board_plane & ~us_entry_plane) { entry.insert(h_ka::index<c, c>(our_king, pt, sq)); }
@@ -286,12 +344,12 @@ struct board {
     namespace h_ka = feature::half_ka;
 
     if (mv.is_castle_oo<c>() || mv.is_castle_ooo<c>()) {
-      forward_<c>(mv).feature_full_reset(sided_set);
+      forward_<c>(mv).full_feature_reset(sided_set);
       return;
     }
 
     if (mv.is_king_move()) {
-      half_feature_partial_reset_<c>(mv, feature_reset_cache, sided_set);
+      half_feature_partial_reset_with_cache_<c>(mv, feature_reset_cache, sided_set);
       half_feature_move_delta_<opponent<c>, c>(mv, sided_set);
       return;
     }
