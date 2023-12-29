@@ -55,10 +55,11 @@ struct eval_correction_history {
     return score_type{};
   }
 
-  void update(const zobrist::hash_type& feature_hash, const bound_type& bound, const score_type& delta) noexcept {
+  void update(const zobrist::hash_type& feature_hash, const bound_type& bound, const depth_type& depth, const score_type& delta) noexcept {
     static constexpr score_type delta_limit = 192;
     static constexpr score_type score_correction_limit = 256;
     static constexpr score_type ridge_regression_coefficient = 4;
+    static constexpr score_type depth_weight_divisor = 16;
 
     if (bound == bound_type::upper && delta <= 0) { return; }
     if (bound == bound_type::lower && delta >= 0) { return; }
@@ -66,7 +67,8 @@ struct eval_correction_history {
     auto& entry = data[hash_function(feature_hash)];
     if (entry.hash != zobrist::upper_half(feature_hash)) { entry = eval_correction_history_entry::make(zobrist::upper_half(feature_hash)); }
 
-    entry.correction -= std::clamp(delta, -delta_limit, delta_limit) + entry.correction / ridge_regression_coefficient;
+    const score_type weighted_delta = delta + (delta * depth) / depth_weight_divisor;
+    entry.correction -= std::clamp(weighted_delta, -delta_limit, delta_limit) + entry.correction / ridge_regression_coefficient;
     entry.correction = std::clamp(entry.correction, -score_correction_limit, score_correction_limit);
   }
 
