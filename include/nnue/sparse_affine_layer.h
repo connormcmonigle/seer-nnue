@@ -32,20 +32,25 @@ struct sparse_affine_layer {
   T* W{nullptr};
   alignas(simd::alignment) T b[b_numel];
 
-  [[nodiscard]] constexpr std::size_t num_parameters() const { return W_numel + b_numel; }
+  [[nodiscard]] constexpr std::size_t num_parameters() const noexcept { return W_numel + b_numel; }
 
-  void insert_idx(const std::size_t idx, aligned_slice<T, b_numel> x) const {
+  void prefetch(const std::size_t idx) const noexcept {
+    const T* mem_region = W + idx * dim1;
+    __builtin_prefetch(mem_region);
+  }
+
+  void insert_idx(const std::size_t idx, aligned_slice<T, b_numel> x) const noexcept {
     const T* mem_region = W + idx * dim1;
     simd::add<b_numel>(x.data, mem_region);
   }
 
-  void erase_idx(const std::size_t idx, aligned_slice<T, b_numel> x) const {
+  void erase_idx(const std::size_t idx, aligned_slice<T, b_numel> x) const noexcept {
     const T* mem_region = W + idx * dim1;
     simd::sub<b_numel>(x.data, mem_region);
   }
 
   void insert_erase_idx(
-      const std::size_t insert_idx, const std::size_t erase_idx, const aligned_slice<T, b_numel>& src, aligned_slice<T, b_numel> dst) const {
+      const std::size_t insert_idx, const std::size_t erase_idx, const aligned_slice<T, b_numel>& src, aligned_slice<T, b_numel> dst) const noexcept {
     const T* insert_mem_region = W + insert_idx * dim1;
     const T* erase_mem_region = W + erase_idx * dim1;
     simd::add_add_sub<b_numel>(src.data, insert_mem_region, erase_mem_region, dst.data);

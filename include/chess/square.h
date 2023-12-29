@@ -52,6 +52,8 @@ struct square {
     static_assert(std::is_integral_v<I>, "square index must be of integral type");
     return square(static_cast<data_type>(1) << static_cast<data_type>(index));
   }
+
+  static constexpr square none() noexcept { return square(data_type{}); }
 };
 
 std::ostream& operator<<(std::ostream& ostr, const square& sq) noexcept;

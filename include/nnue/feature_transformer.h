@@ -42,6 +42,8 @@ struct feature_transformer {
   aligned_slice<T, dim1> parent_slice_;
   aligned_slice<T, dim1> slice_;
 
+  void prefetch(const std::size_t& idx) const noexcept { weights_->prefetch(idx); }
+
   void clear() noexcept { slice_.copy_from(weights_->b); }
   void copy_parent() noexcept { slice_.copy_from(parent_slice_); }
   void insert(const std::size_t& idx) noexcept { weights_->insert_idx(idx, slice_); }

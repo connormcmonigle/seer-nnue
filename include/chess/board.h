@@ -241,9 +241,10 @@ struct board {
         if (pt == piece_type::king) { return square_set::of(our_king); }
         return man_.us<c>().get_plane(pt).excluding(mv.from());
       }();
-
+      
+      auto last = square::none();
       for (const auto sq : them_entry_plane & ~them_board_plane) { entry.erase(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
-      for (const auto sq : (us_entry_plane & ~us_board_plane)) { entry.erase(h_ka::index<c, c>(our_king, pt, sq)); }
+      for (const auto sq : us_entry_plane & ~us_board_plane) { entry.erase(h_ka::index<c, c>(our_king, pt, sq)); }
 
       for (const auto sq : them_board_plane & ~them_entry_plane) { entry.insert(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
       for (const auto sq : us_board_plane & ~us_entry_plane) { entry.insert(h_ka::index<c, c>(our_king, pt, sq)); }
