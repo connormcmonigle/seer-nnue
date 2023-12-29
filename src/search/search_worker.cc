@@ -101,7 +101,6 @@ score_type search_worker::q_search(
     const chess::board bd_ = bd.forward(mv);
     external.tt->prefetch(bd_.hash());
     internal.cache.prefetch(bd_.hash());
-    internal.correction.us(bd_.turn()).prefetch(bd_.pawn_hash());
     nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
     const score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_node_, bd_, -beta, -alpha, elevation + 1);
@@ -268,7 +267,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
       const chess::board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-      internal.correction.us(bd_.turn()).prefetch(bd_.pawn_hash());
       nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
       auto pv_score = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
@@ -344,7 +342,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     external.tt->prefetch(bd_.hash());
     internal.cache.prefetch(bd_.hash());
-    internal.correction.us(bd_.turn()).prefetch(bd_.pawn_hash());
     nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
     // step 12. extensions
