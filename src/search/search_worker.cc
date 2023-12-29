@@ -56,9 +56,11 @@ score_type search_worker::q_search(
                               !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
                                                                  eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
-    if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
+    if (!is_check) {
+      internal.cache.insert(bd.hash(), static_value);
+      static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
+    }
 
-    static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
     score_type value = static_value;
 
     if (use_tt && maybe.has_value()) {
@@ -202,9 +204,11 @@ pv_search_result_t<is_root> search_worker::pv_search(
                               !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
                                                                  eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
-    if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
+    if (!is_check) {
+      internal.cache.insert(bd.hash(), static_value);
+      static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
+    }
 
-    static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
     score_type value = static_value;
 
     if (maybe.has_value()) {
@@ -454,9 +458,13 @@ pv_search_result_t<is_root> search_worker::pv_search(
       ss.set_killer(best_move);
     }
 
+    if (!is_check && best_move.is_quiet()) {
+      const score_type delta = static_value - best_score;
+      internal.correction.us(bd.turn()).update(bd.pawn_hash(), bound, delta);
+    }
+
     const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);
     external.tt->insert(entry);
-    internal.correction.us(bd.turn()).update(bd.pawn_hash(), bound, static_value - best_score);
   }
 
   return make_result(best_score, best_move);
