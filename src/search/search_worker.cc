@@ -58,7 +58,7 @@ score_type search_worker::q_search(
 
     if (!is_check) {
       internal.cache.insert(bd.hash(), static_value);
-      static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
+      static_value += internal.correction.us(bd.turn()).correction_for(bd.king_pawn_hash());
     }
 
     score_type value = static_value;
@@ -205,7 +205,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     if (!is_check) {
       internal.cache.insert(bd.hash(), static_value);
-      static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
+      static_value += internal.correction.us(bd.turn()).correction_for(bd.king_pawn_hash());
     }
 
     score_type value = static_value;
@@ -457,7 +457,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     if (!is_check && best_move.is_quiet()) {
       const score_type error = best_score - static_value;
-      internal.correction.us(bd.turn()).update(bd.pawn_hash(), bound, error);
+      internal.correction.us(bd.turn()).update(bd.king_pawn_hash(), bound, error);
     }
 
     const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);
