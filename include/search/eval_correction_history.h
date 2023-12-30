@@ -40,20 +40,20 @@ struct eval_correction_history {
     return raw_correction / eval_correction_scale;
   }
 
-  void update(const zobrist::hash_type& feature_hash, const bound_type& bound, const score_type& delta) noexcept {
+  void update(const zobrist::hash_type& feature_hash, const bound_type& bound, const score_type& error) noexcept {
     constexpr score_type score_correction_limit = 65536;
 
     constexpr score_type filter_alpha = 1;
     constexpr score_type filter_c_alpha = 255;
     constexpr score_type filter_divisor = filter_alpha + filter_c_alpha;
 
-    if (bound == bound_type::upper && delta <= 0) { return; }
-    if (bound == bound_type::lower && delta >= 0) { return; }
+    if (bound == bound_type::upper && error >= 0) { return; }
+    if (bound == bound_type::lower && error <= 0) { return; }
 
     auto& correction = data[hash_function(feature_hash)];
 
-    const score_type scaled_delta = delta * eval_correction_scale;
-    correction = (correction * filter_c_alpha - scaled_delta * filter_alpha) / filter_divisor;
+    const score_type scaled_error = error * eval_correction_scale;
+    correction = (correction * filter_c_alpha + scaled_error * filter_alpha) / filter_divisor;
     correction = std::clamp(correction, -score_correction_limit, score_correction_limit);
   }
 

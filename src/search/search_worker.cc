@@ -456,8 +456,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
     }
 
     if (!is_check && best_move.is_quiet()) {
-      const score_type delta = static_value - best_score;
-      internal.correction.us(bd.turn()).update(bd.pawn_hash(), bound, delta);
+      const score_type error = best_score - static_value;
+      internal.correction.us(bd.turn()).update(bd.pawn_hash(), bound, error);
     }
 
     const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);
