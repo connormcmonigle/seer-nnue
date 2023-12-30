@@ -25,50 +25,39 @@
 
 namespace search {
 
-struct eval_correction_history_entry {
-  zobrist::half_hash_type hash{};
-  score_type correction{};
-
-  static constexpr eval_correction_history_entry initial(const zobrist::half_hash_type& hash) {
-    return eval_correction_history_entry{hash, score_type{}};
-  }
-};
-
 struct eval_correction_history {
-  static constexpr size_t N = 131072;
+  static constexpr size_t N = 4096;
   static constexpr size_t mask = N - 1;
   static_assert((N & mask) == 0);
+  static constexpr score_type eval_correction_scale = 256;
 
-  std::array<eval_correction_history_entry, N> data{};
+  std::array<score_type, N> data{};
 
   [[nodiscard]] static constexpr std::size_t hash_function(const zobrist::hash_type& feature_hash) noexcept { return feature_hash & mask; }
-  inline void prefetch(const zobrist::hash_type& feature_hash) const noexcept { __builtin_prefetch(data.data() + hash_function(feature_hash)); }
 
-  [[nodiscard]] constexpr score_type correction_for(const zobrist::hash_type& feature_hash) const noexcept {
-    constexpr score_type correction_divisor = 8;
-
-    if (data[hash_function(feature_hash)].hash == zobrist::upper_half(feature_hash)) {
-      const score_type raw_correction = data[hash_function(feature_hash)].correction;
-      return raw_correction / correction_divisor;
-    }
-
-    return score_type{};
+  [[nodiscard]] inline score_type correction_for(const zobrist::hash_type& feature_hash) const noexcept {
+    const score_type raw_correction = data[hash_function(feature_hash)];
+    return raw_correction / eval_correction_scale;
   }
 
   void update(const zobrist::hash_type& feature_hash, const bound_type& bound, const score_type& delta) noexcept {
-    static constexpr score_type score_correction_limit = 256;
+    constexpr score_type score_correction_limit = 65536;
+
+    constexpr score_type filter_alpha = 1;
+    constexpr score_type filter_c_alpha = 255;
+    constexpr score_type filter_divisor = filter_alpha + filter_c_alpha;
 
     if (bound == bound_type::upper && delta <= 0) { return; }
     if (bound == bound_type::lower && delta >= 0) { return; }
 
-    auto& entry = data[hash_function(feature_hash)];
-    if (entry.hash != zobrist::upper_half(feature_hash)) { entry = eval_correction_history_entry::initial(zobrist::upper_half(feature_hash)); }
+    auto& correction = data[hash_function(feature_hash)];
 
-    entry.correction -= delta;
-    entry.correction = std::clamp(entry.correction, -score_correction_limit, score_correction_limit);
+    const score_type scaled_delta = delta * eval_correction_scale;
+    correction = (correction * filter_c_alpha - scaled_delta * filter_alpha) / filter_divisor;
+    correction = std::clamp(correction, -score_correction_limit, score_correction_limit);
   }
 
-  void clear() noexcept { return data.fill(eval_correction_history_entry{}); }
+  void clear() noexcept { return data.fill(score_type{}); }
 };
 
 struct sided_eval_correction_history : public chess::sided<sided_eval_correction_history, eval_correction_history> {

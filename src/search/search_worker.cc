@@ -56,9 +56,11 @@ score_type search_worker::q_search(
                               !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
                                                                  eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
-    if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
+    if (!is_check) {
+      internal.cache.insert(bd.hash(), static_value);
+      static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
+    }
 
-    static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
     score_type value = static_value;
 
     if (use_tt && maybe.has_value()) {
@@ -99,7 +101,6 @@ score_type search_worker::q_search(
     const chess::board bd_ = bd.forward(mv);
     external.tt->prefetch(bd_.hash());
     internal.cache.prefetch(bd_.hash());
-    internal.correction.us(bd_.turn()).prefetch(bd_.pawn_hash());
     nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
     const score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_node_, bd_, -beta, -alpha, elevation + 1);
@@ -202,9 +203,11 @@ pv_search_result_t<is_root> search_worker::pv_search(
                               !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
                                                                  eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
-    if (!is_check) { internal.cache.insert(bd.hash(), static_value); }
+    if (!is_check) {
+      internal.cache.insert(bd.hash(), static_value);
+      static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
+    }
 
-    static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
     score_type value = static_value;
 
     if (maybe.has_value()) {
@@ -264,7 +267,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
       const chess::board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
       internal.cache.prefetch(bd_.hash());
-      internal.correction.us(bd_.turn()).prefetch(bd_.pawn_hash());
       nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
       auto pv_score = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
@@ -340,7 +342,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     external.tt->prefetch(bd_.hash());
     internal.cache.prefetch(bd_.hash());
-    internal.correction.us(bd_.turn()).prefetch(bd_.pawn_hash());
     nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
     // step 12. extensions
@@ -454,9 +455,13 @@ pv_search_result_t<is_root> search_worker::pv_search(
       ss.set_killer(best_move);
     }
 
+    if (!is_check && best_move.is_quiet()) {
+      const score_type delta = static_value - best_score;
+      internal.correction.us(bd.turn()).update(bd.pawn_hash(), bound, delta);
+    }
+
     const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);
     external.tt->insert(entry);
-    internal.correction.us(bd.turn()).update(bd.pawn_hash(), bound, static_value - best_score);
   }
 
   return make_result(best_score, best_move);
