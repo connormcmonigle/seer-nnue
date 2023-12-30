@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -39,6 +40,9 @@ struct square {
   [[nodiscard]] constexpr int index() const noexcept { return count_trailing_zeros(data); }
   [[nodiscard]] constexpr int file() const noexcept { return index() % 8; }
   [[nodiscard]] constexpr int rank() const noexcept { return index() / 8; }
+
+  [[nodiscard]] constexpr bool is_none() const noexcept { return data == data_type{}; }
+  [[nodiscard]] constexpr bool is_not_none() const noexcept { return data != data_type{}; }
 
   [[nodiscard]] constexpr bool operator==(const square& other) const noexcept { return other.data == data; }
   [[nodiscard]] constexpr bool operator!=(const square& other) const noexcept { return !(*this == other); }
@@ -117,7 +121,43 @@ struct square_set_iterator {
   constexpr explicit square_set_iterator(const square::data_type& set) noexcept : remaining{set} {}
 };
 
+struct strided_square_set_iterator {
+  using value_type = std::tuple<square, square>;
+  using pointer = const std::tuple<square, square>*;
+  using reference = const std::tuple<square, square>&;
+  using iterator_category = std::input_iterator_tag;
+
+  square::data_type remaining;
+
+  [[maybe_unused]] constexpr strided_square_set_iterator& operator++() noexcept {
+    remaining &= (remaining - static_cast<square::data_type>(1));
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr strided_square_set_iterator operator++(int) noexcept {
+    auto retval = *this;
+    ++(*this);
+    return retval;
+  }
+
+  [[nodiscard]] constexpr bool operator==(const strided_square_set_iterator& other) const noexcept { return other.remaining == remaining; }
+  [[nodiscard]] constexpr bool operator!=(const strided_square_set_iterator& other) const noexcept { return !(*this == other); }
+
+  [[nodiscard]] constexpr std::tuple<square, square> operator*() const {
+    const square::data_type current_remaining = remaining;
+    const square::data_type current = current_remaining & ~(current_remaining - static_cast<square::data_type>(1));
+
+    const square::data_type next_remaining = remaining & (remaining - static_cast<square::data_type>(1));
+    const square::data_type next = next_remaining & ~(next_remaining - static_cast<square::data_type>(1));
+
+    return std::tuple(square{current}, square{next});
+  }
+
+  constexpr explicit strided_square_set_iterator(const square::data_type& set) noexcept : remaining{set} {}
+};
+
 struct square_set;
+
 [[nodiscard]] constexpr square_set operator~(const square_set& ss) noexcept;
 [[nodiscard]] constexpr square_set operator&(const square_set& a, const square_set& b) noexcept;
 [[nodiscard]] constexpr square_set operator|(const square_set& a, const square_set& b) noexcept;
@@ -209,6 +249,17 @@ struct square_set {
 [[nodiscard]] constexpr square_set operator&(const square_set& a, const square_set& b) noexcept { return square_set(a.data & b.data); }
 [[nodiscard]] constexpr square_set operator|(const square_set& a, const square_set& b) noexcept { return square_set(a.data | b.data); }
 [[nodiscard]] constexpr square_set operator^(const square_set& a, const square_set& b) noexcept { return square_set(a.data ^ b.data); }
+
+struct strided_square_set {
+  using iterator = strided_square_set_iterator;
+  square::data_type data;
+
+  [[nodiscard]] constexpr iterator begin() const noexcept { return strided_square_set_iterator(data); }
+  [[nodiscard]] constexpr iterator end() const noexcept { return strided_square_set_iterator(static_cast<square::data_type>(0)); }
+
+  constexpr strided_square_set(const square::data_type& set) noexcept : data{set} {}
+  static constexpr strided_square_set from(const square_set& set) noexcept { return strided_square_set(set.data); }
+};
 
 std::ostream& operator<<(std::ostream& ostr, const square_set& ss) noexcept;
 

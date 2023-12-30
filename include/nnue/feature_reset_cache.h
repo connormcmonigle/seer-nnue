@@ -39,6 +39,8 @@ struct feature_reset_cache_entry {
   chess::sided_piece_configuration config;
   aligned_slice<parameter_type, dim> slice_;
 
+  void prefetch(const std::size_t& idx) const noexcept { weights_->prefetch(idx); }
+
   void insert(const std::size_t& idx) const noexcept { weights_->insert_idx(idx, slice_); }
   void erase(const std::size_t& idx) const noexcept { weights_->erase_idx(idx, slice_); }
   void copy_state_to(feature_transformer<parameter_type, feature::half_ka::numel, dim>& dst) const noexcept { dst.slice_.copy_from(slice_); }
