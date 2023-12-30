@@ -464,7 +464,9 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
 void search_worker::iterative_deepening_loop() noexcept {
   internal.reset_cache.reinitialize(external.weights);
-  nnue::eval_node root_node = nnue::eval_node::clean_node([this] {
+  nnue::eval_prefetcher prefetcher(external.weights);
+
+  nnue::eval_node root_node = nnue::eval_node::clean_node(prefetcher, [this] {
     nnue::eval result(external.weights, &internal.scratchpad, 0, 0);
     internal.stack.root().feature_full_reset(result);
     return result;

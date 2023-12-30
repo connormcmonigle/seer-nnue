@@ -19,6 +19,7 @@
 #include <chess/board.h>
 #include <chess/move.h>
 #include <nnue/eval.h>
+#include <nnue/eval_prefetcher.h>
 #include <nnue/feature_reset_cache.h>
 
 namespace nnue {
@@ -32,6 +33,7 @@ struct eval_node {
   };
 
   bool dirty_;
+  eval_prefetcher prefetcher_;
 
   union {
     context context_;
@@ -50,14 +52,14 @@ struct eval_node {
   }
 
   [[nodiscard]] eval_node dirty_child(sided_feature_reset_cache* reset_cache, const chess::board* bd, const chess::move& mv) noexcept {
-    return eval_node::dirty_node(context{reset_cache, this, bd, mv});
+    if (!bd->requires_feature_partial_reset(mv)) { bd->feature_move_delta(mv, *reset_cache, prefetcher_); }
+    return eval_node::dirty_node(prefetcher_, context{reset_cache, this, bd, mv});
   }
 
-  [[nodiscard]] static eval_node dirty_node(const context& context) noexcept { return eval_node{true, {context}}; }
+  [[nodiscard]] static eval_node dirty_node(const eval_prefetcher& eval_prefetcher, const context& context) noexcept { return eval_node{true, eval_prefetcher, {context}}; }
 
-  [[nodiscard]] static eval_node clean_node(const eval& eval) noexcept {
-    eval_node result{};
-    result.dirty_ = false;
+  [[nodiscard]] static eval_node clean_node(const eval_prefetcher& eval_prefetcher, const eval& eval) noexcept {
+    eval_node result{false, eval_prefetcher, {}};
     result.data_.eval_ = eval;
     return result;
   }

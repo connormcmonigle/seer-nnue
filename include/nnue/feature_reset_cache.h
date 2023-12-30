@@ -22,6 +22,8 @@
 #include <chess/square.h>
 #include <chess/types.h>
 #include <nnue/aligned_slice.h>
+#include <nnue/feature_transformer.h>
+#include <nnue/feature_transformer_prefetcher.h>
 #include <nnue/weights.h>
 
 #include <array>
@@ -41,7 +43,9 @@ struct feature_reset_cache_entry {
 
   void insert(const std::size_t& idx) const noexcept { weights_->insert_idx(idx, slice_); }
   void erase(const std::size_t& idx) const noexcept { weights_->erase_idx(idx, slice_); }
+
   void copy_state_to(feature_transformer<parameter_type, feature::half_ka::numel, dim>& dst) const noexcept { dst.slice_.copy_from(slice_); }
+  void copy_state_to(feature_transformer_prefetcher<parameter_type, feature::half_ka::numel, dim>&) const noexcept {}
 
   void reinitialize(const weights_type* weights, const aligned_slice<parameter_type, dim>& slice) noexcept {
     weights_ = weights;
