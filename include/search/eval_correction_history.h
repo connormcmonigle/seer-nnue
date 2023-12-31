@@ -67,13 +67,15 @@ struct eval_correction_history {
   piece_eval_correction_history king_{};
 
   [[nodiscard]] constexpr score_type correction_for(const chess::board& bd) const noexcept {
+    constexpr score_type correction_divisor = 6;
+
     score_type correction{};
     chess::over_types([&, this](const chess::piece_type& pt) {
       const zobrist::hash_type piece_hash = bd.piece_hash(pt);
       correction += chess::get_member(pt, *this).correction_for(piece_hash);
     });
 
-    return correction;
+    return correction / correction_divisor;
   }
 
   constexpr void update(const chess::board& bd, const bound_type& bound, const score_type& error) noexcept {
