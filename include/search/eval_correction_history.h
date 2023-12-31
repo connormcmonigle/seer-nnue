@@ -27,7 +27,7 @@
 namespace search {
 
 struct piece_eval_correction_history {
-  static constexpr size_t N = 1024;
+  static constexpr size_t N = 4096;
   static constexpr size_t mask = N - 1;
   static_assert((N & mask) == 0);
   static constexpr score_type eval_correction_scale = 256;
