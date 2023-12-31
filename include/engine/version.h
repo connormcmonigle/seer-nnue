@@ -25,7 +25,7 @@ constexpr std::string_view engine_name = "Seer";
 constexpr std::string_view author_name = "Connor McMonigle";
 
 constexpr std::size_t major = 2;
-constexpr std::size_t minor = 7;
+constexpr std::size_t minor = 8;
 constexpr std::size_t patch = 0;
 
 }  // namespace engine::version
