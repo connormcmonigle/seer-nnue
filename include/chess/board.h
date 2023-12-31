@@ -67,8 +67,10 @@ struct board {
 
   [[nodiscard]] inline bool turn() const noexcept { return lat_.ply_count % 2 == 0; }
   [[nodiscard]] inline bool is_rule50_draw() const noexcept { return lat_.half_clock >= 100; }
-  [[nodiscard]] inline zobrist::hash_type hash() const noexcept { return man_.hash() ^ lat_.hash(); }
-  [[nodiscard]] inline zobrist::hash_type pawn_hash() const noexcept { return man_.pawn_hash(); }
+  [[nodiscard]] constexpr zobrist::hash_type hash() const noexcept { return man_.hash() ^ lat_.hash(); }
+  [[nodiscard]] constexpr zobrist::hash_type pawn_hash() const noexcept { return man_.pawn_hash(); }
+  [[nodiscard]] constexpr zobrist::hash_type piece_hash(const piece_type& pt) const noexcept { return man_.piece_hash(pt); }
+
   [[nodiscard]] inline sided_zobrist_hash sided_hash() const noexcept {
     return sided_zobrist_hash(man_.white.hash() ^ lat_.white.hash(), man_.black.hash() ^ lat_.black.hash());
   }

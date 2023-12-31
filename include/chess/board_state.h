@@ -71,6 +71,15 @@ struct manifest {
   [[nodiscard]] constexpr zobrist::hash_type hash() const noexcept { return hash_; }
   [[nodiscard]] constexpr zobrist::hash_type pawn_hash() const noexcept { return pawn_hash_; }
 
+  [[nodiscard]] constexpr zobrist::hash_type piece_hash(const piece_type& pt) const noexcept {
+    if (pt == piece_type::pawn) { return pawn_hash_; }
+    const auto& src = zobrist_src_->get_plane(pt);
+
+    zobrist::hash_type hash{};
+    for (const auto sq : get_member(pt, *this)) { hash ^= src.at(sq.index()); }
+    return hash;
+  }
+
   [[nodiscard]] constexpr square_set& get_plane(const piece_type pt) noexcept { return get_member(pt, *this); }
   [[nodiscard]] constexpr const square_set& get_plane(const piece_type pt) const noexcept { return get_member(pt, *this); }
 
@@ -93,7 +102,6 @@ struct manifest {
   [[nodiscard]] constexpr const square_set& queen() const noexcept { return queen_; }
   [[nodiscard]] constexpr const square_set& king() const noexcept { return king_; }
 
-
   template <typename S>
   [[maybe_unused]] manifest& add_piece(const piece_type& pt, const S& at) noexcept;
 
@@ -112,6 +120,7 @@ struct sided_manifest : public sided<sided_manifest, manifest> {
 
   [[nodiscard]] constexpr zobrist::hash_type hash() const noexcept { return white.hash() ^ black.hash(); }
   [[nodiscard]] constexpr zobrist::hash_type pawn_hash() const noexcept { return white.pawn_hash() ^ black.pawn_hash(); }
+  [[nodiscard]] constexpr zobrist::hash_type piece_hash(const piece_type& pt) const noexcept { return white.piece_hash(pt) ^ black.piece_hash(pt); }
 
   sided_manifest() noexcept : white(&w_manifest_src), black(&b_manifest_src) {}
 };
@@ -171,7 +180,7 @@ struct sided_latent : public sided<sided_latent, latent> {
   latent white;
   latent black;
 
-  [[nodiscard]] inline zobrist::hash_type hash() const noexcept {
+  [[nodiscard]] constexpr zobrist::hash_type hash() const noexcept {
     const zobrist::hash_type result = white.hash() ^ black.hash();
     return ((ply_count % 2) == 0) ? (result ^ turn_white_src) : (result ^ turn_black_src);
   }
