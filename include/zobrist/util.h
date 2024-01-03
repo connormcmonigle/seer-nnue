@@ -25,6 +25,7 @@ namespace zobrist {
 
 using hash_type = std::uint64_t;
 using half_hash_type = std::uint32_t;
+using quarter_hash_type = std::uint16_t;
 
 constexpr hash_type entropy_0 = 0x8c57d3cb77fabf02;
 constexpr hash_type entropy_1 = 0xfe2951fb31cae837;
@@ -35,6 +36,7 @@ constexpr hash_type entropy_5 = 0x1df555934cfcb8f5;
 
 constexpr half_hash_type lower_half(const hash_type& hash) { return hash & std::numeric_limits<half_hash_type>::max(); }
 constexpr half_hash_type upper_half(const hash_type& hash) { return (hash >> 32) & std::numeric_limits<half_hash_type>::max(); }
+constexpr quarter_hash_type lower_quarter(const hash_type& hash) { return hash & std::numeric_limits<quarter_hash_type>::max(); }
 
 struct xorshift_generator {
   hash_type seed_;

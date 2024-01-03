@@ -27,6 +27,8 @@ template <typename T, std::size_t dim>
 struct aligned_slice {
   T* data;
 
+  [[nodiscard]] const T* ptr() const noexcept { return data; }
+
   template <std::size_t out_dim, std::size_t offset = 0>
   [[nodiscard]] aligned_slice<T, out_dim> slice() noexcept {
     static_assert(offset + out_dim <= dim);

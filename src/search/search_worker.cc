@@ -22,6 +22,41 @@
 namespace search {
 
 template <bool is_pv, bool use_tt>
+inline evaluation_info search_worker::evaluate_(
+    const stack_view& ss, nnue::eval_node& eval_node, const chess::board& bd, const std::optional<transposition_table_entry>& maybe) noexcept {
+  const bool is_check = bd.is_check();
+
+  const eval_cache_entry entry = [&] {
+    constexpr zobrist::hash_type default_hash = zobrist::hash_type{};
+
+    if (is_check) { return eval_cache_entry::make(default_hash, default_hash, ss.loss_score()); }
+    if (const auto maybe_eval = internal.cache.find(bd.hash()); !is_pv && maybe_eval.has_value()) { return maybe_eval.value(); }
+
+    const nnue::eval& evaluator = eval_node.evaluator();
+    const zobrist::hash_type hash = bd.hash();
+    const auto [feature_hash, eval] = evaluator.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
+
+    return eval_cache_entry::make(hash, feature_hash, eval);
+  }();
+
+  score_type static_value = entry.eval();
+
+  if (!is_check) {
+    internal.cache.insert(bd.hash(), entry);
+    static_value += internal.correction.us(bd.turn()).correction_for(entry.feature_hash());
+  }
+
+  score_type value = static_value;
+
+  if (use_tt && maybe.has_value()) {
+    if (maybe->bound() == bound_type::upper && static_value > maybe->score()) { value = maybe->score(); }
+    if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
+  }
+
+  return evaluation_info{entry.feature_hash(), static_value, value};
+}
+
+template <bool is_pv, bool use_tt>
 score_type search_worker::q_search(
     const stack_view& ss,
     nnue::eval_node& eval_node,
@@ -50,26 +85,7 @@ score_type search_worker::q_search(
     if (use_tt && is_cutoff) { return entry.score(); }
   }
 
-  const auto [static_value, value] = [&] {
-    const auto maybe_eval = internal.cache.find(bd.hash());
-    score_type static_value = is_check                         ? ss.loss_score() :
-                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                 eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
-
-    if (!is_check) {
-      internal.cache.insert(bd.hash(), static_value);
-      static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
-    }
-
-    score_type value = static_value;
-
-    if (use_tt && maybe.has_value()) {
-      if (maybe->bound() == bound_type::upper && static_value > maybe->score()) { value = maybe->score(); }
-      if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
-    }
-
-    return std::tuple(static_value, value);
-  }();
+  const auto [feature_hash, static_value, value] = evaluate_<is_pv, use_tt>(ss, eval_node, bd, maybe);
 
   if (!is_check && value >= beta) { return value; }
   if (ss.reached_max_height()) { return value; }
@@ -197,26 +213,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   if (should_iir) { --depth; }
 
   // step 4. compute static eval and adjust appropriately if there's a tt hit
-  const auto [static_value, value] = [&] {
-    const auto maybe_eval = internal.cache.find(bd.hash());
-    score_type static_value = is_check                         ? ss.loss_score() :
-                              !is_pv && maybe_eval.has_value() ? maybe_eval.value() :
-                                                                 eval_node.evaluator().evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
-
-    if (!is_check) {
-      internal.cache.insert(bd.hash(), static_value);
-      static_value += internal.correction.us(bd.turn()).correction_for(bd.pawn_hash());
-    }
-
-    score_type value = static_value;
-
-    if (maybe.has_value()) {
-      if (maybe->bound() == bound_type::upper && static_value > maybe->score()) { value = maybe->score(); }
-      if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
-    }
-
-    return std::tuple(static_value, value);
-  }();
+  const auto [feature_hash, static_value, value] = evaluate_<is_pv>(ss, eval_node, bd, maybe);
 
   // step 5. return static eval if max depth was reached
   if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
@@ -457,7 +454,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     if (!is_check && best_move.is_quiet()) {
       const score_type error = best_score - static_value;
-      internal.correction.us(bd.turn()).update(bd.pawn_hash(), bound, error);
+      internal.correction.us(bd.turn()).update(feature_hash, bound, error);
     }
 
     const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);

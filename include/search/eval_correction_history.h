@@ -33,14 +33,14 @@ struct eval_correction_history {
 
   std::array<score_type, N> data{};
 
-  [[nodiscard]] static constexpr std::size_t hash_function(const zobrist::hash_type& feature_hash) noexcept { return feature_hash & mask; }
+  [[nodiscard]] static constexpr std::size_t hash_function(const zobrist::quarter_hash_type& feature_hash) noexcept { return feature_hash & mask; }
 
-  [[nodiscard]] inline score_type correction_for(const zobrist::hash_type& feature_hash) const noexcept {
+  [[nodiscard]] inline score_type correction_for(const zobrist::quarter_hash_type& feature_hash) const noexcept {
     const score_type raw_correction = data[hash_function(feature_hash)];
     return raw_correction / eval_correction_scale;
   }
 
-  void update(const zobrist::hash_type& feature_hash, const bound_type& bound, const score_type& error) noexcept {
+  void update(const zobrist::quarter_hash_type& feature_hash, const bound_type& bound, const score_type& error) noexcept {
     constexpr score_type score_correction_limit = 65536;
 
     constexpr score_type filter_alpha = 1;

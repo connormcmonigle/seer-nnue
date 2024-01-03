@@ -26,8 +26,23 @@
 namespace search {
 
 struct eval_cache_entry {
-  zobrist::half_hash_type hash{};
-  score_type eval{};
+  using persisted_eval_type = std::int16_t;
+
+  zobrist::half_hash_type hash_{};
+  persisted_eval_type persisted_eval_{};
+  zobrist::quarter_hash_type feature_hash_{};
+
+  [[nodiscard]] constexpr const zobrist::half_hash_type& hash() const noexcept { return hash_; }
+  [[nodiscard]] constexpr score_type eval() const noexcept { return static_cast<score_type>(persisted_eval_); }
+  [[nodiscard]] constexpr const zobrist::quarter_hash_type& feature_hash() const noexcept { return feature_hash_; }
+
+  [[nodiscard]] static constexpr eval_cache_entry make(
+      const zobrist::hash_type& hash, const zobrist::quarter_hash_type& feature_hash, const score_type& eval) noexcept {
+    const zobrist::half_hash_type hash_upper_half = zobrist::upper_half(hash);
+    const persisted_eval_type persisted_eval = static_cast<persisted_eval_type>(eval);
+
+    return eval_cache_entry{hash_upper_half, persisted_eval, feature_hash};
+  }
 };
 
 struct eval_cache {
@@ -40,14 +55,12 @@ struct eval_cache {
   [[nodiscard]] static constexpr std::size_t hash_function(const zobrist::hash_type& hash) noexcept { return hash & (N - 1); }
   inline void prefetch(const zobrist::hash_type& hash) const noexcept { __builtin_prefetch(data.data() + hash_function(hash)); }
 
-  [[nodiscard]] constexpr std::optional<score_type> find(const zobrist::hash_type& hash) const noexcept {
-    if (data[hash_function(hash)].hash == zobrist::upper_half(hash)) { return data[hash_function(hash)].eval; }
+  [[nodiscard]] constexpr std::optional<eval_cache_entry> find(const zobrist::hash_type& hash) const noexcept {
+    if (data[hash_function(hash)].hash() == zobrist::upper_half(hash)) { return data[hash_function(hash)]; }
     return std::nullopt;
   }
 
-  void insert(const zobrist::hash_type& hash, const score_type& eval) noexcept {
-    data[hash_function(hash)] = eval_cache_entry{zobrist::upper_half(hash), eval};
-  }
+  void insert(const zobrist::hash_type& hash, const eval_cache_entry& entry) noexcept { data[hash_function(hash)] = entry; }
 
   void clear() noexcept { return data.fill(eval_cache_entry{}); }
 };
