@@ -29,19 +29,19 @@ struct eval_cache_entry {
   using persisted_eval_type = std::int16_t;
 
   zobrist::half_hash_type hash_{};
-  persisted_eval_type persisted_eval_{};
   zobrist::quarter_hash_type feature_hash_{};
+  persisted_eval_type persisted_eval_{};
 
   [[nodiscard]] constexpr const zobrist::half_hash_type& hash() const noexcept { return hash_; }
-  [[nodiscard]] constexpr score_type eval() const noexcept { return static_cast<score_type>(persisted_eval_); }
   [[nodiscard]] constexpr const zobrist::quarter_hash_type& feature_hash() const noexcept { return feature_hash_; }
+  [[nodiscard]] constexpr score_type eval() const noexcept { return static_cast<score_type>(persisted_eval_); }
 
   [[nodiscard]] static constexpr eval_cache_entry make(
       const zobrist::hash_type& hash, const zobrist::quarter_hash_type& feature_hash, const score_type& eval) noexcept {
     const zobrist::half_hash_type hash_upper_half = zobrist::upper_half(hash);
     const persisted_eval_type persisted_eval = static_cast<persisted_eval_type>(eval);
 
-    return eval_cache_entry{hash_upper_half, persisted_eval, feature_hash};
+    return eval_cache_entry{hash_upper_half, feature_hash, persisted_eval};
   }
 };
 

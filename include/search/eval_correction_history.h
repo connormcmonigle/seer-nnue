@@ -35,12 +35,12 @@ struct eval_correction_history {
 
   [[nodiscard]] static constexpr std::size_t hash_function(const zobrist::quarter_hash_type& feature_hash) noexcept { return feature_hash & mask; }
 
-  [[nodiscard]] inline score_type correction_for(const zobrist::quarter_hash_type& feature_hash) const noexcept {
+  [[nodiscard]] constexpr score_type correction_for(const zobrist::quarter_hash_type& feature_hash) const noexcept {
     const score_type raw_correction = data[hash_function(feature_hash)];
     return raw_correction / eval_correction_scale;
   }
 
-  void update(const zobrist::quarter_hash_type& feature_hash, const bound_type& bound, const score_type& error) noexcept {
+  constexpr void update(const zobrist::quarter_hash_type& feature_hash, const bound_type& bound, const score_type& error) noexcept {
     constexpr score_type score_correction_limit = 65536;
 
     constexpr score_type filter_alpha = 1;
@@ -60,9 +60,51 @@ struct eval_correction_history {
   void clear() noexcept { return data.fill(score_type{}); }
 };
 
-struct sided_eval_correction_history : public chess::sided<sided_eval_correction_history, eval_correction_history> {
-  eval_correction_history white;
-  eval_correction_history black;
+template <std::size_t N>
+struct composite_feature_hash {
+  std::array<zobrist::quarter_hash_type, N> hashes_;
+
+  [[nodiscard]] constexpr zobrist::quarter_hash_type hash(const std::size_t& i) const noexcept { return hashes_[i]; }
+};
+
+template <typename... Ts>
+[[nodiscard]] constexpr composite_feature_hash<sizeof...(Ts)> composite_feature_hash_of(const Ts&... ts) noexcept {
+  return composite_feature_hash<sizeof...(Ts)>{{ts...}};
+}
+
+template <std::size_t N>
+struct composite_eval_correction_history {
+  std::array<eval_correction_history, N> histories_{};
+
+  [[nodiscard]] constexpr score_type correction_for(const composite_feature_hash<N>& composite_hash) const noexcept {
+    score_type result{};
+
+    for (std::size_t i(0); i < N; ++i) {
+      const zobrist::quarter_hash_type hash = composite_hash.hash(i);
+      result += histories_[i].correction_for(hash);
+    }
+
+    return result;
+  }
+
+  constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error) noexcept {
+    for (std::size_t i(0); i < N; ++i) {
+      const zobrist::quarter_hash_type hash = composite_hash.hash(i);
+      histories_[i].update(hash, bound, error);
+    }
+  }
+
+  void clear() noexcept {
+    for (auto& history : histories_) { history.clear(); }
+  }
+};
+
+constexpr std::size_t eval_correction_history_num_hashes = 2;
+struct sided_eval_correction_history
+    : public chess::sided<sided_eval_correction_history, composite_eval_correction_history<eval_correction_history_num_hashes>> {
+  using hash_type = composite_feature_hash<eval_correction_history_num_hashes>;
+  composite_eval_correction_history<eval_correction_history_num_hashes> white;
+  composite_eval_correction_history<eval_correction_history_num_hashes> black;
 
   void clear() noexcept {
     white.clear();

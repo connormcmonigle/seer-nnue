@@ -48,7 +48,7 @@ template <bool is_root>
 using pv_search_result_t = typename pv_search_result<is_root>::type;
 
 struct evaluation_info {
-  zobrist::quarter_hash_type feature_hash;
+  sided_eval_correction_history::hash_type hash;
   score_type static_value;
   score_type value;
 };

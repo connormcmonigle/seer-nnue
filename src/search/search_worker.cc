@@ -39,11 +39,13 @@ inline evaluation_info search_worker::evaluate_(
     return eval_cache_entry::make(hash, feature_hash, eval);
   }();
 
+  const auto pawn_feature_hash = zobrist::lower_quarter(bd.pawn_hash());
+  const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, entry.feature_hash());
   score_type static_value = entry.eval();
 
   if (!is_check) {
     internal.cache.insert(bd.hash(), entry);
-    static_value += internal.correction.us(bd.turn()).correction_for(entry.feature_hash());
+    static_value += internal.correction.us(bd.turn()).correction_for(feature_hash);
   }
 
   score_type value = static_value;
@@ -53,7 +55,7 @@ inline evaluation_info search_worker::evaluate_(
     if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
   }
 
-  return evaluation_info{entry.feature_hash(), static_value, value};
+  return evaluation_info{feature_hash, static_value, value};
 }
 
 template <bool is_pv, bool use_tt>

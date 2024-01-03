@@ -63,7 +63,8 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
     const auto x2 = concat(x1, weights_->fc1.forward(x1));
     const auto x3 = concat(x2, weights_->fc2.forward(x2));
 
-    const zobrist::quarter_hash_type quarter_hash = zobrist::zobrist_hasher<zobrist::quarter_hash_type, decltype(x3)::dimension>.compute_hash(
+    constexpr std::size_t dimension = decltype(x3)::dimension;
+    const zobrist::quarter_hash_type quarter_hash = zobrist::zobrist_hasher<zobrist::quarter_hash_type, dimension>.compute_hash(
         [&x3](const std::size_t& i) { return x3.data[i] > parameter_type{}; });
 
     return std::pair(quarter_hash, weights_->fc3.forward(x3).item());
