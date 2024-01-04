@@ -84,7 +84,7 @@ struct composite_eval_correction_history {
       result += histories_[i].correction_for(hash);
     }
 
-    return result;
+    return result / N;
   }
 
   constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error) noexcept {
