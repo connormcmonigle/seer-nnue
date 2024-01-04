@@ -18,6 +18,7 @@
 #pragma once
 
 #include <chess/move.h>
+#include <nnue/eval.h>
 #include <nnue/feature_reset_cache.h>
 #include <search/eval_cache.h>
 #include <search/eval_correction_history.h>

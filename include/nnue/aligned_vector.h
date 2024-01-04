@@ -29,6 +29,7 @@ namespace nnue {
 
 template <typename T, std::size_t dim>
 struct aligned_vector {
+  static constexpr std::size_t dimension = dim;
   alignas(simd::alignment) T data[dim];
 
   template <typename F>

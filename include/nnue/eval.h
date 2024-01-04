@@ -28,11 +28,13 @@
 #include <nnue/weights.h>
 #include <nnue/weights_streamer.h>
 #include <search/search_constants.h>
+#include <zobrist/zobrist_hasher.h>
 
 #include <cmath>
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <utility>
 
 namespace nnue {
 
@@ -56,27 +58,31 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
   feature_transformer<quantized_parameter_type, feature::half_ka::numel, weights::base_dim> white;
   feature_transformer<quantized_parameter_type, feature::half_ka::numel, weights::base_dim> black;
 
-  [[nodiscard]] inline parameter_type propagate(const bool pov) const noexcept {
-    const auto x1 = (pov ? weights_->white_fc0 : weights_->black_fc0)
-                        .forward(base_)
-                        .dequantized<parameter_type>(weights::dequantization_scale);
-
+  [[nodiscard]] inline std::pair<zobrist::quarter_hash_type, parameter_type> propagate(const bool pov) const noexcept {
+    const auto x1 = (pov ? weights_->white_fc0 : weights_->black_fc0).forward(base_).dequantized<parameter_type>(weights::dequantization_scale);
     const auto x2 = concat(x1, weights_->fc1.forward(x1));
     const auto x3 = concat(x2, weights_->fc2.forward(x2));
-    return weights_->fc3.forward(x3).item();
+
+    constexpr std::size_t dimension = decltype(x3)::dimension;
+    const zobrist::quarter_hash_type quarter_hash = zobrist::zobrist_hasher<zobrist::quarter_hash_type, dimension>.compute_hash(
+        [&x3](const std::size_t& i) { return x3.data[i] > parameter_type{}; });
+
+    return std::pair(quarter_hash, weights_->fc3.forward(x3).item());
   }
 
-  [[nodiscard]] inline search::score_type evaluate(const bool pov, const parameter_type& phase) const noexcept {
+  [[nodiscard]] inline std::pair<zobrist::hash_type, search::score_type> evaluate(const bool pov, const parameter_type& phase) const noexcept {
     constexpr auto one = static_cast<parameter_type>(1.0);
     constexpr auto mg = static_cast<parameter_type>(0.7);
     constexpr auto eg = static_cast<parameter_type>(0.55);
 
-    const parameter_type prediction = propagate(pov);
+    const auto [hash, prediction] = propagate(pov);
     const parameter_type eval = phase * mg * prediction + (one - phase) * eg * prediction;
 
     const parameter_type value =
         search::logit_scale<parameter_type> * std::clamp(eval, search::min_logit<parameter_type>, search::max_logit<parameter_type>);
-    return static_cast<search::score_type>(value);
+
+    const auto score = static_cast<search::score_type>(value);
+    return std::pair(hash, score);
   }
 
   [[nodiscard]] eval next_child() const noexcept {
@@ -84,7 +90,8 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
     return eval(weights_, scratchpad_, scratchpad_idx_, next_scratchpad_idx);
   }
 
-  eval(const quantized_weights* src, scratchpad_type* scratchpad, const std::size_t& parent_scratchpad_idx, const std::size_t& scratchpad_idx) noexcept
+  eval(
+      const quantized_weights* src, scratchpad_type* scratchpad, const std::size_t& parent_scratchpad_idx, const std::size_t& scratchpad_idx) noexcept
       : weights_{src},
         scratchpad_{scratchpad},
         scratchpad_idx_{scratchpad_idx},
