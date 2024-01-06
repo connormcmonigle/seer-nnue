@@ -83,18 +83,18 @@ struct cuckoo_hash_table_impl {
     return std::nullopt;
   }
 
-  constexpr void insert(zobrist::hash_type hash, cuckoo_hash_table_entry entry) noexcept {    
+  constexpr void insert(zobrist::hash_type hash, cuckoo_hash_table_entry entry) noexcept {
     std::size_t index = a_hash_function(hash);
 
     for (;;) {
-        util::copy_swap(entry, entries_[index]);
-        util::copy_swap(hash, hashes_[index]);
+      util::copy_swap(entry, entries_[index]);
+      util::copy_swap(hash, hashes_[index]);
 
-        if (hash == initial_hash) { break; }
-        
-        const std::size_t a_index = a_hash_function(hash);
-        const std::size_t b_index = b_hash_function(hash);
-        index = (index == a_index) ? b_index : a_index;
+      if (hash == initial_hash) { break; }
+
+      const std::size_t a_index = a_hash_function(hash);
+      const std::size_t b_index = b_hash_function(hash);
+      index = (index == a_index) ? b_index : a_index;
     }
   }
 

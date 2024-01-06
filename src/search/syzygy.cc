@@ -85,4 +85,4 @@ tb_dtz_result probe_dtz(const chess::board& bd) noexcept {
 
 void init(const std::string& path) noexcept { tb_init(path.c_str()); }
 
-}  // namespace search
+}  // namespace search::syzygy

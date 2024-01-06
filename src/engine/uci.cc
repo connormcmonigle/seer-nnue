@@ -194,11 +194,10 @@ void uci::eval() noexcept {
   auto evaluator = nnue::eval(&weights_, scratchpad.get(), 0, 0);
   position.feature_full_reset(evaluator);
 
-  const auto [hash, score] = evaluator.evaluate(position.turn(), position.phase<nnue::weights::parameter_type>());
+  const auto score = evaluator.evaluate(position.turn(), position.phase<nnue::weights::parameter_type>());
 
-  os << "hash: " << hash << std::endl;
   os << "phase: " << position.phase<nnue::weights::parameter_type>() << std::endl;
-  os << "score(phase): " << score << std::endl;
+  os << "score(phase): " << score.result << std::endl;
 }
 
 void uci::probe() noexcept {

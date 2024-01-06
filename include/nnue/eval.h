@@ -34,17 +34,47 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace nnue {
+
+struct void_encoding {};
+
+struct void_final_output_encoder {
+  template <typename... Ts>
+  [[maybe_unused]] constexpr void_encoding operator()(Ts&&...) const noexcept {
+    return void_encoding{};
+  }
+};
+
+template <typename T>
+struct propagate_data {
+  T final_output_encoding;
+  weights::parameter_type result;
+
+  constexpr propagate_data(const T& final_output_encoding, const weights::parameter_type& result) noexcept
+      : final_output_encoding{final_output_encoding}, result{result} {}
+};
+
+template <typename T>
+struct evaluate_data {
+  T final_output_encoding;
+  search::score_type result;
+
+  constexpr evaluate_data(const T& final_output_encoding, const search::score_type& result) noexcept
+      : final_output_encoding{final_output_encoding}, result{result} {}
+};
 
 struct eval : public chess::sided<eval, feature_transformer<weights::quantized_parameter_type, feature::half_ka::numel, weights::base_dim>> {
   static constexpr std::size_t base_dim = weights::base_dim;
   static constexpr std::size_t feature_transformer_dim = 2 * base_dim;
   static constexpr std::size_t scratchpad_depth = 256;
+  static constexpr std::size_t final_layer_dimension = 24;
 
   using parameter_type = weights::parameter_type;
   using quantized_parameter_type = weights::quantized_parameter_type;
+  using final_output_type = aligned_vector<parameter_type, final_layer_dimension>;
   using scratchpad_type = aligned_scratchpad<quantized_parameter_type, scratchpad_depth * feature_transformer_dim>;
 
   const quantized_weights* weights_;
@@ -58,31 +88,29 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
   feature_transformer<quantized_parameter_type, feature::half_ka::numel, weights::base_dim> white;
   feature_transformer<quantized_parameter_type, feature::half_ka::numel, weights::base_dim> black;
 
-  [[nodiscard]] inline std::pair<zobrist::quarter_hash_type, parameter_type> propagate(const bool pov) const noexcept {
+  template <typename F>
+  [[nodiscard]] inline propagate_data<std::invoke_result_t<F, final_output_type>> propagate(const bool pov, F&& final_output_encoder) const noexcept {
     const auto x1 = (pov ? weights_->white_fc0 : weights_->black_fc0).forward(base_).dequantized<parameter_type>(weights::dequantization_scale);
     const auto x2 = concat(x1, weights_->fc1.forward(x1));
     const auto x3 = concat(x2, weights_->fc2.forward(x2));
-
-    constexpr std::size_t dimension = decltype(x3)::dimension;
-    const zobrist::quarter_hash_type quarter_hash = zobrist::zobrist_hasher<zobrist::quarter_hash_type, dimension>.compute_hash(
-        [&x3](const std::size_t& i) { return x3.data[i] > parameter_type{}; });
-
-    return std::pair(quarter_hash, weights_->fc3.forward(x3).item());
+    return propagate_data(final_output_encoder(x3), weights_->fc3.forward(x3).item());
   }
 
-  [[nodiscard]] inline std::pair<zobrist::hash_type, search::score_type> evaluate(const bool pov, const parameter_type& phase) const noexcept {
+  template <typename F = void_final_output_encoder>
+  [[nodiscard]] inline evaluate_data<std::invoke_result_t<F, final_output_type>>
+  evaluate(const bool pov, const parameter_type& phase, F&& final_output_encoder = void_final_output_encoder{}) const noexcept {
     constexpr auto one = static_cast<parameter_type>(1.0);
     constexpr auto mg = static_cast<parameter_type>(0.7);
     constexpr auto eg = static_cast<parameter_type>(0.55);
 
-    const auto [hash, prediction] = propagate(pov);
+    const auto [final_output_encoding, prediction] = propagate(pov, std::forward<F>(final_output_encoder));
     const parameter_type eval = phase * mg * prediction + (one - phase) * eg * prediction;
 
     const parameter_type value =
         search::logit_scale<parameter_type> * std::clamp(eval, search::min_logit<parameter_type>, search::max_logit<parameter_type>);
 
     const auto score = static_cast<search::score_type>(value);
-    return std::pair(hash, score);
+    return evaluate_data(final_output_encoding, score);
   }
 
   [[nodiscard]] eval next_child() const noexcept {
@@ -91,7 +119,10 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
   }
 
   eval(
-      const quantized_weights* src, scratchpad_type* scratchpad, const std::size_t& parent_scratchpad_idx, const std::size_t& scratchpad_idx) noexcept
+      const quantized_weights* src,
+      scratchpad_type* scratchpad,
+      const std::size_t& parent_scratchpad_idx,
+      const std::size_t& scratchpad_idx) noexcept
       : weights_{src},
         scratchpad_{scratchpad},
         scratchpad_idx_{scratchpad_idx},

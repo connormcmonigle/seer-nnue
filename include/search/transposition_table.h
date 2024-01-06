@@ -113,7 +113,8 @@ struct alignas(cache_line_size) bucket {
   transposition_table_entry data[N];
 
   [[nodiscard]] constexpr std::optional<transposition_table_entry> match(
-      const transposition_table_entry::gen_type& gen, const zobrist::hash_type& key) noexcept {
+      const transposition_table_entry::gen_type& gen,
+      const zobrist::hash_type& key) noexcept {
     for (auto& elem : data) {
       if (elem.key() == key) { return std::optional(elem.set_gen(gen)); }
     }
@@ -122,7 +123,8 @@ struct alignas(cache_line_size) bucket {
   }
 
   [[nodiscard]] constexpr transposition_table_entry* to_replace(
-      const transposition_table_entry::gen_type& gen, const zobrist::hash_type& key) noexcept {
+      const transposition_table_entry::gen_type& gen,
+      const zobrist::hash_type& key) noexcept {
     auto worst = std::begin(data);
     for (auto iter = std::begin(data); iter != std::end(data); ++iter) {
       if (iter->key() == key) { return iter; }

@@ -52,4 +52,4 @@ struct dot_type_impl<std::int32_t> {
 template <typename T>
 using dot_type = typename dot_type_impl<T>::type;
 
-}
+}  // namespace nnue

@@ -55,7 +55,8 @@ profileuse: CXXFLAGS += -fprofile-use
 profileuse: flto
 
 .PHONY: flto
-flto: CXXFLAGS += -flto -fwhole-program
+flto: CXXFLAGS += -flto -flto-partition=one -fwhole-program
+flto: LDFLAGS += -flto=jobserver
 flto: binary
 
 .PHONY: plain

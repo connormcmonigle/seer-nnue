@@ -57,4 +57,4 @@ struct tb_dtz_result {
 
 void init(const std::string& path) noexcept;
 
-}  // namespace search
+}  // namespace search::syzygy
