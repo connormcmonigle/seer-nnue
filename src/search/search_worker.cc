@@ -22,8 +22,11 @@
 namespace search {
 
 template <bool is_pv, bool use_tt>
-inline evaluation_info search_worker::evaluate_(
-    const stack_view& ss, nnue::eval_node& eval_node, const chess::board& bd, const std::optional<transposition_table_entry>& maybe) noexcept {
+inline evaluate_info search_worker::evaluate(
+    const stack_view& ss,
+    nnue::eval_node& eval_node,
+    const chess::board& bd,
+    const std::optional<transposition_table_entry>& maybe) noexcept {
   const bool is_check = bd.is_check();
 
   const eval_cache_entry entry = [&] {
@@ -34,13 +37,20 @@ inline evaluation_info search_worker::evaluate_(
 
     const nnue::eval& evaluator = eval_node.evaluator();
     const zobrist::hash_type hash = bd.hash();
-    const auto [feature_hash, eval] = evaluator.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>());
 
-    return eval_cache_entry::make(hash, feature_hash, eval);
+    const auto [eval_feature_hash, eval] = evaluator.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>(), [](const auto& final_output) {
+      constexpr std::size_t dimension = nnue::eval::final_output_type::dimension;
+      return zobrist::zobrist_hasher<zobrist::quarter_hash_type, dimension>.compute_hash(
+          [&final_output](const std::size_t& i) { return final_output.data[i] > nnue::weights::parameter_type{}; });
+    });
+
+    return eval_cache_entry::make(hash, eval_feature_hash, eval);
   }();
 
   const auto pawn_feature_hash = zobrist::lower_quarter(bd.pawn_hash());
-  const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, entry.feature_hash());
+  const auto eval_feature_hash = entry.eval_feature_hash();
+
+  const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, eval_feature_hash);
   score_type static_value = entry.eval();
 
   if (!is_check) {
@@ -55,7 +65,7 @@ inline evaluation_info search_worker::evaluate_(
     if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
   }
 
-  return evaluation_info{feature_hash, static_value, value};
+  return evaluate_info{feature_hash, static_value, value};
 }
 
 template <bool is_pv, bool use_tt>
@@ -87,7 +97,7 @@ score_type search_worker::q_search(
     if (use_tt && is_cutoff) { return entry.score(); }
   }
 
-  const auto [feature_hash, static_value, value] = evaluate_<is_pv, use_tt>(ss, eval_node, bd, maybe);
+  const auto [feature_hash, static_value, value] = evaluate<is_pv, use_tt>(ss, eval_node, bd, maybe);
 
   if (!is_check && value >= beta) { return value; }
   if (ss.reached_max_height()) { return value; }
@@ -215,7 +225,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   if (should_iir) { --depth; }
 
   // step 4. compute static eval and adjust appropriately if there's a tt hit
-  const auto [feature_hash, static_value, value] = evaluate_<is_pv>(ss, eval_node, bd, maybe);
+  const auto [feature_hash, static_value, value] = evaluate<is_pv>(ss, eval_node, bd, maybe);
 
   // step 5. return static eval if max depth was reached
   if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
@@ -527,7 +537,17 @@ void search_worker::iterative_deepening_loop() noexcept {
 }  // namespace search
 
 template search::score_type search::search_worker::q_search<false, false>(
-    const stack_view& ss, nnue::eval_node& eval_node, const chess::board& bd, score_type alpha, const score_type& beta, const depth_type& elevation);
+    const stack_view& ss,
+    nnue::eval_node& eval_node,
+    const chess::board& bd,
+    score_type alpha,
+    const score_type& beta,
+    const depth_type& elevation);
 
 template search::score_type search::search_worker::q_search<true, false>(
-    const stack_view& ss, nnue::eval_node& eval_node, const chess::board& bd, score_type alpha, const score_type& beta, const depth_type& elevation);
+    const stack_view& ss,
+    nnue::eval_node& eval_node,
+    const chess::board& bd,
+    score_type alpha,
+    const score_type& beta,
+    const depth_type& elevation);

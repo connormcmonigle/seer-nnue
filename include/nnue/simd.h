@@ -249,8 +249,8 @@ struct int16_add_add_sub_sub_x128 {
   static constexpr std::size_t num_units = 4;
   static constexpr bool available = divides<dim, num_units * per_unit<vector_512, std::int16_t>>;
 
-  static inline void f(
-      const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) noexcept {
+  static inline void
+  f(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) noexcept {
     for (std::size_t i(0); i < dim; i += num_units * per_unit<vector_512, std::int16_t>) {
       {
         const __m512i a_0_0 = _mm512_load_si512((__m512i*)(a_0 + i + 0 * per_unit<vector_512, std::int16_t>));
@@ -292,8 +292,8 @@ struct int16_add_add_sub_sub_x128 {
 };
 
 template <std::size_t dim>
-inline void add_add_sub_sub(
-    const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) noexcept {
+inline void
+add_add_sub_sub(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) noexcept {
   return overload_set<int16_add_add_sub_sub_x128<dim>>::f(a_0, a_1, s_0, s_1, out);
 }
 
@@ -541,8 +541,8 @@ struct int16_add_add_sub_sub_x64 {
   static constexpr std::size_t num_units = 4;
   static constexpr bool available = divides<dim, num_units * per_unit<vector_256, std::int16_t>>;
 
-  static inline void f(
-      const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) noexcept {
+  static inline void
+  f(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) noexcept {
     for (std::size_t i(0); i < dim; i += num_units * per_unit<vector_256, std::int16_t>) {
       {
         const __m256i a_0_0 = _mm256_load_si256((__m256i*)(a_0 + i + 0 * per_unit<vector_256, std::int16_t>));
@@ -584,8 +584,8 @@ struct int16_add_add_sub_sub_x64 {
 };
 
 template <std::size_t dim>
-inline void add_add_sub_sub(
-    const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) noexcept {
+inline void
+add_add_sub_sub(const std::int16_t* a_0, const std::int16_t* a_1, const std::int16_t* s_0, const std::int16_t* s_1, std::int16_t* out) noexcept {
   return overload_set<int16_add_add_sub_sub_x64<dim>>::f(a_0, a_1, s_0, s_1, out);
 }
 

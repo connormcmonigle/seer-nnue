@@ -598,12 +598,12 @@ template <color c>
   for (std::size_t reverse_idx = 3; reverse_idx <= limit; reverse_idx += 2) {
     const std::size_t idx = size - reverse_idx;
     const zobrist::hash_type delta = us_hash ^ history.at(idx).us<c>();
-    
+
     if (delta == cuckoo_hash_table::value_type::initial_hash) { continue; }
     if (them_hash != history.at(idx).them<c>()) { continue; }
 
     const std::optional<cuckoo_hash_table_entry> entry = cuckoo_hash_table::instance.look_up(delta);
-    
+
     if (entry.has_value()) {
       const square_set candidates = square_set::of(entry->one(), entry->two());
       const square_set available = man_.us<c>().get_plane(entry->piece());

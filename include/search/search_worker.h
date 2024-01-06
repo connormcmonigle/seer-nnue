@@ -47,7 +47,7 @@ struct pv_search_result<true> {
 template <bool is_root>
 using pv_search_result_t = typename pv_search_result<is_root>::type;
 
-struct evaluation_info {
+struct evaluate_info {
   sided_eval_correction_history::hash_type hash;
   score_type static_value;
   score_type value;
@@ -58,11 +58,8 @@ struct search_worker {
   search_worker_internal_state internal{};
 
   template <bool is_pv, bool use_tt = true>
-  [[nodiscard]] inline evaluation_info evaluate_(
-      const stack_view& ss,
-      nnue::eval_node& eval_node,
-      const chess::board& bd,
-      const std::optional<transposition_table_entry>& maybe) noexcept;
+  [[nodiscard]] inline evaluate_info
+  evaluate(const stack_view& ss, nnue::eval_node& eval_node, const chess::board& bd, const std::optional<transposition_table_entry>& maybe) noexcept;
 
   template <bool is_pv, bool use_tt = true>
   [[nodiscard]] score_type q_search(

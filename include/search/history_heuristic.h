@@ -151,8 +151,8 @@ template <typename... Ts>
 struct combined {
   std::tuple<table<Ts>...> tables_{};
 
-  [[maybe_unused]] constexpr combined<Ts...>& update(
-      const context& ctxt, const chess::move& best_move, const chess::move_list& tried, const depth_type& depth) noexcept {
+  [[maybe_unused]] constexpr combined<Ts...>&
+  update(const context& ctxt, const chess::move& best_move, const chess::move_list& tried, const depth_type& depth) noexcept {
     constexpr value_type history_max = 400;
 
     auto single_update = [&, this](const auto& mv, const value_type& gain) {

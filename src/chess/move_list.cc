@@ -24,4 +24,4 @@ std::ostream& operator<<(std::ostream& ostr, const move_list& mv_ls) noexcept {
   return ostr;
 }
 
-}
+}  // namespace chess

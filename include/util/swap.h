@@ -26,4 +26,4 @@ constexpr void copy_swap(T& a, T& b) {
   b = c;
 }
 
-}
+}  // namespace util

@@ -93,7 +93,6 @@ struct manifest {
   [[nodiscard]] constexpr const square_set& queen() const noexcept { return queen_; }
   [[nodiscard]] constexpr const square_set& king() const noexcept { return king_; }
 
-
   template <typename S>
   [[maybe_unused]] manifest& add_piece(const piece_type& pt, const S& at) noexcept;
 

@@ -45,7 +45,10 @@ struct sparse_affine_layer {
   }
 
   void insert_erase_idx(
-      const std::size_t insert_idx, const std::size_t erase_idx, const aligned_slice<T, b_numel>& src, aligned_slice<T, b_numel> dst) const {
+      const std::size_t insert_idx,
+      const std::size_t erase_idx,
+      const aligned_slice<T, b_numel>& src,
+      aligned_slice<T, b_numel> dst) const {
     const T* insert_mem_region = W + insert_idx * dim1;
     const T* erase_mem_region = W + erase_idx * dim1;
     simd::add_add_sub<b_numel>(src.data, insert_mem_region, erase_mem_region, dst.data);

@@ -56,4 +56,5 @@ inline std::ostream& operator<<(std::ostream& ostr, const aligned_slice<T, dim>&
   ostr << vec.data[dim - 1] << "])";
   return ostr;
 }
+
 }  // namespace nnue
