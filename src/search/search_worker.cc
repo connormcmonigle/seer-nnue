@@ -434,6 +434,15 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     if (score < beta && (mv.is_quiet() || !bd.see_gt(mv, 0))) { moves_tried.push(mv); }
 
+    if constexpr (is_root) {
+      internal.node_distribution[mv] += (internal.nodes.load(std::memory_order_relaxed) - nodes_before);
+
+      if (score > alpha && internal.keep_going()) {
+        internal.score.store(score, std::memory_order::memory_order_relaxed);
+        internal.best_move.store(mv.data, std::memory_order::memory_order_relaxed);
+      }
+    }
+
     if (score > best_score) {
       best_score = score;
       best_move = mv;
@@ -441,15 +450,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
       if (score > alpha) {
         if (score < beta) { alpha = score; }
         if constexpr (is_pv) { ss.prepend_to_pv(mv); }
-      }
-    }
-
-    if constexpr (is_root) {
-      internal.node_distribution[mv] += (internal.nodes.load(std::memory_order_relaxed) - nodes_before);
-
-      if (score > alpha && internal.keep_going()) {
-        internal.score.store(score, std::memory_order::memory_order_relaxed);
-        internal.best_move.store(mv.data, std::memory_order::memory_order_relaxed);
       }
     }
 
