@@ -766,7 +766,7 @@ board board::forward_(const move& mv) const noexcept {
   copy.lat_.them<c>().clear_ep_mask();
   ++copy.lat_.ply_count;
   ++copy.lat_.half_clock;
-  if (mv.is_capture() || mv.piece() == piece_type::pawn) { copy.lat_.half_clock = 0; }
+  if (!mv.is_null() && (mv.is_capture() || mv.piece() == piece_type::pawn)) { copy.lat_.half_clock = 0; }
   return copy;
 }
 
