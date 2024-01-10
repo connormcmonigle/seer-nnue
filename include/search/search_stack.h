@@ -80,7 +80,29 @@ struct stack_view {
   [[nodiscard]] constexpr const chess::board& root_position() const noexcept { return view_->root(); }
 
   [[nodiscard]] inline bool upcoming_cycle_exists(const chess::board& bd) const noexcept {
-    return bd.upcoming_cycle_exists(height_, view_->history_);
+
+    const bool cuckoo = bd.upcoming_cycle_exists(height_, view_->history_);
+    
+    const auto [manual, mv] = [&, this] {      
+      for (const auto& mv : bd.generate_moves<>()) {
+        const auto next_hash = bd.forward(mv).hash();
+        if (view_->history_.count(height_, next_hash) >= 1) { return std::tuple(true, mv); }
+      }
+
+      return std::tuple(false, chess::move::null());
+    }();
+
+    if (manual != cuckoo) {
+      std::cout << "fuck me: " << std::boolalpha << cuckoo << ", " << manual << ", proof: " << mv.name(bd.turn()) << std::endl;
+      
+      for (std::size_t i(0); i < height_; ++i) {
+        std::cout << view_->at(i).played_.name(false) << " ";
+      }
+
+      std::cout << std::endl;
+    }
+
+    return cuckoo;
   }
 
   [[nodiscard]] constexpr chess::move counter() const noexcept {
