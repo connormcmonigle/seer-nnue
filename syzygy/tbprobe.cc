@@ -1,6 +1,7 @@
 /*
+Copyright (c) 2013-2018 Ronald de Man
 Copyright (c) 2015 basil00
-Modifications Copyright (c) 2016-2019 by Jon Dart
+Modifications Copyright (c) 2016-2023 by Jon Dart
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -38,10 +39,6 @@ SOFTWARE.
 #endif
 #include "tbprobe.h"
 
-#ifdef __cplusplus
-using namespace std;
-#endif
-
 #define TB_PIECES 7
 #define TB_HASHBITS  (TB_PIECES < 7 ?  11 : 12)
 #define TB_MAX_PIECE (TB_PIECES < 7 ? 254 : 650)
@@ -67,6 +64,13 @@ typedef size_t map_t;
 #define FD HANDLE
 #define FD_ERR INVALID_HANDLE_VALUE
 typedef HANDLE map_t;
+#endif
+
+// This must be after the inclusion of Windows headers, because otherwise
+// std::byte conflicts with "byte" in rpcndr.h . The error occurs if C++
+// standard is at lest 17, as std::byte was introduced in C++17.
+#ifdef __cplusplus
+using namespace std;
 #endif
 
 #define DECOMP64
@@ -120,13 +124,22 @@ typedef HANDLE map_t;
 #include <nmmintrin.h>
 #define popcount(x)             (int)_mm_popcnt_u64((x))
 #else
+// try to use a builtin
+#if defined (__has_builtin)
+#if __has_builtin(__builtin_popcountll)
+#define popcount(x) __builtin_popcountll((x))
+#else
 #define TB_SOFTWARE_POP_COUNT
+#endif
+#else
+#define TB_SOFTWARE_POP_COUNT
+#endif
 #endif
 
 #ifdef TB_SOFTWARE_POP_COUNT
-// Not a recognized compiler/architecture that has popcount:
-// fall back to a software popcount. This one is still reasonably
-// fast.
+// Not a recognized compiler/architecture that has popcount, and
+// no builtin available: fall back to a software popcount. This one
+// is still reasonably fast.
 static inline unsigned tb_software_popcount(uint64_t x)
 {
     x = x - ((x >> 1) & 0x5555555555555555ull);
@@ -134,7 +147,6 @@ static inline unsigned tb_software_popcount(uint64_t x)
     x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0full;
     return (x * 0x0101010101010101ull) >> 56;
 }
-
 #define popcount(x) tb_software_popcount(x)
 #endif
 
@@ -306,11 +318,14 @@ static FD open_tb(const char *str, const char *suffix)
     wchar_t ucode_name[4096];
     size_t len;
     mbstowcs_s(&len, ucode_name, 4096, file, _TRUNCATE);
+    /* use FILE_FLAG_RANDOM_ACCESS because we are likely to access this file
+       randomly, so prefetch is not helpful. See
+       https://github.com/official-stockfish/Stockfish/pull/1829 */
     fd = CreateFile(ucode_name, GENERIC_READ, FILE_SHARE_READ, NULL,
-			  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			  OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, NULL);
 #else
     fd = CreateFile(file, GENERIC_READ, FILE_SHARE_READ, NULL,
-			  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			  OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, NULL);
 #endif
 #endif
     free(file);
@@ -342,15 +357,16 @@ static void *map_file(FD fd, map_t *mapping)
   *mapping = statbuf.st_size;
   void *data = mmap(NULL, statbuf.st_size, PROT_READ,
 			      MAP_SHARED, fd, 0);
-
-  #if defined(MADV_RANDOM)
-  madvise(data, statbuf.st_size, MADV_RANDOM);
-  #endif
-
   if (data == MAP_FAILED) {
     perror("mmap");
     return NULL;
   }
+#ifdef POSIX_MADV_RANDOM
+  /* Advise the kernel that we are likely to access this data
+     region randomly, so prefetch is not helpful. See
+     https://github.com/official-stockfish/Stockfish/pull/1829 */
+  posix_madvise(data, statbuf.st_size, POSIX_MADV_RANDOM);
+#endif
 #else
   DWORD size_low, size_high;
   size_low = GetFileSize(fd, &size_high);
@@ -373,8 +389,8 @@ static void *map_file(FD fd, map_t *mapping)
 static void unmap_file(void *data, map_t size)
 {
   if (!data) return;
-  if (!munmap(data, size)) {
-	  perror("munmap");
+  if (munmap(data, size) != 0) {
+      perror("munmap");
   }
 }
 #else
@@ -836,9 +852,13 @@ bool tb_init(const char *path)
     numWdl = numDtm = numDtz = 0;
   }
 
+  TB_LARGEST = 0;
+
   // if path is an empty string or equals "<empty>", we are done.
   const char *p = path;
-  if (strlen(p) == 0 || !strcmp(p, "<empty>")) return true;
+  if (strlen(p) == 0 || !strcmp(p, "<empty>")) {
+    return true;
+  }
 
   pathString = (char*)malloc(strlen(p) + 1);
   strcpy(pathString, p);
@@ -862,7 +882,6 @@ bool tb_init(const char *path)
 
   tbNumPiece = tbNumPawn = 0;
   TB_MaxCardinality = TB_MaxCardinalityDTM = 0;
-  TB_LARGEST = 0;
 
   if (!pieceEntry) {
     pieceEntry = (struct PieceEntry*)malloc(TB_MAX_PIECE * sizeof(*pieceEntry));
@@ -882,33 +901,33 @@ bool tb_init(const char *path)
   int i, j, k, l, m;
 
   for (i = 0; i < 5; i++) {
-    sprintf(str, "K%cvK", pchr(i));
+    snprintf(str, 16, "K%cvK", pchr(i));
     init_tb(str);
   }
 
   for (i = 0; i < 5; i++)
     for (j = i; j < 5; j++) {
-      sprintf(str, "K%cvK%c", pchr(i), pchr(j));
+      snprintf(str, 16, "K%cvK%c", pchr(i), pchr(j));
       init_tb(str);
     }
 
   for (i = 0; i < 5; i++)
     for (j = i; j < 5; j++) {
-      sprintf(str, "K%c%cvK", pchr(i), pchr(j));
+      snprintf(str, 16, "K%c%cvK", pchr(i), pchr(j));
       init_tb(str);
     }
 
   for (i = 0; i < 5; i++)
     for (j = i; j < 5; j++)
       for (k = 0; k < 5; k++) {
-        sprintf(str, "K%c%cvK%c", pchr(i), pchr(j), pchr(k));
+        snprintf(str, 16, "K%c%cvK%c", pchr(i), pchr(j), pchr(k));
         init_tb(str);
       }
 
   for (i = 0; i < 5; i++)
     for (j = i; j < 5; j++)
       for (k = j; k < 5; k++) {
-        sprintf(str, "K%c%c%cvK", pchr(i), pchr(j), pchr(k));
+        snprintf(str, 16, "K%c%c%cvK", pchr(i), pchr(j), pchr(k));
         init_tb(str);
       }
 
@@ -920,7 +939,7 @@ bool tb_init(const char *path)
     for (j = i; j < 5; j++)
       for (k = i; k < 5; k++)
         for (l = (i == k) ? j : k; l < 5; l++) {
-          sprintf(str, "K%c%cvK%c%c", pchr(i), pchr(j), pchr(k), pchr(l));
+          snprintf(str, 16, "K%c%cvK%c%c", pchr(i), pchr(j), pchr(k), pchr(l));
           init_tb(str);
         }
 
@@ -928,7 +947,7 @@ bool tb_init(const char *path)
     for (j = i; j < 5; j++)
       for (k = j; k < 5; k++)
         for (l = 0; l < 5; l++) {
-          sprintf(str, "K%c%c%cvK%c", pchr(i), pchr(j), pchr(k), pchr(l));
+          snprintf(str, 16, "K%c%c%cvK%c", pchr(i), pchr(j), pchr(k), pchr(l));
           init_tb(str);
         }
 
@@ -936,7 +955,7 @@ bool tb_init(const char *path)
     for (j = i; j < 5; j++)
       for (k = j; k < 5; k++)
         for (l = k; l < 5; l++) {
-          sprintf(str, "K%c%c%c%cvK", pchr(i), pchr(j), pchr(k), pchr(l));
+          snprintf(str, 16, "K%c%c%c%cvK", pchr(i), pchr(j), pchr(k), pchr(l));
           init_tb(str);
         }
 
@@ -948,7 +967,7 @@ bool tb_init(const char *path)
       for (k = j; k < 5; k++)
         for (l = k; l < 5; l++)
           for (m = l; m < 5; m++) {
-            sprintf(str, "K%c%c%c%c%cvK", pchr(i), pchr(j), pchr(k), pchr(l), pchr(m));
+            snprintf(str, 16, "K%c%c%c%c%cvK", pchr(i), pchr(j), pchr(k), pchr(l), pchr(m));
             init_tb(str);
           }
 
@@ -957,7 +976,7 @@ bool tb_init(const char *path)
       for (k = j; k < 5; k++)
         for (l = k; l < 5; l++)
           for (m = 0; m < 5; m++) {
-            sprintf(str, "K%c%c%c%cvK%c", pchr(i), pchr(j), pchr(k), pchr(l), pchr(m));
+            snprintf(str, 16, "K%c%c%c%cvK%c", pchr(i), pchr(j), pchr(k), pchr(l), pchr(m));
             init_tb(str);
           }
 
@@ -966,7 +985,7 @@ bool tb_init(const char *path)
       for (k = j; k < 5; k++)
         for (l = 0; l < 5; l++)
           for (m = l; m < 5; m++) {
-            sprintf(str, "K%c%c%cvK%c%c", pchr(i), pchr(j), pchr(k), pchr(l), pchr(m));
+            snprintf(str, 16, "K%c%c%cvK%c%c", pchr(i), pchr(j), pchr(k), pchr(l), pchr(m));
             init_tb(str);
           }
 
@@ -1555,7 +1574,7 @@ static bool init_table(struct BaseEntry *be, const char *str, int type)
         } else {
           data += (uintptr_t)data & 0x01;
           for (int i = 0; i < 4; i++) {
-            mapIdx[t][i] = (uint16_t)(data + 1 - (uint8_t *)map);
+            mapIdx[t][i] = (uint16_t)((uint16_t*)data + 1 - (uint16_t *)map);
             data += 2 + 2 * read_le_u16(data);
           }
         }
@@ -1955,12 +1974,12 @@ int probe_wdl(Pos *pos, int *success)
   // Now handle the stalemate case.
   if (bestEp > -3 && v == 0) {
     TbMove moves[TB_MAX_MOVES];
-    TbMove *endMove = gen_moves(pos, moves);
+    TbMove *end2 = gen_moves(pos, moves);
     // Check for stalemate in the position with ep captures.
-    for (m = moves; m < endMove; m++) {
+    for (m = moves; m < end2; m++) {
       if (!is_en_passant(pos,*m) && legal_move(pos, *m)) break;
     }
-    if (m == endMove && !is_check(pos)) {
+    if (m == end2 && !is_check(pos)) {
       // stalemate score from tb (w/o e.p.), but an en-passant capture
       // is possible.
       *success = 2;
@@ -2077,16 +2096,6 @@ static Value probe_dtm_win(const Pos *pos, int *success)
 
   return best;
 }
-
-//Value TB_probe_dtm(const Pos *pos, int wdl, int *success)
-//{
-//  assert(wdl != 0);
-//
-//  *success = 1;
-//
-//  return wdl > 0 ? probe_dtm_win(pos, success)
-//                 : probe_dtm_loss(pos, success);
-//}
 
 #if 0
 // To be called only for non-drawn positions.
@@ -2366,98 +2375,7 @@ int root_probe_wdl(const Pos *pos, bool useRule50, struct TbRootMoves *rm)
   return 1;
 }
 
-// Use the DTM tables to find mate scores.
-// Either DTZ or WDL must have been probed successfully earlier.
-// A return value of 0 means that not all probes were successful.
-//int root_probe_dtm(const Pos *pos, struct TbRootMoves *rm)
-//{
-//  int success;
-//  Value tmpScore[TB_MAX_MOVES];
-//
-//  // Probe each move.
-//  for (unsigned i = 0; i < rm->size; i++) {
-//    Pos pos1;
-//    struct TbRootMove *m = &rm->moves[i];
-//
-//    // Use tbScore to find out if the position is won or lost.
-//    int wdl =  m->tbScore >  TB_VALUE_PAWN ?  2
-//             : m->tbScore < -TB_VALUE_PAWN ? -2 : 0;
-//
-//    if (wdl == 0)
-//      tmpScore[i] = 0;
-//    else {
-//      // Probe and adjust mate score by 1 ply.
-//      do_move(&pos1, pos, m->pv[0]);
-//      Value v = -TB_probe_dtm(&pos1, -wdl, &success);
-//      tmpScore[i] = wdl > 0 ? v - 1 : v + 1;
-//      if (success == 0)
-//        return 0;
-//    }
-//  }
-//
-//  // All probes were successful. Now adjust TB scores and ranks.
-//  for (unsigned i = 0; i < rm->size; i++) {
-//    struct TbRootMove *m = &rm->moves[i];
-//
-//    m->tbScore = tmpScore[i];
-//
-//    // Let rank correspond to mate score, except for critical moves
-//    // ranked 900, which we rank below all other mates for safety.
-//    // By ranking mates above 1000 or below -1000, we let the search
-//    // know it need not search those moves.
-//    m->tbRank = m->tbRank == 900 ? 1001 : m->tbScore;
-//  }
-//
-//  return 1;
-//}
 
-// Use the DTM tables to complete a PV with mate score.
-//void tb_expand_mate(Pos *pos, struct TbRootMove *move, Value moveScore, unsigned cardinalityDTM)
-//{
-//  int success = 1, chk = 0;
-//  Value v = moveScore, w = 0;
-//  int wdl = v > 0 ? 2 : -2;
-//
-//  if (move->pvSize == TB_MAX_PLY)
-//    return;
-//
-//  Pos root = *pos;
-//  // First get to the end of the incomplete PV.
-//  for (unsigned i = 0; i < move->pvSize; i++) {
-//    v = v > 0 ? -v - 1 : -v + 1;
-//    wdl = -wdl;
-//    Pos pos0 = *pos;
-//    do_move(pos, &pos0, move->pv[i]);
-//  }
-//
-//  // Now try to expand until the actual mate.
-//  if ((int)popcount(pos->white | pos->black) <= (int)cardinalityDTM) {
-//    while (v != -TB_VALUE_MATE && move->pvSize < TB_MAX_PLY) {
-//      v = v > 0 ? -v - 1 : -v + 1;
-//      wdl = -wdl;
-//      TbMove moves[TB_MAX_MOVES];
-//      TbMove *end = gen_legal(pos, moves);
-//      TbMove *m = moves;
-//      for (; m < end; m++) {
-//        Pos pos1;
-//        do_move(&pos1, pos, *m);
-//        if (wdl < 0)
-//          chk = probe_wdl(&pos1, &success); // verify that move wins
-//        w =  success && (wdl > 0 || chk < 0)
-//           ? TB_probe_dtm(&pos1, wdl, &success)
-//           : 0;
-//        if (!success || v == w) break;
-//      }
-//      if (!success || v != w)
-//        break;
-//      move->pv[move->pvSize++] = *m;
-//      Pos pos0 = *pos;
-//      do_move(pos, &pos0, *m);
-//    }
-//  }
-//  // Get back to the root position.
-//  *pos = root;
-//}
 
 static const int wdl_to_dtz[] =
 {

@@ -113,9 +113,10 @@
 #define __ENDIAN_DEFINED        1
 #endif /* sun */
 
-/* Windows */
-#if defined(_WIN32) || defined(_MSC_VER)
-/* assumes all Microsoft targets are little endian */
+/* Windows (also Emscripten) */
+#if defined(_WIN32) || defined(_MSC_VER) || defined(__EMSCRIPTEN__)
+/* assumes all Microsoft targets are little endian. */
+/* Emscripten (emcc) also currently assumes little endian. */
 #define _LITTLE_ENDIAN          1234
 #define _BIG_ENDIAN             4321
 #define _BYTE_ORDER             _LITTLE_ENDIAN

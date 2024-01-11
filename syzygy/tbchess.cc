@@ -21,10 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <assert.h>
-#include "tbprobe.h"
-#include <stddef.h>
-
 #define TB_PAWN 1
 #define TB_KNIGHT 2
 #define TB_BISHOP 3
@@ -566,16 +562,16 @@ static uint64_t calc_key(const Pos *pos, bool mirror)
         white = black;
         black = tmp;
     }
-    return tb_pop_count(white & pos->queens)  * PRIME_WHITE_QUEEN +
-           tb_pop_count(white & pos->rooks)   * PRIME_WHITE_ROOK +
-           tb_pop_count(white & pos->bishops) * PRIME_WHITE_BISHOP +
-           tb_pop_count(white & pos->knights) * PRIME_WHITE_KNIGHT +
-           tb_pop_count(white & pos->pawns)   * PRIME_WHITE_PAWN +
-           tb_pop_count(black & pos->queens)  * PRIME_BLACK_QUEEN +
-           tb_pop_count(black & pos->rooks)   * PRIME_BLACK_ROOK +
-           tb_pop_count(black & pos->bishops) * PRIME_BLACK_BISHOP +
-           tb_pop_count(black & pos->knights) * PRIME_BLACK_KNIGHT +
-           tb_pop_count(black & pos->pawns)   * PRIME_BLACK_PAWN;
+    return popcount(white & pos->queens)  * PRIME_WHITE_QUEEN +
+           popcount(white & pos->rooks)   * PRIME_WHITE_ROOK +
+           popcount(white & pos->bishops) * PRIME_WHITE_BISHOP +
+           popcount(white & pos->knights) * PRIME_WHITE_KNIGHT +
+           popcount(white & pos->pawns)   * PRIME_WHITE_PAWN +
+           popcount(black & pos->queens)  * PRIME_BLACK_QUEEN +
+           popcount(black & pos->rooks)   * PRIME_BLACK_ROOK +
+           popcount(black & pos->bishops) * PRIME_BLACK_BISHOP +
+           popcount(black & pos->knights) * PRIME_BLACK_KNIGHT +
+           popcount(black & pos->pawns)   * PRIME_BLACK_PAWN;
 }
 
 // Produce a 64-bit material key corresponding to the material combination
@@ -663,62 +659,62 @@ static TbMove *gen_captures(const Pos *pos, TbMove *moves)
              them = (pos->turn? pos->black: pos->white);
     uint64_t b, att;
     {
-        unsigned from = tb_lsb(pos->kings & us);
+        unsigned from = lsb(pos->kings & us);
         assert(from < 64);
-        for (att = king_attacks(from) & them; att; att = tb_pop_lsb(att))
+        for (att = king_attacks(from) & them; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, false, from, to);
         }
     }
-    for (b = us & pos->queens; b; b = tb_pop_lsb(b))
+    for (b = us & pos->queens; b; b = poplsb(b))
     {
-        unsigned from = tb_lsb(b);
-        for (att = queen_attacks(from, occ) & them; att; att = tb_pop_lsb(att))
+        unsigned from = lsb(b);
+        for (att = queen_attacks(from, occ) & them; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, false, from, to);
         }
     }
-    for (b = us & pos->rooks; b; b = tb_pop_lsb(b))
+    for (b = us & pos->rooks; b; b = poplsb(b))
     {
-        unsigned from = tb_lsb(b);
-        for (att = rook_attacks(from, occ) & them; att; att = tb_pop_lsb(att))
+        unsigned from = lsb(b);
+        for (att = rook_attacks(from, occ) & them; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, false, from, to);
         }
     }
-    for (b = us & pos->bishops; b; b = tb_pop_lsb(b))
+    for (b = us & pos->bishops; b; b = poplsb(b))
     {
-        unsigned from = tb_lsb(b);
-        for (att = bishop_attacks(from, occ) & them; att; att = tb_pop_lsb(att))
+        unsigned from = lsb(b);
+        for (att = bishop_attacks(from, occ) & them; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, false, from, to);
         }
     }
-    for (b = us & pos->knights; b; b = tb_pop_lsb(b))
+    for (b = us & pos->knights; b; b = poplsb(b))
     {
-        unsigned from = tb_lsb(b);
-        for (att = knight_attacks(from) & them; att; att = tb_pop_lsb(att))
+        unsigned from = lsb(b);
+        for (att = knight_attacks(from) & them; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, false, from, to);
         }
     }
-    for (b = us & pos->pawns; b; b = tb_pop_lsb(b))
+    for (b = us & pos->pawns; b; b = poplsb(b))
     {
-        unsigned from = tb_lsb(b);
+        unsigned from = lsb(b);
         att = pawn_attacks(from, pos->turn);
         if (pos->ep != 0 && ((att & board(pos->ep)) != 0))
         {
             unsigned to = pos->ep;
             moves = add_move(moves, false, from, to);
         }
-        for (att = att & them; att; att = tb_pop_lsb(att))
+        for (att = att & them; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, (rank(to) == 7 || rank(to) == 0), from,
                 to);
         }
@@ -737,52 +733,52 @@ static TbMove *gen_moves(const Pos *pos, TbMove *moves)
     uint64_t b, att;
     
     {
-        unsigned from = tb_lsb(pos->kings & us);
-        for (att = king_attacks(from) & ~us; att; att = tb_pop_lsb(att))
+        unsigned from = lsb(pos->kings & us);
+        for (att = king_attacks(from) & ~us; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, false, from, to);
         }
     }
-    for (b = us & pos->queens; b; b = tb_pop_lsb(b))
+    for (b = us & pos->queens; b; b = poplsb(b))
     {
-        unsigned from = tb_lsb(b);
-        for (att = queen_attacks(from, occ) & ~us; att; att = tb_pop_lsb(att))
+        unsigned from = lsb(b);
+        for (att = queen_attacks(from, occ) & ~us; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, false, from, to);
         }
     }
-    for (b = us & pos->rooks; b; b = tb_pop_lsb(b))
+    for (b = us & pos->rooks; b; b = poplsb(b))
     {
-        unsigned from = tb_lsb(b);
-        for (att = rook_attacks(from, occ) & ~us; att; att = tb_pop_lsb(att))
+        unsigned from = lsb(b);
+        for (att = rook_attacks(from, occ) & ~us; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, false, from, to);
         }
     }
-    for (b = us & pos->bishops; b; b = tb_pop_lsb(b))
+    for (b = us & pos->bishops; b; b = poplsb(b))
     {
-        unsigned from = tb_lsb(b);
-        for (att = bishop_attacks(from, occ) & ~us; att; att = tb_pop_lsb(att))
+        unsigned from = lsb(b);
+        for (att = bishop_attacks(from, occ) & ~us; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, false, from, to);
         }
     }
-    for (b = us & pos->knights; b; b = tb_pop_lsb(b))
+    for (b = us & pos->knights; b; b = poplsb(b))
     {
-        unsigned from = tb_lsb(b);
-        for (att = knight_attacks(from) & ~us; att; att = tb_pop_lsb(att))
+        unsigned from = lsb(b);
+        for (att = knight_attacks(from) & ~us; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, false, from, to);
         }
     }
-    for (b = us & pos->pawns; b; b = tb_pop_lsb(b))
+    for (b = us & pos->pawns; b; b = poplsb(b))
     {
-        unsigned from = tb_lsb(b);
+        unsigned from = lsb(b);
         unsigned next = from + (pos->turn? 8: -8);
         att = pawn_attacks(from, pos->turn);
         if (pos->ep != 0 && ((att & board(pos->ep)) != 0))
@@ -799,9 +795,9 @@ static TbMove *gen_moves(const Pos *pos, TbMove *moves)
                     ((board(next2) & occ) == 0))
                 att |= board(next2);
         }
-        for (; att; att = tb_pop_lsb(att))
+        for (; att; att = poplsb(att))
         {
-            unsigned to = tb_lsb(att);
+            unsigned to = lsb(att);
             moves = add_move(moves, (rank(to) == 7 || rank(to) == 0), from,
                 to);
         }
@@ -850,7 +846,7 @@ static bool is_legal(const Pos *pos)
     uint64_t king = pos->kings & us;
     if (!king)
         return false;
-    unsigned sq = tb_lsb(king);
+    unsigned sq = lsb(king);
     if (king_attacks(sq) & (pos->kings & them))
         return false;
     uint64_t ratt = rook_attacks(sq, occ);
@@ -878,7 +874,7 @@ static bool is_check(const Pos *pos)
              them = (pos->turn? pos->black: pos->white);
     uint64_t king = pos->kings & us;
     assert(king != 0);
-    unsigned sq = tb_lsb(king);
+    unsigned sq = lsb(king);
     uint64_t ratt = rook_attacks(sq, occ);
     uint64_t batt = bishop_attacks(sq, occ);
     if (ratt & (pos->rooks & them))
@@ -899,11 +895,11 @@ static bool is_check(const Pos *pos)
  */
 static bool is_valid(const Pos *pos)
 {
-    if (tb_pop_count(pos->kings) != 2)
+    if (popcount(pos->kings) != 2)
         return false;
-    if (tb_pop_count(pos->kings & pos->white) != 1)
+    if (popcount(pos->kings & pos->white) != 1)
         return false;
-    if (tb_pop_count(pos->kings & pos->black) != 1)
+    if (popcount(pos->kings & pos->black) != 1)
         return false;
     if ((pos->white & pos->black) != 0)
         return false;
