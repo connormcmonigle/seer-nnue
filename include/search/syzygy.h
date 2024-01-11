@@ -17,12 +17,9 @@
 
 #pragma once
 
-extern "C" {
-#include <tbprobe.h>
-}
-
 #include <chess/board.h>
 #include <search/search_constants.h>
+#include <tbprobe.h>
 
 #include <string>
 

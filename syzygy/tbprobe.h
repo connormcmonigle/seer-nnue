@@ -24,7 +24,8 @@
 #ifndef TBPROBE_H
 #define TBPROBE_H
 
-#include "tbconfig.h"
+#include <tbconfig.h>
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -224,9 +225,6 @@ static inline unsigned tb_probe_wdl(
     return tb_probe_wdl_impl(_white, _black, _kings, _queens, _rooks,
         _bishops, _knights, _pawns, _ep, _turn);
 }
-
-
-
 
 /*
  * Probe the Distance-To-Zero (DTZ) table.
