@@ -16,9 +16,9 @@ INCBIN = ../incbin
 SYZYGY = ../syzygy
 
 BASECXXFLAGS += -std=c++$(CXXSTANDARD)
-BASECXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native -fopenmp
+BASECXXFLAGS += -O3 -g -DNDEBUG -march=native -mtune=native
 BASECXXFLAGS += -Wall -Wextra -pedantic
-BASECXXFLAGS += -fconstexpr-ops-limit=$(OPSLIMIT)
+BASECXXFLAGS += -fconstexpr-steps=$(OPSLIMIT)
 BASECXXFLAGS += -DEVALFILE=\"$(EVALFILE)\"
 CXXFLAGS += $(BASECXXFLAGS)
 
@@ -55,8 +55,7 @@ profileuse: CXXFLAGS += -fprofile-use
 profileuse: flto
 
 .PHONY: flto
-flto: CXXFLAGS += -flto -flto-partition=one -fwhole-program
-flto: LDFLAGS += -flto=jobserver
+flto: CXXFLAGS += -flto
 flto: binary
 
 .PHONY: plain
