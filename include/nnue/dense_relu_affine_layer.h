@@ -36,15 +36,27 @@ struct dense_relu_affine_layer {
 
   [[nodiscard]] constexpr std::size_t num_parameters() const noexcept { return W_numel + b_numel; }
 
-  [[nodiscard]] inline aligned_vector<dot_type<T>, dim1> forward(const aligned_vector<T, dim0>& x) const noexcept {
+  [[nodiscard]] inline aligned_vector<dot_type<T>, dim1> relu_forward(const aligned_vector<T, dim0>& x) const noexcept {
     auto result = aligned_vector<dot_type<T>, dim1>::from(b);
     simd::relu_matrix_vector_product<dim0, dim1>(W, x.data, result.data);
     return result;
   }
 
-  [[nodiscard]] inline aligned_vector<dot_type<T>, dim1> forward(const aligned_slice<T, dim0>& x) const noexcept {
+  [[nodiscard]] inline aligned_vector<dot_type<T>, dim1> relu_forward(const aligned_slice<T, dim0>& x) const noexcept {
     auto result = aligned_vector<dot_type<T>, dim1>::from(b);
     simd::relu_matrix_vector_product<dim0, dim1>(W, x.data, result.data);
+    return result;
+  }
+
+  [[nodiscard]] inline aligned_vector<dot_type<T>, dim1> sqcrelu512_forward(const aligned_vector<T, dim0>& x) const noexcept {
+    auto result = aligned_vector<dot_type<T>, dim1>::from(b);
+    simd::sqcrelu512_matrix_vector_product<dim0, dim1>(W, x.data, result.data);
+    return result;
+  }
+
+  [[nodiscard]] inline aligned_vector<dot_type<T>, dim1> sqcrelu512_forward(const aligned_slice<T, dim0>& x) const noexcept {
+    auto result = aligned_vector<dot_type<T>, dim1>::from(b);
+    simd::sqcrelu512_matrix_vector_product<dim0, dim1>(W, x.data, result.data);
     return result;
   }
 
