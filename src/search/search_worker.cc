@@ -55,7 +55,7 @@ inline evaluate_info search_worker::evaluate(
 
   if (!is_check) {
     internal.cache.insert(bd.hash(), entry);
-    static_value += internal.correction.us(bd.turn()).correction_for(feature_hash);
+    static_value += internal.correction.us(bd.turn()).correction_for(feature_hash, bd.phase<eval_correction_history::phase_type>());
   }
 
   score_type value = static_value;
@@ -466,7 +466,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     if (!is_check && best_move.is_quiet()) {
       const score_type error = best_score - static_value;
-      internal.correction.us(bd.turn()).update(feature_hash, bound, error);
+      const auto phase = bd.phase<eval_correction_history::phase_type>();
+      internal.correction.us(bd.turn()).update(feature_hash, phase, bound, error);
     }
 
     const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);

@@ -26,35 +26,54 @@
 namespace search {
 
 struct eval_correction_history {
+  using phase_type = float;
+
   static constexpr size_t N = 4096;
   static constexpr size_t mask = N - 1;
   static_assert((N & mask) == 0);
+
+  static constexpr phase_type one = 1.0;
   static constexpr score_type eval_correction_scale = 256;
 
-  std::array<score_type, N> data{};
+  std::array<score_type, N> mg_data{};
+  std::array<score_type, N> eg_data{};
 
   [[nodiscard]] static constexpr std::size_t hash_function(const zobrist::quarter_hash_type& feature_hash) noexcept { return feature_hash & mask; }
 
-  [[nodiscard]] constexpr score_type correction_for(const zobrist::quarter_hash_type& feature_hash) const noexcept {
-    const score_type raw_correction = data[hash_function(feature_hash)];
-    return raw_correction / eval_correction_scale;
+  [[nodiscard]] constexpr score_type correction_for(const zobrist::quarter_hash_type& feature_hash, const phase_type& phase) const noexcept {
+    const auto mg_raw_correction = phase * mg_data[hash_function(feature_hash)];
+    const auto eg_raw_correction = (one - phase) * eg_data[hash_function(feature_hash)];
+    return (mg_raw_correction + eg_raw_correction) / eval_correction_scale;
   }
 
-  constexpr void update(const zobrist::quarter_hash_type& feature_hash, const score_type& error) noexcept {
+  constexpr void update(const zobrist::quarter_hash_type& feature_hash, const phase_type& phase, const score_type& error) noexcept {
     constexpr score_type score_correction_limit = 65536;
 
     constexpr score_type filter_alpha = 1;
     constexpr score_type filter_c_alpha = 255;
     constexpr score_type filter_divisor = filter_alpha + filter_c_alpha;
 
-    auto& correction = data[hash_function(feature_hash)];
+    {
+      const score_type scaled_error = phase * error * eval_correction_scale;
 
-    const score_type scaled_error = error * eval_correction_scale;
-    correction = (correction * filter_c_alpha + scaled_error * filter_alpha) / filter_divisor;
-    correction = std::clamp(correction, -score_correction_limit, score_correction_limit);
+      auto& correction = mg_data[hash_function(feature_hash)];
+      correction = (correction * filter_c_alpha + scaled_error * filter_alpha) / filter_divisor;
+      correction = std::clamp(correction, -score_correction_limit, score_correction_limit);
+    }
+
+    {
+      const score_type scaled_error = (one - phase) * error * eval_correction_scale;
+
+      auto& correction = eg_data[hash_function(feature_hash)];
+      correction = (correction * filter_c_alpha + scaled_error * filter_alpha) / filter_divisor;
+      correction = std::clamp(correction, -score_correction_limit, score_correction_limit);
+    }
   }
 
-  void clear() noexcept { return data.fill(score_type{}); }
+  void clear() noexcept {
+    mg_data.fill(score_type{});
+    eg_data.fill(score_type{});
+  }
 };
 
 template <std::size_t N>
@@ -71,26 +90,29 @@ template <typename... Ts>
 
 template <std::size_t N>
 struct composite_eval_correction_history {
+  using phase_type = eval_correction_history::phase_type;
+
   std::array<eval_correction_history, N> histories_{};
 
-  [[nodiscard]] constexpr score_type correction_for(const composite_feature_hash<N>& composite_hash) const noexcept {
+  [[nodiscard]] constexpr score_type correction_for(const composite_feature_hash<N>& composite_hash, const phase_type& phase) const noexcept {
     score_type result{};
 
     for (std::size_t i(0); i < N; ++i) {
       const zobrist::quarter_hash_type hash = composite_hash.hash(i);
-      result += histories_[i].correction_for(hash);
+      result += histories_[i].correction_for(hash, phase);
     }
 
     return result;
   }
 
-  constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error) noexcept {
+  constexpr void
+  update(const composite_feature_hash<N>& composite_hash, const phase_type& phase, const bound_type& bound, const score_type& error) noexcept {
     if (bound == bound_type::upper && error >= 0) { return; }
     if (bound == bound_type::lower && error <= 0) { return; }
 
     for (std::size_t i(0); i < N; ++i) {
       const zobrist::quarter_hash_type hash = composite_hash.hash(i);
-      histories_[i].update(hash, error);
+      histories_[i].update(hash, phase, error);
     }
   }
 
@@ -100,6 +122,7 @@ struct composite_eval_correction_history {
 };
 
 constexpr std::size_t eval_correction_history_num_hashes = 2;
+
 struct sided_eval_correction_history
     : public chess::sided<sided_eval_correction_history, composite_eval_correction_history<eval_correction_history_num_hashes>> {
   using hash_type = composite_feature_hash<eval_correction_history_num_hashes>;
