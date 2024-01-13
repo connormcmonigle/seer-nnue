@@ -22,7 +22,7 @@
 #include <nnue/aligned_scratchpad.h>
 #include <nnue/aligned_slice.h>
 #include <nnue/aligned_vector.h>
-#include <nnue/dense_relu_affine_layer.h>
+#include <nnue/dense_fused_affine_layer.h>
 #include <nnue/feature_transformer.h>
 #include <nnue/sparse_affine_layer.h>
 #include <nnue/weights.h>
@@ -90,7 +90,8 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
 
   template <typename F>
   [[nodiscard]] inline propagate_data<std::invoke_result_t<F, final_output_type>> propagate(const bool pov, F&& final_output_encoder) const noexcept {
-    const auto x1 = (pov ? weights_->white_fc0 : weights_->black_fc0).sqcrelu512_forward(base_).dequantized<parameter_type>(weights::dequantization_scale);
+    const auto x1 =
+        (pov ? weights_->white_fc0 : weights_->black_fc0).sqcrelu512_forward(base_).dequantized<parameter_type>(weights::dequantization_scale);
     const auto x2 = concat(x1, weights_->fc1.relu_forward(x1));
     const auto x3 = concat(x2, weights_->fc2.relu_forward(x2));
     return propagate_data(final_output_encoder(x3), weights_->fc3.relu_forward(x3).item());
