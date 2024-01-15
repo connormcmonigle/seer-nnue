@@ -126,9 +126,11 @@ score_type search_worker::q_search(
 
     ss.set_played(mv);
 
+    const zobrist::hash_type hash_after = bd.hash_after(mv);
+    external.tt->prefetch(hash_after);
+    internal.cache.prefetch(hash_after);
+
     const chess::board bd_ = bd.forward(mv);
-    external.tt->prefetch(bd_.hash());
-    internal.cache.prefetch(bd_.hash());
     nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
     const score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_node_, bd_, -beta, -alpha, elevation + 1);
@@ -273,9 +275,11 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
       ss.set_played(mv);
 
+      const zobrist::hash_type hash_after = bd.hash_after(mv);
+      external.tt->prefetch(hash_after);
+      internal.cache.prefetch(hash_after);
+
       const chess::board bd_ = bd.forward(mv);
-      external.tt->prefetch(bd_.hash());
-      internal.cache.prefetch(bd_.hash());
       nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
       auto pv_score = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
@@ -319,6 +323,10 @@ pv_search_result_t<is_root> search_worker::pv_search(
     const std::size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
     const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened, pawn_hash}, mv);
 
+    const zobrist::hash_type hash_after = bd.hash_after(mv);
+    external.tt->prefetch(hash_after);
+    internal.cache.prefetch(hash_after);
+    
     const chess::board bd_ = bd.forward(mv);
 
     const bool try_pruning = !is_root && idx >= 2 && best_score > max_mate_score;
@@ -349,8 +357,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
       if (history_prune) { continue; }
     }
 
-    external.tt->prefetch(bd_.hash());
-    internal.cache.prefetch(bd_.hash());
     nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
     // step 12. extensions

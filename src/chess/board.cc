@@ -39,6 +39,27 @@ constexpr T phase_value(const piece_type& pt) {
 }
 
 template <color c>
+inline zobrist::hash_type board::hash_after_(const move& mv) const noexcept {
+  const piece_type piece_on = mv.is_promotion() ? mv.promotion() : mv.piece();
+  zobrist::hash_type hash = man_.hash() ^ lat_.hash();
+
+  hash ^= man_.us<c>().zobrist_src->get(mv.piece(), mv.from());
+  hash ^= man_.us<c>().zobrist_src->get(piece_on, mv.to());
+  hash ^= lat_.turn_white_src ^ lat_.turn_black_src;
+
+  if (mv.is_capture()) {
+    const piece_type captured = mv.captured();
+    hash ^= man_.them<c>().zobrist_src->get(captured, mv.to());
+  }
+
+  return hash;
+}
+
+zobrist::hash_type board::hash_after(const move& mv) const noexcept {
+  return turn() ? hash_after_<color::white>(mv) : hash_after_<color::black>(mv);
+}
+
+template <color c>
 std::tuple<piece_type, square> board::least_valuable_attacker(const square& tgt, const square_set& ignore) const noexcept {
   const square_set p_mask = pawn_attack_tbl<opponent<c>>.look_up(tgt);
   const square_set p_attackers = p_mask & man_.us<c>().pawn() & ~ignore;

@@ -24,8 +24,8 @@ namespace chess {
 template <typename S>
 manifest& manifest::add_piece(const piece_type& pt, const S& at) noexcept {
   static_assert(is_square_v<S>, "at must be of square type");
-  if (pt == piece_type::pawn) { pawn_hash_ ^= zobrist_src_->get(pt, at); }
-  hash_ ^= zobrist_src_->get(pt, at);
+  if (pt == piece_type::pawn) { pawn_hash_ ^= zobrist_src->get(pt, at); }
+  hash_ ^= zobrist_src->get(pt, at);
   all_ |= at.bit_board();
   get_plane(pt) |= at.bit_board();
   return *this;
@@ -34,8 +34,8 @@ manifest& manifest::add_piece(const piece_type& pt, const S& at) noexcept {
 template <typename S>
 manifest& manifest::remove_piece(const piece_type& pt, const S& at) noexcept {
   static_assert(is_square_v<S>, "at must be of square type");
-  if (pt == piece_type::pawn) { pawn_hash_ ^= zobrist_src_->get(pt, at); }
-  hash_ ^= zobrist_src_->get(pt, at);
+  if (pt == piece_type::pawn) { pawn_hash_ ^= zobrist_src->get(pt, at); }
+  hash_ ^= zobrist_src->get(pt, at);
   all_ &= ~at.bit_board();
   get_plane(pt) &= ~at.bit_board();
   return *this;
@@ -48,19 +48,19 @@ zobrist::hash_type latent_zobrist_src::get_ep_mask(const S& at) const noexcept {
 }
 
 latent& latent::set_oo(const bool val) noexcept {
-  if (val ^ oo_) { hash_ ^= zobrist_src_->get_oo(); }
+  if (val ^ oo_) { hash_ ^= zobrist_src->get_oo(); }
   oo_ = val;
   return *this;
 }
 
 latent& latent::set_ooo(const bool val) noexcept {
-  if (val ^ ooo_) { hash_ ^= zobrist_src_->get_ooo(); }
+  if (val ^ ooo_) { hash_ ^= zobrist_src->get_ooo(); }
   ooo_ = val;
   return *this;
 }
 
 latent& latent::clear_ep_mask() noexcept {
-  if (ep_mask_.any()) { hash_ ^= zobrist_src_->get_ep_mask(ep_mask_.item()); }
+  if (ep_mask_.any()) { hash_ ^= zobrist_src->get_ep_mask(ep_mask_.item()); }
   ep_mask_ = square_set{};
   return *this;
 }
@@ -69,7 +69,7 @@ template <typename S>
 latent& latent::set_ep_mask(const S& at) noexcept {
   static_assert(is_square_v<S>, "at must be of square type");
   clear_ep_mask();
-  hash_ ^= zobrist_src_->get_ep_mask(at);
+  hash_ ^= zobrist_src->get_ep_mask(at);
   ep_mask_.insert(at);
   return *this;
 }

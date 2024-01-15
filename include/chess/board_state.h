@@ -56,7 +56,7 @@ struct manifest_zobrist_src {
 };
 
 struct manifest {
-  const manifest_zobrist_src* zobrist_src_;
+  const manifest_zobrist_src* zobrist_src;
   zobrist::hash_type hash_{0};
   zobrist::hash_type pawn_hash_{0};
 
@@ -99,7 +99,7 @@ struct manifest {
   template <typename S>
   [[maybe_unused]] manifest& remove_piece(const piece_type& pt, const S& at) noexcept;
 
-  manifest(const manifest_zobrist_src* src) noexcept : zobrist_src_{src} {}
+  manifest(const manifest_zobrist_src* src) noexcept : zobrist_src{src} {}
 };
 
 struct sided_manifest : public sided<sided_manifest, manifest> {
@@ -135,7 +135,7 @@ struct latent_zobrist_src {
 };
 
 struct latent {
-  const latent_zobrist_src* zobrist_src_;
+  const latent_zobrist_src* zobrist_src;
   zobrist::hash_type hash_{0};
   bool oo_{true};
   bool ooo_{true};
@@ -156,7 +156,7 @@ struct latent {
   template <typename S>
   [[maybe_unused]] latent& set_ep_mask(const S& at) noexcept;
 
-  latent(const latent_zobrist_src* src) noexcept : zobrist_src_{src} {}
+  latent(const latent_zobrist_src* src) noexcept : zobrist_src{src} {}
 };
 
 struct sided_latent : public sided<sided_latent, latent> {
