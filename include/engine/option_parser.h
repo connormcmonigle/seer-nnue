@@ -63,9 +63,8 @@ struct spin_option {
   std::optional<spin_range> range_ = {};
 
   template <typename F>
-  [[nodiscard]] auto processor_for(F&& callback) const noexcept {
+  [[nodiscard]] auto processor_for(F&& target) const noexcept {
     using namespace processor::def;
-    auto target = [=](const type& input) { callback(range_.has_value() ? range_->clamp(input) : input); };
     return sequential(consume("setoption"), consume("name"), consume(name_), consume("value"), emit<type>, invoke(target));
   }
 
