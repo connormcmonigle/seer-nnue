@@ -17,6 +17,8 @@
 
 #include <engine/option_parser.h>
 
+#include <iomanip>
+
 namespace engine {
 
 std::ostream& operator<<(std::ostream& ostr, const string_option& opt) noexcept {
@@ -35,6 +37,19 @@ std::ostream& operator<<(std::ostream& ostr, const spin_option& opt) noexcept {
 std::ostream& operator<<(std::ostream& ostr, const check_option& opt) noexcept {
   ostr << "option name " << opt.name_ << " type check";
   if (opt.default_.has_value()) { ostr << std::boolalpha << " default " << opt.default_.value(); }
+  return ostr;
+}
+
+std::ostream& operator<<(std::ostream& ostr, const tune_int_option& opt) noexcept {
+  ostr << "option name " << opt.name_ << " type spin";
+  ostr << " default " << std::setprecision(12) << opt.default_;
+  ostr << " min " << opt.range_.min << " max " << opt.range_.max;
+  return ostr;
+}
+
+std::ostream& operator<<(std::ostream& ostr, const tune_float_option& opt) noexcept {
+  ostr << "option name " << opt.name_ << " type string";
+  ostr << " default " << std::setprecision(12) << opt.default_;
   return ostr;
 }
 

@@ -28,6 +28,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace engine {
 
@@ -55,6 +56,10 @@ struct uci {
   std::ostream& os = std::cout;
 
   [[nodiscard]] auto options() noexcept;
+  
+  template <std::size_t ... indices>
+  [[nodiscard]] auto net_tune_options(std::index_sequence<indices...>) noexcept;
+
   [[nodiscard]] bool should_quit() const noexcept;
 
   void quit() noexcept;
@@ -75,6 +80,7 @@ struct uci {
   void ready() noexcept;
   void id_info() noexcept;
 
+  void tune_config() noexcept;
   void bench() noexcept;
   void eval() noexcept;
   void probe() noexcept;

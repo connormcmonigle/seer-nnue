@@ -69,6 +69,30 @@ auto uci::options() noexcept {
   return uci_options(quantized_weight_path, weight_path, hash_size, thread_count, ponder, syzygy_path);
 }
 
+template <std::size_t... indices>
+auto uci::net_tune_options(std::index_sequence<indices...>) noexcept {
+  constexpr double c_end = 0.005;
+  constexpr double r_end = 0.0005;
+
+  auto make_weight_tune_option = [&, this](const std::size_t& index) {
+    const std::string name = std::string("weight_") + std::to_string(index) + "_";
+    float* dst = weights_.fc3.W + index;
+    
+    const auto option = tune_float_option(name, *dst, {-2.5, 2.5}).set_c_end(c_end).set_r_end(r_end);
+    return option_callback(option, [=](const double& value) { *dst = static_cast<float>(value); });
+  };
+
+  auto make_bias_tune_option = [&, this](const std::size_t& index) {
+    const std::string name = std::string("bias_") + std::to_string(index) + "_";
+    float* dst = weights_.fc3.b + index;
+    
+    const auto option = tune_float_option(name, *dst, {-4.0, 4.0}).set_c_end(c_end).set_r_end(r_end);
+    return option_callback(option, [=](const double& value) { *dst = static_cast<float>(value); });
+  };
+
+  return uci_options(make_bias_tune_option(0u), make_weight_tune_option(indices)...);
+}
+
 bool uci::should_quit() const noexcept { return should_quit_.load(); }
 void uci::quit() noexcept { should_quit_.store(true); }
 
@@ -168,7 +192,14 @@ void uci::id_info() noexcept {
   os << "id name " << version::engine_name << " " << version::major << '.' << version::minor << '.' << version::patch << std::endl;
   os << "id author " << version::author_name << std::endl;
   os << options();
+  os << net_tune_options(std::make_index_sequence<24>());
   os << "uciok" << std::endl;
+}
+
+void uci::tune_config() noexcept {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (orchestrator_.is_searching()) { return; }
+  os << net_tune_options(std::make_index_sequence<24>()).ob_spsa_config() << std::endl;
 }
 
 void uci::bench() noexcept {
@@ -223,7 +254,7 @@ void uci::probe() noexcept {
 void uci::perft(const search::depth_type& depth) noexcept {
   std::lock_guard<std::mutex> lock(mutex_);
   if (orchestrator_.is_searching()) { return; }
-  std::cout << get_perft_info(position, depth) << std::endl;
+  os << get_perft_info(position, depth) << std::endl;
 }
 
 void uci::read(const std::string& line) noexcept {
@@ -235,6 +266,7 @@ void uci::read(const std::string& line) noexcept {
     sequential(consume("uci"), invoke([&] { id_info(); })),
     sequential(consume("isready"), invoke([&] { ready(); })),
     options().processor(),
+    net_tune_options(std::make_index_sequence<24>()).processor(),
 
     sequential(consume("ucinewgame"), invoke([&] { new_game(); })),
     sequential(consume("position"), parallel(
@@ -281,6 +313,7 @@ void uci::read(const std::string& line) noexcept {
     // extensions
     sequential(consume("export"), emit<std::string>, invoke([&] (const std::string& export_path) { export_weights(export_path); })),
     sequential(consume("perft"), emit<search::depth_type>, invoke([&] (const search::depth_type& depth) { perft(depth); })),
+    sequential(consume("config"), invoke([&] { tune_config(); })),
     sequential(consume("bench"), invoke([&] { bench(); })),
     sequential(consume("probe"), invoke([&] { probe(); })),
     sequential(consume("eval"), invoke([&] { eval(); }))
