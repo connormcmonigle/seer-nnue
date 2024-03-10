@@ -323,7 +323,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     const std::size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
 
     const counter_type history_value =
-        internal.hh.us(bd.turn()).compute_value(history::context{previous_follow, previous_counter, follow, counter, threatened, pawn_hash}, mv);
+        internal.hh.us(bd.turn()).compute_value(history::context{chess::move::null(), chess::move::null(), follow, counter, threatened, pawn_hash}, mv);
 
     const chess::board bd_ = bd.forward(mv);
 
