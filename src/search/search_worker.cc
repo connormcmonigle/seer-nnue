@@ -290,14 +290,17 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const chess::move killer = ss.killer();
   const chess::move follow = ss.follow();
   const chess::move counter = ss.counter();
-  const zobrist::hash_type pawn_hash = bd.pawn_hash();
+
+  const zobrist::quarter_hash_type pawn_hash = feature_hash.hash(0);
+  const zobrist::quarter_hash_type eval_hash = feature_hash.hash(1);
 
   move_orderer<chess::generation_mode::all> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn()))
                                                         .set_killer(killer)
                                                         .set_follow(follow)
                                                         .set_counter(counter)
                                                         .set_threatened(threatened)
-                                                        .set_pawn_hash(pawn_hash));
+                                                        .set_pawn_hash(pawn_hash)
+                                                        .set_eval_hash(eval_hash));
 
   if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
 
@@ -317,7 +320,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     if (mv == ss.excluded()) { continue; }
 
     const std::size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
-    const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened, pawn_hash}, mv);
+    const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened, pawn_hash, eval_hash}, mv);
 
     const chess::board bd_ = bd.forward(mv);
 
@@ -460,7 +463,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     }();
 
     if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
-      internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened, pawn_hash}, best_move, moves_tried, depth);
+      internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened, pawn_hash, eval_hash}, best_move, moves_tried, depth);
       ss.set_killer(best_move);
     }
 
