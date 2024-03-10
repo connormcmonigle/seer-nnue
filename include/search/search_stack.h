@@ -84,13 +84,23 @@ struct stack_view {
   }
 
   [[nodiscard]] constexpr chess::move counter() const noexcept {
-    if (height_ <= 0) { return chess::move::null(); }
+    if (height_ < 1) { return chess::move::null(); }
     return view_->at(height_ - 1).played_;
   }
 
   [[nodiscard]] constexpr chess::move follow() const noexcept {
-    if (height_ <= 1) { return chess::move::null(); }
+    if (height_ < 2) { return chess::move::null(); }
     return view_->at(height_ - 2).played_;
+  }
+
+  [[nodiscard]] constexpr chess::move previous_counter() const noexcept {
+    if (height_ < 3) { return chess::move::null(); }
+    return view_->at(height_ - 3).played_;
+  }
+
+  [[nodiscard]] constexpr chess::move previous_follow() const noexcept {
+    if (height_ < 4) { return chess::move::null(); }
+    return view_->at(height_ - 4).played_;
   }
 
   [[nodiscard]] constexpr chess::move killer() const noexcept { return view_->at(height_).killer_; }

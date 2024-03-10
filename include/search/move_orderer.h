@@ -40,6 +40,8 @@ struct move_orderer_data {
   chess::move killer{chess::move::null()};
   chess::move follow{chess::move::null()};
   chess::move counter{chess::move::null()};
+  chess::move previous_follow{chess::move::null()};
+  chess::move previous_counter{chess::move::null()};
   chess::move first{chess::move::null()};
 
   chess::square_set threatened{};
@@ -60,6 +62,16 @@ struct move_orderer_data {
 
   [[maybe_unused]] constexpr move_orderer_data& set_counter(const chess::move& mv) noexcept {
     counter = mv;
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr move_orderer_data& set_previous_follow(const chess::move& mv) noexcept {
+    previous_follow = mv;
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr move_orderer_data& set_previous_counter(const chess::move& mv) noexcept {
+    previous_counter = mv;
     return *this;
   }
 
