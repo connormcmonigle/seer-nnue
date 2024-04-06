@@ -148,6 +148,8 @@ score_type search_worker::q_search(
   if (legal_count == 0 && is_check) { return ss.loss_score(); }
   if (legal_count == 0) { return value; }
 
+  best_score = (3 * best_score + beta) / 4;
+
   if (use_tt && internal.keep_going()) {
     const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
     const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
