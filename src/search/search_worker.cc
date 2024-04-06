@@ -252,7 +252,10 @@ pv_search_result_t<is_root> search_worker::pv_search(
     const depth_type adjusted_depth = std::max(0, depth - external.constants->nmp_reduction(depth, beta, value));
     const score_type nmp_score =
         -pv_search<false>(ss.next(), eval_node, bd.forward(chess::move::null()), -beta, -beta + 1, adjusted_depth, chess::player_from(!bd.turn()));
-    if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
+    if (nmp_score >= beta) {
+      const score_type adjusted_value = (nmp_score + beta) / 2;
+      return make_result(adjusted_value, chess::move::null());
+    }
   }
 
   // step 9. probcut pruning
