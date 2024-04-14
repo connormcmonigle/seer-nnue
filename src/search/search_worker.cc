@@ -455,7 +455,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   if (legal_count == 0) { return make_result(draw_score, chess::move::null()); }
 
   // step 14. update histories if appropriate and maybe insert a new transposition_table_entry
-  if (internal.keep_going() && !ss.has_excluded()) {
+  if (internal.keep_going()) {
     const bound_type bound = [&] {
       if (best_score >= beta) { return bound_type::lower; }
       if (is_pv && best_score > original_alpha) { return bound_type::exact; }
@@ -467,13 +467,15 @@ pv_search_result_t<is_root> search_worker::pv_search(
       ss.set_killer(best_move);
     }
 
-    if (!is_check && best_move.is_quiet()) {
-      const score_type error = best_score - static_value;
-      internal.correction.us(bd.turn()).update(feature_hash, bound, error);
-    }
+    if (!ss.has_excluded()) {
+      if (!is_check && best_move.is_quiet()) {
+        const score_type error = best_score - static_value;
+        internal.correction.us(bd.turn()).update(feature_hash, bound, error);
+      }
 
-    const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);
-    external.tt->insert(entry);
+      const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);
+      external.tt->insert(entry);
+    }
   }
 
   return make_result(best_score, best_move);
