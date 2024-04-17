@@ -157,12 +157,6 @@ score_type search_worker::q_search(
   return best_score;
 }
 
-std::size_t g_base_error = 0;
-std::size_t g_delta_error = 0;
-std::size_t g_delta_invert_error = 0;
-
-std::size_t g_total = 0;
-
 template <bool is_pv, bool is_root>
 pv_search_result_t<is_root> search_worker::pv_search(
     const stack_view& ss,
@@ -357,10 +351,10 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
       if (history_prune) { continue; }
 
-      // const score_type eval_delta_value = internal.delta.us(bd.turn()).delta_for(feature_hash, mv);
-      // const bool eval_delta_prune = mv.is_quiet() && depth <= 7 && (static_value + eval_delta_value + 768 * depth) < alpha;
+      const score_type eval_delta_value = internal.delta.us(bd.turn()).delta_for(feature_hash, mv);
+      const bool eval_delta_prune = mv.is_quiet() && depth <= 7 && (static_value + eval_delta_value + 1024 * depth) < alpha;
 
-      // if (eval_delta_prune) { continue; }
+      if (eval_delta_prune) { continue; }
     }
 
     external.tt->prefetch(bd_.hash());
@@ -466,38 +460,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
       const score_type estimate = static_value + internal.delta.us(bd.turn()).delta_for(feature_hash, mv);
       const score_type error = score - estimate;
-
-      const score_type invert_estimate = static_value - internal.delta.us(bd.turn()).delta_for(feature_hash, mv);
-      const score_type invert_error = score - invert_estimate;
-
-      switch (bound) {
-        case bound_type::upper: {
-          g_base_error += std::max(static_value - score, 0);
-          g_delta_invert_error += std::max(-invert_error, 0);
-          g_delta_error += std::max(-error, 0);
-          break;
-        }
-
-        case bound_type::lower: {
-          g_base_error += std::max(score - static_value, 0);
-          g_delta_invert_error += std::max(invert_error, 0);
-          g_delta_error += std::max(error, 0);
-          break;
-        }
-
-        case bound_type::exact: {
-          g_base_error += std::max(score - static_value, static_value - score);
-          g_delta_invert_error += std::max(invert_error, -invert_error);
-          g_delta_error += std::max(error, -error);
-          break;
-        }
-      }
-
-      ++g_total;
-
-      if (is_root && idx == 0) {
-        std::cout << "g_base_error: " << (g_base_error / g_total) << ", g_delta_error: " << (g_delta_error / g_total) << ", g_delta_invert_error: " << g_delta_invert_error / g_total << std::endl;
-      }
  
       internal.delta.us(bd.turn()).update(feature_hash, mv, bound, error);
     }
