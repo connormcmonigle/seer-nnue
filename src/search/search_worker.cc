@@ -332,11 +332,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
       if (lm_prune) { break; }
 
-      const bool futility_prune =
-          mv.is_quiet() && depth <= external.constants->futility_prune_depth() && value + external.constants->futility_margin(depth) < alpha;
-
-      if (futility_prune) { continue; }
-
       const bool quiet_see_prune = mv.is_quiet() && depth <= external.constants->quiet_see_prune_depth() &&
                                    !bd.see_ge(mv, external.constants->quiet_see_prune_threshold(depth));
 
@@ -352,9 +347,10 @@ pv_search_result_t<is_root> search_worker::pv_search(
       if (history_prune) { continue; }
 
       const score_type eval_delta_value = internal.delta.us(bd.turn()).delta_for(feature_hash, mv);
-      const bool eval_delta_prune = mv.is_quiet() && depth <= 7 && (static_value + eval_delta_value + 1024 * depth) < alpha;
+      const bool futility_prune = mv.is_quiet() && depth <= external.constants->futility_prune_depth() &&
+                                  value + eval_delta_value + external.constants->futility_margin(depth) < alpha;
 
-      if (eval_delta_prune) { continue; }
+      if (futility_prune) { continue; }
     }
 
     external.tt->prefetch(bd_.hash());
@@ -460,7 +456,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
       const score_type estimate = static_value + internal.delta.us(bd.turn()).delta_for(feature_hash, mv);
       const score_type error = score - estimate;
- 
+
       internal.delta.us(bd.turn()).update(feature_hash, mv, bound, error);
     }
 
