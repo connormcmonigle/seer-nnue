@@ -62,7 +62,7 @@ struct delta_history_move_zobrist_src {
 
 template <std::size_t N>
 struct eval_delta_history {
-  static constexpr std::size_t M = 32768;
+  static constexpr std::size_t M = 4096;
   static constexpr std::size_t mask = M - 1;
   static_assert((M & mask) == 0);
 
