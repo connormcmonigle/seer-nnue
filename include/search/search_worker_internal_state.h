@@ -22,6 +22,7 @@
 #include <nnue/feature_reset_cache.h>
 #include <search/eval_cache.h>
 #include <search/eval_correction_history.h>
+#include <search/eval_delta_history.h>
 #include <search/history_heuristic.h>
 #include <search/search_stack.h>
 
@@ -36,6 +37,7 @@ struct search_worker_internal_state {
   nnue::eval::scratchpad_type scratchpad{};
   sided_history_heuristic hh{};
   eval_cache cache{};
+  sided_eval_delta_history delta{};
   sided_eval_correction_history correction{};
   std::unordered_map<chess::move, std::size_t, chess::move_hash> node_distribution{};
 

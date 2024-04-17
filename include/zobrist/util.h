@@ -33,6 +33,8 @@ constexpr hash_type entropy_2 = 0x7b4f806efae54dc5;
 constexpr hash_type entropy_3 = 0x2db772e1b89c6650;
 constexpr hash_type entropy_4 = 0x19057b41fcb768a4;
 constexpr hash_type entropy_5 = 0x1df555934cfcb8f5;
+constexpr hash_type entropy_6 = 0x8b46ba85d2a146a8;
+
 
 constexpr half_hash_type lower_half(const hash_type& hash) { return hash & std::numeric_limits<half_hash_type>::max(); }
 constexpr half_hash_type upper_half(const hash_type& hash) { return (hash >> 32) & std::numeric_limits<half_hash_type>::max(); }

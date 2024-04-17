@@ -18,16 +18,20 @@
 #pragma once
 
 #include <chess/types.h>
+#include <search/composite_feature_hash.h>
 #include <search/search_constants.h>
 #include <search/transposition_table.h>
+#include <zobrist/util.h>
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 
 namespace search {
 
 struct eval_correction_history {
-  static constexpr size_t N = 4096;
-  static constexpr size_t mask = N - 1;
+  static constexpr std::size_t N = 4096;
+  static constexpr std::size_t mask = N - 1;
   static_assert((N & mask) == 0);
   static constexpr score_type eval_correction_scale = 256;
 
@@ -56,18 +60,6 @@ struct eval_correction_history {
 
   void clear() noexcept { return data.fill(score_type{}); }
 };
-
-template <std::size_t N>
-struct composite_feature_hash {
-  std::array<zobrist::quarter_hash_type, N> hashes_;
-
-  [[nodiscard]] constexpr zobrist::quarter_hash_type hash(const std::size_t& i) const noexcept { return hashes_[i]; }
-};
-
-template <typename... Ts>
-[[nodiscard]] constexpr composite_feature_hash<sizeof...(Ts)> composite_feature_hash_of(const Ts&... ts) noexcept {
-  return composite_feature_hash<sizeof...(Ts)>{{ts...}};
-}
 
 template <std::size_t N>
 struct composite_eval_correction_history {
@@ -100,6 +92,7 @@ struct composite_eval_correction_history {
 };
 
 constexpr std::size_t eval_correction_history_num_hashes = 2;
+
 struct sided_eval_correction_history
     : public chess::sided<sided_eval_correction_history, composite_eval_correction_history<eval_correction_history_num_hashes>> {
   using hash_type = composite_feature_hash<eval_correction_history_num_hashes>;

@@ -21,6 +21,8 @@
 #include <chess/move.h>
 #include <chess/move_list.h>
 #include <nnue/eval_node.h>
+#include <search/composite_feature_hash.h>
+#include <search/eval_correction_history.h>
 #include <search/search_constants.h>
 #include <search/search_stack.h>
 #include <search/search_worker_external_state.h>
