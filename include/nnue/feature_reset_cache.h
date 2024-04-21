@@ -21,6 +21,7 @@
 #include <chess/piece_configuration.h>
 #include <chess/square.h>
 #include <chess/types.h>
+#include <feature/util.h>
 #include <nnue/aligned_slice.h>
 #include <nnue/weights.h>
 
@@ -39,9 +40,14 @@ struct feature_reset_cache_entry {
   chess::sided_piece_configuration config;
   aligned_slice<parameter_type, dim> slice_;
 
-  void insert(const std::size_t& idx) const noexcept { weights_->insert_idx(idx, slice_); }
-  void erase(const std::size_t& idx) const noexcept { weights_->erase_idx(idx, slice_); }
-  void copy_state_to(feature_transformer<parameter_type, feature::half_ka::numel, dim>& dst) const noexcept { dst.slice_.copy_from(slice_); }
+  inline void insert(const std::size_t& idx) const noexcept { weights_->insert_idx(idx, slice_); }
+  inline void erase(const std::size_t& idx) const noexcept { weights_->erase_idx(idx, slice_); }
+  inline void copy_state_to(feature_transformer<parameter_type, feature::half_ka::numel, dim>& dst) const noexcept { dst.slice_.copy_from(slice_); }
+
+  inline void apply_index_delta(const feature::half_ka::index_delta& delta) const noexcept {
+    for (const std::size_t& idx : delta.to_erase) { weights_->erase_idx(idx, slice_); }
+    for (const std::size_t& idx : delta.to_insert) { weights_->insert_idx(idx, slice_); }
+  }
 
   void reinitialize(const weights_type* weights, const aligned_slice<parameter_type, dim>& slice) noexcept {
     weights_ = weights;

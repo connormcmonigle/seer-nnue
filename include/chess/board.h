@@ -231,6 +231,7 @@ struct board {
 
     auto& entry = feature_reset_cache.template us<c>().look_up(our_king);
     sided_piece_configuration& config = entry.config;
+    h_ka::index_delta index_delta{};
 
     over_types([&](const piece_type& pt) {
       const square_set them_entry_plane = config.them<c>().get_plane(pt);
@@ -242,16 +243,17 @@ struct board {
         return man_.us<c>().get_plane(pt).excluding(mv.from());
       }();
 
-      for (const auto sq : them_entry_plane & ~them_board_plane) { entry.erase(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
-      for (const auto sq : (us_entry_plane & ~us_board_plane)) { entry.erase(h_ka::index<c, c>(our_king, pt, sq)); }
+      for (const auto sq : them_entry_plane & ~them_board_plane) { index_delta.to_erase.push(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
+      for (const auto sq : us_entry_plane & ~us_board_plane) { index_delta.to_erase.push(h_ka::index<c, c>(our_king, pt, sq)); }
 
-      for (const auto sq : them_board_plane & ~them_entry_plane) { entry.insert(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
-      for (const auto sq : us_board_plane & ~us_entry_plane) { entry.insert(h_ka::index<c, c>(our_king, pt, sq)); }
+      for (const auto sq : them_board_plane & ~them_entry_plane) { index_delta.to_insert.push(h_ka::index<c, opponent<c>>(our_king, pt, sq)); }
+      for (const auto sq : us_board_plane & ~us_entry_plane) { index_delta.to_insert.push(h_ka::index<c, c>(our_king, pt, sq)); }
 
       config.them<c>().set_plane(pt, them_board_plane);
       config.us<c>().set_plane(pt, us_board_plane);
     });
 
+    entry.apply_index_delta(index_delta);
     entry.copy_state_to(sided_set.template us<c>());
   }
 

@@ -81,4 +81,37 @@ template <chess::color us, chess::color p>
   return major * (ks.index() ^ mirror_constant<us>)+offset<us, p>(pt) + (sq.index() ^ mirror_constant<us>);
 }
 
+struct index_list {
+  using iterator = std::array<std::size_t, max_active_half_features>::iterator;
+  using const_iterator = std::array<std::size_t, max_active_half_features>::const_iterator;
+  using size_type = std::array<std::size_t, max_active_half_features>::size_type;
+
+  std::size_t size_;
+  std::array<std::size_t, max_active_half_features> data;
+
+  [[nodiscard]] constexpr size_type size() const noexcept { return size_; }
+  [[nodiscard]] constexpr bool empty() const noexcept { return size_ == 0; }
+
+  [[nodiscard]] constexpr iterator begin() noexcept { return data.begin(); }
+  [[nodiscard]] constexpr iterator end() noexcept { return data.begin() + size_; }
+
+  [[nodiscard]] constexpr const_iterator begin() const noexcept { return data.cbegin(); }
+  [[nodiscard]] constexpr const_iterator end() const noexcept { return data.cbegin() + size_; }
+
+  [[nodiscard]] constexpr const_iterator cbegin() const noexcept { return data.cbegin(); }
+  [[nodiscard]] constexpr const_iterator cend() const noexcept { return data.cbegin() + size_; }
+
+  [[maybe_unused]] constexpr index_list& push(const std::size_t& index) noexcept {
+    data[size_] = index;
+    ++size_;
+
+    return *this;
+  }
+};
+
+struct index_delta {
+  index_list to_insert;
+  index_list to_erase;
+};
+
 }  // namespace feature::half_ka

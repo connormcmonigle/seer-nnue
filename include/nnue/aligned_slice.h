@@ -30,17 +30,17 @@ struct aligned_slice {
   [[nodiscard]] const T* ptr() const noexcept { return data; }
 
   template <std::size_t out_dim, std::size_t offset = 0>
-  [[nodiscard]] aligned_slice<T, out_dim> slice() noexcept {
+  [[nodiscard]] inline aligned_slice<T, out_dim> slice() noexcept {
     static_assert(offset + out_dim <= dim);
     return aligned_slice<T, out_dim>{data + offset};
   }
 
-  [[maybe_unused]] aligned_slice<T, dim>& copy_from(const T* other) noexcept {
+  [[maybe_unused]] inline aligned_slice<T, dim>& copy_from(const T* other) noexcept {
     std::memcpy(data, other, sizeof(T) * dim);
     return *this;
   }
 
-  [[maybe_unused]] aligned_slice<T, dim>& copy_from(const aligned_slice<T, dim>& other) noexcept {
+  [[maybe_unused]] inline aligned_slice<T, dim>& copy_from(const aligned_slice<T, dim>& other) noexcept {
     std::memcpy(data, other.data, sizeof(T) * dim);
     return *this;
   }
