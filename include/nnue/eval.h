@@ -90,10 +90,10 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
 
   template <typename F>
   [[nodiscard]] inline propagate_data<std::invoke_result_t<F, final_output_type>> propagate(const bool pov, F&& final_output_encoder) const noexcept {
-    const auto x1 = (pov ? weights_->white_fc0 : weights_->black_fc0).forward(base_).dequantized<parameter_type>(weights::dequantization_scale);
-    const auto x2 = concat(x1, weights_->fc1.forward(x1));
-    const auto x3 = concat(x2, weights_->fc2.forward(x2));
-    return propagate_data(final_output_encoder(x3), weights_->fc3.forward(x3).item());
+    const auto x1 = (pov ? weights_->white_fc0 : weights_->black_fc0).forward_crelu255(base_).dequantized<parameter_type>(weights::dequantization_scale);
+    const auto x2 = concat(x1, weights_->fc1.forward_relu(x1));
+    const auto x3 = concat(x2, weights_->fc2.forward_relu(x2));
+    return propagate_data(final_output_encoder(x3), weights_->fc3.forward_relu(x3).item());
   }
 
   template <typename F = void_final_output_encoder>
