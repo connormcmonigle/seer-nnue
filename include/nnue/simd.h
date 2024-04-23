@@ -659,12 +659,14 @@ struct float_relu_matrix_vector_product_x8_x8 {
 };
 
 template <std::size_t dim0, std::size_t dim1>
-struct int16_relu_matrix_vector_product_x16_x8 {
+struct int16_crelu255_matrix_vector_product_x16_x8 {
   static constexpr std::size_t num_units = 8;
   static constexpr bool available = divides<dim1, num_units> && divides<dim0, per_unit<vector_256, std::int16_t>>;
 
   static inline void f(const std::int16_t* matrix, const std::int16_t* input, std::int32_t* output) noexcept {
     const __m256i zero = _mm256_setzero_si256();
+    const __m256i maximum = _mm256_set1_epi16(255);
+
     __m256i* v_output = (__m256i*)output;
     constexpr std::size_t output_step = num_units / per_unit<vector_256, std::int32_t>;
     for (std::size_t i(0); i < dim1; i += num_units, v_output += output_step) {
@@ -678,7 +680,7 @@ struct int16_relu_matrix_vector_product_x16_x8 {
       __m256i sum_7 = _mm256_setzero_si256();
 
       for (std::size_t j(0); j < dim0; j += per_unit<vector_256, std::int16_t>) {
-        const __m256i input_region = _mm256_max_epi16(zero, _mm256_load_si256((__m256i*)(input + j)));
+        const __m256i input_region = _mm256_max_epi16(zero, _mm256_min_epi16(maximum , _mm256_load_si256((__m256i*)(input + j))));
         sum_0 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_load_si256((__m256i*)(matrix + (i + 0) * dim0 + j)), input_region), sum_0);
         sum_1 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_load_si256((__m256i*)(matrix + (i + 1) * dim0 + j)), input_region), sum_1);
         sum_2 = _mm256_add_epi32(_mm256_madd_epi16(_mm256_load_si256((__m256i*)(matrix + (i + 2) * dim0 + j)), input_region), sum_2);
@@ -712,8 +714,8 @@ inline void relu_matrix_vector_product(const float* matrix, const float* input, 
 }
 
 template <std::size_t dim0, std::size_t dim1>
-inline void relu_matrix_vector_product(const std::int16_t* matrix, const std::int16_t* input, std::int32_t* output) noexcept {
-  return overload_set<int16_relu_matrix_vector_product_x16_x8<dim0, dim1>>::f(matrix, input, output);
+inline void crelu255_matrix_vector_product(const std::int16_t* matrix, const std::int16_t* input, std::int32_t* output) noexcept {
+  return overload_set<int16_crelu255_matrix_vector_product_x16_x8<dim0, dim1>>::f(matrix, input, output);
 }
 
 #elif defined(__SSSE3__)
