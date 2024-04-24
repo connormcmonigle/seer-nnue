@@ -21,6 +21,35 @@
 
 namespace search {
 
+struct singular_search_info {
+  bool multicut{};
+  bool singular{};
+  bool not_singular{};
+  bool very_singular{};
+
+  [[maybe_unused]] constexpr singular_search_info& set_multicut() noexcept {
+    multicut = true;
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr singular_search_info& set_singular() noexcept {
+    singular = true;
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr singular_search_info& set_not_singular() noexcept {
+    not_singular = true;
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr singular_search_info& set_very_singular() noexcept {
+    very_singular = true;
+    return *this;
+  }
+
+  static constexpr singular_search_info none() { return singular_search_info{}; }
+};
+
 template <bool is_pv, bool use_tt>
 inline evaluate_info search_worker::evaluate(
     const stack_view& ss,
@@ -244,7 +273,38 @@ pv_search_result_t<is_root> search_worker::pv_search(
     return make_result(adjusted_value, chess::move::null());
   }
 
-  // step 8. null move pruning
+  // step 8. static null move pruning
+  const singular_search_info singular_info = [&] {
+    const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
+                              maybe->bound() != bound_type::upper &&
+                              maybe->depth() + external.constants->singular_extension_depth_margin() >= depth &&
+                              bd.is_legal<chess::generation_mode::all>(maybe->best_move());
+
+    if (!try_singular) { return singular_search_info::none(); }
+    singular_search_info info{};
+
+    const depth_type singular_depth = external.constants->singular_search_depth(depth);
+    const score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
+
+    ss.set_excluded(maybe->best_move());
+    const score_type excluded_score = pv_search<false>(ss, eval_node, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
+    ss.set_excluded(chess::move::null());
+
+    const bool very_singular = !is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta;
+
+    if (very_singular) { return info.set_very_singular(); }
+    if (excluded_score < singular_beta) { return info.set_singular(); }
+
+    if (excluded_score >= beta) { info.set_multicut(); }
+    if constexpr (!is_pv) { info.set_not_singular(); }
+
+    return info;
+  }();
+
+  // step 9. multicut pruning
+  if (!is_root && singular_info.multicut) { return make_result(beta, chess::move::null()); }
+
+  // step 10. null move pruning
   const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
                        bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
                        (!maybe.has_value() || (maybe->bound() == bound_type::lower && bd.is_legal<chess::generation_mode::all>(maybe->best_move()) &&
@@ -258,7 +318,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     if (nmp_score >= beta) { return make_result(nmp_score, chess::move::null()); }
   }
 
-  // step 9. probcut pruning
+  // step 11. probcut pruning
   const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
   const score_type probcut_beta = external.constants->probcut_beta(beta);
   const bool try_probcut = !is_pv && !ss.has_excluded() && depth >= external.constants->probcut_depth() &&
@@ -289,7 +349,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     }
   }
 
-  // step 10. initialize move orderer (setting tt move first if applicable)
+  // step 12. initialize move orderer (setting tt move first if applicable)
   const chess::move killer = ss.killer();
   const chess::move follow = ss.follow();
   const chess::move counter = ss.counter();
@@ -310,8 +370,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
   // move loop
   score_type best_score = ss.loss_score();
   chess::move best_move = chess::move::null();
-
-  bool did_double_extend{false};
   int legal_count{0};
 
   for (const auto& [idx, mv] : orderer) {
@@ -326,7 +384,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     const bool try_pruning = !is_root && idx >= 2 && best_score > max_mate_score;
 
-    // step 11. pruning
+    // step 13. pruning
     if (try_pruning) {
       const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
@@ -356,34 +414,18 @@ pv_search_result_t<is_root> search_worker::pv_search(
     internal.cache.prefetch(bd_.hash());
     nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
-    // step 12. extensions
-    bool multicut = false;
+    // step 14. extensions
     const depth_type extension = [&, mv = mv] {
-      const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
-                                mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
-                                maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
+      const bool is_tt_move = maybe.has_value() && mv == maybe->best_move();
 
-      if (try_singular) {
-        const depth_type singular_depth = external.constants->singular_search_depth(depth);
-        const score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
-        ss.set_excluded(mv);
-        const score_type excluded_score = pv_search<false>(ss, eval_node, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
-        ss.set_excluded(chess::move::null());
-
-        if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) {
-          did_double_extend = true;
-          return 2;
-        }
-
-        if (excluded_score < singular_beta) { return 1; }
-        if (excluded_score >= beta) { multicut = true; }
-        if constexpr (!is_pv) { return -1; }
+      if (is_tt_move) {
+        if (singular_info.very_singular) { return 2; }
+        if (singular_info.not_singular) { return -1; }
+        if (singular_info.singular) { return 1; }
       }
 
       return 0;
     }();
-
-    if (!is_root && multicut) { return make_result(beta, chess::move::null()); }
 
     ss.set_played(mv);
 
@@ -402,7 +444,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
       depth_type lmr_depth;
       score_type zw_score;
 
-      // step 13. late move reductions
+      // step 15. late move reductions
       const bool try_lmr = !is_check && (mv.is_quiet() || !bd.see_ge(mv, 0)) && idx >= 2 && (depth >= external.constants->reduce_depth());
       if (try_lmr) {
         depth_type reduction = external.constants->reduction(depth, idx);
@@ -414,7 +456,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
         if (mv == killer) { --reduction; }
 
         if (!tt_pv) { ++reduction; }
-        if (did_double_extend) { ++reduction; }
+        if (singular_info.very_singular) { ++reduction; }
 
         // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
         // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
@@ -454,7 +496,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   if (legal_count == 0 && is_check) { return make_result(ss.loss_score(), chess::move::null()); }
   if (legal_count == 0) { return make_result(draw_score, chess::move::null()); }
 
-  // step 14. update histories if appropriate and maybe insert a new transposition_table_entry
+  // step 16. update histories if appropriate and maybe insert a new transposition_table_entry
   if (internal.keep_going() && !ss.has_excluded()) {
     const bound_type bound = [&] {
       if (best_score >= beta) { return bound_type::lower; }
