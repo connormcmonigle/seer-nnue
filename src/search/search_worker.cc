@@ -24,8 +24,8 @@ namespace search {
 struct singular_search_info {
   bool multicut{};
   bool singular{};
-  bool not_singular{};
   bool very_singular{};
+  bool tried_singular{};
 
   [[maybe_unused]] constexpr singular_search_info& set_multicut() noexcept {
     multicut = true;
@@ -37,13 +37,13 @@ struct singular_search_info {
     return *this;
   }
 
-  [[maybe_unused]] constexpr singular_search_info& set_not_singular() noexcept {
-    not_singular = true;
+  [[maybe_unused]] constexpr singular_search_info& set_very_singular() noexcept {
+    very_singular = true;
     return *this;
   }
 
-  [[maybe_unused]] constexpr singular_search_info& set_very_singular() noexcept {
-    very_singular = true;
+  [[maybe_unused]] constexpr singular_search_info& set_tried_singular() noexcept {
+    tried_singular = true;
     return *this;
   }
 
@@ -281,7 +281,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
                               bd.is_legal<chess::generation_mode::all>(maybe->best_move());
 
     if (!try_singular) { return singular_search_info::none(); }
-    singular_search_info info{};
 
     const depth_type singular_depth = external.constants->singular_search_depth(depth);
     const score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
@@ -290,15 +289,13 @@ pv_search_result_t<is_root> search_worker::pv_search(
     const score_type excluded_score = pv_search<false>(ss, eval_node, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
     ss.set_excluded(chess::move::null());
 
-    const bool very_singular = !is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta;
+    singular_search_info info{};
 
-    if (very_singular) { return info.set_very_singular(); }
-    if (excluded_score < singular_beta) { return info.set_singular(); }
+    if (excluded_score + external.constants->very_singular_margin() < singular_beta) { info.set_very_singular(); }
+    if (excluded_score >= beta && excluded_score >= singular_beta) { info.set_multicut(); }
+    if (excluded_score < singular_beta) { info.set_singular(); }
 
-    if (excluded_score >= beta) { info.set_multicut(); }
-    if constexpr (!is_pv) { info.set_not_singular(); }
-
-    return info;
+    return info.set_tried_singular();
   }();
 
   // step 9. multicut pruning
@@ -306,7 +303,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
   // step 10. null move pruning
   const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
-                       bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
+                       bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) && !singular_info.singular &&
                        (!maybe.has_value() || (maybe->bound() == bound_type::lower && bd.is_legal<chess::generation_mode::all>(maybe->best_move()) &&
                                                !bd.see_gt(maybe->best_move(), external.constants->nmp_see_threshold())));
 
@@ -416,12 +413,12 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     // step 14. extensions
     const depth_type extension = [&, mv = mv] {
-      const bool is_tt_move = maybe.has_value() && mv == maybe->best_move();
-
-      if (is_tt_move) {
-        if (singular_info.very_singular) { return 2; }
-        if (singular_info.not_singular) { return -1; }
+      if (maybe.has_value() && mv == maybe->best_move()) {
+        if (!is_pv && singular_info.very_singular) { return 2; }
         if (singular_info.singular) { return 1; }
+
+        // negative extend if the singular search failed
+        if (!is_pv && singular_info.tried_singular) { return -1; }
       }
 
       return 0;
@@ -456,7 +453,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
         if (mv == killer) { --reduction; }
 
         if (!tt_pv) { ++reduction; }
-        if (singular_info.very_singular) { ++reduction; }
+        if (!is_pv && singular_info.very_singular) { ++reduction; }
 
         // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
         // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.

@@ -108,7 +108,7 @@ struct fixed_search_constants {
     return tt_score - 2 * static_cast<score_type>(depth);
   }
 
-  [[nodiscard]] constexpr score_type singular_double_extension_margin() const noexcept { return 166; }
+  [[nodiscard]] constexpr score_type very_singular_margin() const noexcept { return 166; }
 
   [[nodiscard]] constexpr score_type futility_margin(const depth_type& depth) const noexcept {
     constexpr score_type m = 1544;
