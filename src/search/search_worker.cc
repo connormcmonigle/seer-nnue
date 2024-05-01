@@ -221,7 +221,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   }
 
   // step 3. internal iterative reductions
-  const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
+  const bool should_iir = !ss.has_excluded() && depth >= external.constants->iir_depth() && (!maybe.has_value() || maybe->depth() + 5 <= depth);
   if (should_iir) { --depth; }
 
   // step 4. compute static eval and adjust appropriately if there's a tt hit
