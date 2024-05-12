@@ -36,6 +36,7 @@ namespace nnue {
 struct weights {
   using parameter_type = float;
   using quantized_parameter_type = std::int16_t;
+  using half_quantized_parameter_type = std::int8_t;
 
   static constexpr std::size_t base_dim = 768;
 
@@ -47,11 +48,11 @@ struct weights {
   weights_streamer::signature_type signature_{0};
 
   sparse_affine_layer<parameter_type, feature::half_ka::numel, base_dim> shared{};
-  dense_relu_affine_layer<parameter_type, 2 * base_dim, 8> fc0{};
+  dense_relu_affine_layer<2 * base_dim, 8, parameter_type> fc0{};
 
-  dense_relu_affine_layer<parameter_type, 8, 8> fc1{};
-  dense_relu_affine_layer<parameter_type, 16, 8> fc2{};
-  dense_relu_affine_layer<parameter_type, 24, 1> fc3{};
+  dense_relu_affine_layer<8, 8, parameter_type> fc1{};
+  dense_relu_affine_layer<16, 8, parameter_type> fc2{};
+  dense_relu_affine_layer<24, 1, parameter_type> fc3{};
 
   [[nodiscard]] constexpr const weights_streamer::signature_type& signature() const noexcept { return signature_; }
 
@@ -65,7 +66,9 @@ struct weights {
 
     quantized.signature_ = signature_;
     quantized.shared = shared.quantized<quantized_parameter_type>(shared_quantization_scale);
-    quantized.fc0 = fc0.quantized<quantized_parameter_type>(fc0_weight_quantization_scale, fc0_bias_quantization_scale);
+    
+    quantized.fc0 =
+        fc0.quantized<half_quantized_parameter_type, quantized_parameter_type>(fc0_weight_quantization_scale, fc0_bias_quantization_scale);
 
     quantized.white_fc0 = quantized.fc0;
     quantized.black_fc0 = quantized.white_fc0.half_input_flipped();
@@ -97,6 +100,7 @@ struct weights {
 struct quantized_weights {
   using parameter_type = weights::parameter_type;
   using quantized_parameter_type = weights::quantized_parameter_type;
+  using half_quantized_parameter_type = weights::half_quantized_parameter_type;
 
   static constexpr std::size_t base_dim = 768;
 
@@ -104,13 +108,13 @@ struct quantized_weights {
 
   sparse_affine_layer<quantized_parameter_type, feature::half_ka::numel, base_dim> shared{};
 
-  dense_relu_affine_layer<quantized_parameter_type, 2 * base_dim, 8> fc0{};
-  dense_relu_affine_layer<quantized_parameter_type, 2 * base_dim, 8> white_fc0{};
-  dense_relu_affine_layer<quantized_parameter_type, 2 * base_dim, 8> black_fc0{};
+  dense_relu_affine_layer<2 * base_dim, 8, half_quantized_parameter_type, quantized_parameter_type> fc0{};
+  dense_relu_affine_layer<2 * base_dim, 8, half_quantized_parameter_type, quantized_parameter_type> white_fc0{};
+  dense_relu_affine_layer<2 * base_dim, 8, half_quantized_parameter_type, quantized_parameter_type> black_fc0{};
 
-  dense_relu_affine_layer<parameter_type, 8, 8> fc1{};
-  dense_relu_affine_layer<parameter_type, 16, 8> fc2{};
-  dense_relu_affine_layer<parameter_type, 24, 1> fc3{};
+  dense_relu_affine_layer<8, 8, parameter_type> fc1{};
+  dense_relu_affine_layer<16, 8, parameter_type> fc2{};
+  dense_relu_affine_layer<24, 1, parameter_type> fc3{};
 
   [[nodiscard]] constexpr const weights_streamer::signature_type& signature() const noexcept { return signature_; }
 
