@@ -151,6 +151,8 @@ struct fixed_search_constants {
   [[nodiscard]] constexpr depth_type probcut_search_depth(const depth_type& depth) const noexcept { return depth - 3; }
   [[nodiscard]] constexpr score_type probcut_beta(const score_type& beta) const noexcept { return beta + 315; }
 
+  [[nodiscard]] constexpr depth_type correction_depth() const noexcept { return 7; }
+
   [[maybe_unused]] fixed_search_constants& update_(const std::size_t& thread_count) noexcept {
     thread_count_ = thread_count;
     for (depth_type depth{1}; depth < lmr_tbl_dim; ++depth) {

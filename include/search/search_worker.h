@@ -58,8 +58,12 @@ struct search_worker {
   search_worker_internal_state internal{};
 
   template <bool is_pv, bool use_tt = true>
-  [[nodiscard]] inline evaluate_info
-  evaluate(const stack_view& ss, nnue::eval_node& eval_node, const chess::board& bd, const std::optional<transposition_table_entry>& maybe) noexcept;
+  [[nodiscard]] inline evaluate_info evaluate(
+      const stack_view& ss,
+      nnue::eval_node& eval_node,
+      const chess::board& bd,
+      const depth_type& depth,
+      const std::optional<transposition_table_entry>& maybe) noexcept;
 
   template <bool is_pv, bool use_tt = true>
   [[nodiscard]] score_type q_search(

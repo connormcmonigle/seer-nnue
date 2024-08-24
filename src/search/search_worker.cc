@@ -26,6 +26,7 @@ inline evaluate_info search_worker::evaluate(
     const stack_view& ss,
     nnue::eval_node& eval_node,
     const chess::board& bd,
+    const depth_type& depth,
     const std::optional<transposition_table_entry>& maybe) noexcept {
   const bool is_check = bd.is_check();
 
@@ -49,12 +50,12 @@ inline evaluate_info search_worker::evaluate(
 
   const auto pawn_feature_hash = zobrist::lower_quarter(bd.pawn_hash());
   const auto eval_feature_hash = entry.eval_feature_hash();
-
   const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, eval_feature_hash);
+
   score_type static_value = entry.eval();
 
-  if (!is_check) {
-    internal.cache.insert(bd.hash(), entry);
+  if (!is_check) { internal.cache.insert(bd.hash(), entry); }
+  if (!is_check && depth <= external.constants->correction_depth()) {
     static_value += internal.correction.us(bd.turn()).correction_for(feature_hash);
   }
 
@@ -97,7 +98,7 @@ score_type search_worker::q_search(
     if (use_tt && is_cutoff) { return entry.score(); }
   }
 
-  const auto [feature_hash, static_value, value] = evaluate<is_pv, use_tt>(ss, eval_node, bd, maybe);
+  const auto [feature_hash, static_value, value] = evaluate<is_pv, use_tt>(ss, eval_node, bd, 0, maybe);
 
   if (!is_check && value >= beta) { return value; }
   if (ss.reached_max_height()) { return value; }
@@ -225,7 +226,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   if (should_iir) { --depth; }
 
   // step 4. compute static eval and adjust appropriately if there's a tt hit
-  const auto [feature_hash, static_value, value] = evaluate<is_pv>(ss, eval_node, bd, maybe);
+  const auto [feature_hash, static_value, value] = evaluate<is_pv>(ss, eval_node, bd, depth, maybe);
 
   // step 5. return static eval if max depth was reached
   if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
@@ -467,7 +468,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
       ss.set_killer(best_move);
     }
 
-    if (!is_check && best_move.is_quiet()) {
+    if (!is_check && best_move.is_quiet() && depth <= external.constants->correction_depth()) {
       const score_type error = best_score - static_value;
       internal.correction.us(bd.turn()).update(feature_hash, bound, error);
     }
