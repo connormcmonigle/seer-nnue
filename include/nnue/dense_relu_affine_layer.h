@@ -22,6 +22,7 @@
 #include <nnue/dot_type.h>
 #include <nnue/simd.h>
 
+#include <algorithm>
 #include <cstddef>
 
 namespace nnue {
@@ -90,8 +91,18 @@ struct dense_relu_affine_layer {
     static_assert(std::is_floating_point_v<T> && std::is_integral_v<Q> && std::is_integral_v<QI> && std::is_integral_v<QO>);
     dense_relu_affine_layer<dim0, dim1, Q, QI, QO> result{};
 
-    for (std::size_t i = 0; i < W_numel; ++i) { result.W[i] = static_cast<Q>(std::round(weight_scale * W[i])); }
-    for (std::size_t i = 0; i < b_numel; ++i) { result.b[i] = static_cast<QO>(std::round(bias_scale * b[i])); }
+    for (std::size_t i = 0; i < W_numel; ++i) {
+      const float lower_limit = static_cast<float>(std::numeric_limits<Q>::min());
+      const float upper_limit = static_cast<float>(std::numeric_limits<Q>::max());
+      result.W[i] = static_cast<Q>(std::clamp(std::round(weight_scale * W[i]), lower_limit, upper_limit));
+    }
+
+    for (std::size_t i = 0; i < b_numel; ++i) {
+      const float lower_limit = static_cast<float>(std::numeric_limits<QO>::min());
+      const float upper_limit = static_cast<float>(std::numeric_limits<QO>::max());
+      result.b[i] = static_cast<QO>(std::clamp(std::round(bias_scale * b[i]), lower_limit, upper_limit));
+    }
+
     return result;
   }
 };
