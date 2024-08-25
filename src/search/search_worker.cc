@@ -244,7 +244,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     return make_result(adjusted_value, chess::move::null());
   }
 
-  const bool alpha_prune = !is_pv && !is_check && !ss.has_excluded() && depth <= 4 && value + 9216 <= alpha;
+  const bool alpha_prune = !is_pv && !is_check && !ss.has_excluded() && depth <= 4 && value + 6144 <= alpha;
   if (alpha_prune) { return make_result(value, chess::move::null()); }
 
   // step 8. null move pruning
