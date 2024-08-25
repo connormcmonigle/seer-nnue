@@ -244,6 +244,12 @@ pv_search_result_t<is_root> search_worker::pv_search(
     return make_result(adjusted_value, chess::move::null());
   }
 
+  const bool spc_prune = !is_pv && !ss.has_excluded() && maybe.has_value() && depth >= external.constants->probcut_depth() &&
+                         maybe->best_move().is_capture() && maybe->bound() != bound_type::upper &&
+                         maybe->score() > external.constants->probcut_beta(beta) && maybe->depth() >= external.constants->probcut_search_depth(depth);
+
+  if (spc_prune) { return make_result(beta, chess::move::null()); }
+
   // step 8. null move pruning
   const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
                        bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
