@@ -69,7 +69,7 @@ using see_type = std::int32_t;
 
 inline constexpr std::size_t nodes_per_update = 512;
 
-struct fixed_search_constants {
+struct fixed_search_constants final {
   static constexpr bool tuning = false;
   static constexpr depth_type lmr_tbl_dim = 64;
   std::size_t thread_count_;
@@ -150,6 +150,9 @@ struct fixed_search_constants {
 
   [[nodiscard]] constexpr depth_type probcut_search_depth(const depth_type& depth) const noexcept { return depth - 3; }
   [[nodiscard]] constexpr score_type probcut_beta(const score_type& beta) const noexcept { return beta + 315; }
+
+  [[nodiscard]] constexpr depth_type razor_depth() const noexcept { return 3; }
+  [[nodiscard]] constexpr score_type razor_margin(const depth_type& depth) const noexcept { return 896 * depth; }
 
   [[maybe_unused]] fixed_search_constants& update_(const std::size_t& thread_count) noexcept {
     thread_count_ = thread_count;

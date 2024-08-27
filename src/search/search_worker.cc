@@ -235,7 +235,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const bool improving = !is_check && ss.improving();
   const chess::square_set threatened = bd.them_threat_mask();
 
-  const bool try_razor = !is_pv && !is_check && !ss.has_excluded() && depth <= 3 && value + 896 * depth <= alpha;
+  const bool try_razor = !is_pv && !is_check && !ss.has_excluded() && depth <= external.constants->razor_depth() &&
+                         value + external.constants->razor_margin(depth) <= alpha;
 
   if (try_razor) {
     const score_type razor_score = q_search<false>(ss, eval_node, bd, alpha, alpha + 1, 0);
