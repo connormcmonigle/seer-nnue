@@ -235,6 +235,14 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const bool improving = !is_check && ss.improving();
   const chess::square_set threatened = bd.them_threat_mask();
 
+  const bool try_razor = !is_pv && !is_check && !ss.has_excluded() && depth <= external.constants->razor_depth() &&
+                         value + external.constants->razor_margin(depth) <= alpha;
+
+  if (try_razor) {
+    const score_type razor_score = q_search<false>(ss, eval_node, bd, alpha, alpha + 1, 0);
+    if (razor_score <= alpha) { return make_result(razor_score, chess::move::null()); }
+  }
+
   // step 7. static null move pruning
   const bool snm_prune = !is_pv && !ss.has_excluded() && !is_check && depth <= external.constants->snmp_depth() &&
                          value > beta + external.constants->snmp_margin(improving, threatened.any(), depth) && value > ss.loss_score();
