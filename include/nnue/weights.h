@@ -38,7 +38,7 @@ struct weights {
   using quantized_parameter_type = std::int16_t;
   using half_quantized_parameter_type = std::int8_t;
 
-  static constexpr std::size_t base_dim = 768;
+  static constexpr std::size_t base_dim = 1024;
 
   static constexpr parameter_type shared_quantization_scale = static_cast<parameter_type>(512);
   static constexpr parameter_type fc0_weight_quantization_scale = static_cast<parameter_type>(1024);
@@ -102,7 +102,7 @@ struct quantized_weights {
   using quantized_parameter_type = weights::quantized_parameter_type;
   using half_quantized_parameter_type = weights::half_quantized_parameter_type;
 
-  static constexpr std::size_t base_dim = 768;
+  static constexpr std::size_t base_dim = 1024;
 
   weights_streamer::signature_type signature_{0};
 
