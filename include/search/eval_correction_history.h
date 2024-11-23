@@ -76,8 +76,8 @@ struct composite_eval_correction_history {
   static constexpr std::array<score_type, lookup_table_size> alpha_lookup_table = [] {
     std::array<score_type, lookup_table_size> result{};
     for (depth_type depth{1}; depth < lookup_table_size; ++depth) {
-      const double alpha_value = 1.0 - 1.0 / (1.0 + static_cast<double>(depth) / 8.0);
-      result[depth] = static_cast<depth_type>(16.0 * alpha_value);
+      const double alpha_value = 1.0 + 4.0 * (1.0 - 1.0 / (1.0 + static_cast<double>(depth) / 8.0));
+      result[depth] = static_cast<depth_type>(alpha_value);
     }
 
     return result;
