@@ -51,7 +51,9 @@ inline evaluate_info search_worker::evaluate(
   const auto eval_feature_hash = entry.eval_feature_hash();
 
   const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, eval_feature_hash);
-  score_type static_value = entry.eval();
+  
+  const score_type unadjusted_static_value = entry.eval();
+  score_type static_value = unadjusted_static_value;
 
   if (!is_check) {
     internal.cache.insert(bd.hash(), entry);
@@ -65,7 +67,12 @@ inline evaluate_info search_worker::evaluate(
     if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
   }
 
-  return evaluate_info{feature_hash, static_value, value};
+  return evaluate_info{
+    feature_hash,
+    unadjusted_static_value,
+    static_value,
+    value
+  };
 }
 
 template <bool is_pv, bool use_tt>
@@ -97,7 +104,7 @@ score_type search_worker::q_search(
     if (use_tt && is_cutoff) { return entry.score(); }
   }
 
-  const auto [feature_hash, static_value, value] = evaluate<is_pv, use_tt>(ss, eval_node, bd, maybe);
+  const auto [feature_hash, unadjusted_static_value, static_value, value] = evaluate<is_pv, use_tt>(ss, eval_node, bd, maybe);
 
   if (!is_check && value >= beta) { return value; }
   if (ss.reached_max_height()) { return value; }
@@ -225,7 +232,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   if (should_iir) { --depth; }
 
   // step 4. compute static eval and adjust appropriately if there's a tt hit
-  const auto [feature_hash, static_value, value] = evaluate<is_pv>(ss, eval_node, bd, maybe);
+  const auto [feature_hash, unadjusted_static_value, static_value, value] = evaluate<is_pv>(ss, eval_node, bd, maybe);
 
   // step 5. return static eval if max depth was reached
   if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
@@ -476,8 +483,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
     }
 
     if (!is_check && best_move.is_quiet()) {
-      const score_type error = best_score - static_value;
-      internal.correction.us(bd.turn()).update(feature_hash, bound, error);
+      const score_type error = best_score - unadjusted_static_value;
+      internal.correction.us(bd.turn()).update(feature_hash, bound, error, depth);
     }
 
     const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);
