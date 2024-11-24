@@ -40,12 +40,12 @@ struct eval_correction_history {
     return raw_correction / eval_correction_scale;
   }
 
-  constexpr void update(const zobrist::quarter_hash_type& feature_hash, const score_type& error) noexcept {
+  constexpr void update(const zobrist::quarter_hash_type& feature_hash, const score_type& error, const score_type& alpha) noexcept {
     constexpr score_type score_correction_limit = 65536;
+    constexpr score_type filter_divisor = 256;
 
-    constexpr score_type filter_alpha = 1;
-    constexpr score_type filter_c_alpha = 255;
-    constexpr score_type filter_divisor = filter_alpha + filter_c_alpha;
+    const score_type filter_alpha = alpha;
+    const score_type filter_c_alpha = filter_divisor - alpha;
 
     auto& correction = data[hash_function(feature_hash)];
 
@@ -71,6 +71,18 @@ template <typename... Ts>
 
 template <std::size_t N>
 struct composite_eval_correction_history {
+  static constexpr depth_type lookup_table_size = 32;
+
+  static constexpr std::array<score_type, lookup_table_size> alpha_lookup_table = [] {
+    std::array<score_type, lookup_table_size> result{};
+    for (depth_type depth{1}; depth < lookup_table_size; ++depth) {
+      const double alpha_value = 1.0 - 1.0 / (1.0 + static_cast<double>(depth) / 8.0);
+      result[depth] = static_cast<depth_type>(16.0 * alpha_value);
+    }
+
+    return result;
+  }();
+
   std::array<eval_correction_history, N> histories_{};
 
   [[nodiscard]] constexpr score_type correction_for(const composite_feature_hash<N>& composite_hash) const noexcept {
@@ -84,13 +96,16 @@ struct composite_eval_correction_history {
     return result;
   }
 
-  constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error) noexcept {
+  constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error, const depth_type& depth) noexcept {
     if (bound == bound_type::upper && error >= 0) { return; }
     if (bound == bound_type::lower && error <= 0) { return; }
 
+    constexpr depth_type last_idx = lookup_table_size - 1;
+    const score_type alpha = alpha_lookup_table[std::min(last_idx, depth)];
+
     for (std::size_t i(0); i < N; ++i) {
       const zobrist::quarter_hash_type hash = composite_hash.hash(i);
-      histories_[i].update(hash, error);
+      histories_[i].update(hash, error, alpha);
     }
   }
 
