@@ -71,7 +71,7 @@ template <typename... Ts>
 
 template <std::size_t N>
 struct composite_eval_correction_history {
-  static constexpr depth_type lookup_table_size = 32;
+  static constexpr depth_type lookup_table_size = 16;
 
   static constexpr std::array<score_type, lookup_table_size> alpha_lookup_table = [] {
     std::array<score_type, lookup_table_size> result{};
