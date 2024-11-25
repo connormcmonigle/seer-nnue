@@ -47,11 +47,14 @@ inline evaluate_info search_worker::evaluate(
     return eval_cache_entry::make(hash, eval_feature_hash, eval);
   }();
 
-  const auto manifest_feature_hash = zobrist::lower_quarter(bd.manifest_sided_hash().us(bd.turn()));
+  const auto manifest_sided_hash = bd.manifest_sided_hash();
+  const auto us_manifest_feature_hash = zobrist::lower_quarter(manifest_sided_hash.us(bd.turn()));
+  const auto them_manifest_feature_hash = zobrist::lower_quarter(manifest_sided_hash.them(bd.turn()));
   const auto pawn_feature_hash = zobrist::lower_quarter(bd.pawn_hash());
   const auto eval_feature_hash = entry.eval_feature_hash();
 
-  const auto feature_hash = composite_feature_hash_of(manifest_feature_hash, pawn_feature_hash, eval_feature_hash);
+  const auto feature_hash = composite_feature_hash_of(us_manifest_feature_hash, them_manifest_feature_hash, pawn_feature_hash, eval_feature_hash);
+
   score_type static_value = entry.eval();
 
   if (!is_check) {
