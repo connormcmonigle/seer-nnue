@@ -70,6 +70,7 @@ struct manifest {
 
   [[nodiscard]] constexpr zobrist::hash_type hash() const noexcept { return hash_; }
   [[nodiscard]] constexpr zobrist::hash_type pawn_hash() const noexcept { return pawn_hash_; }
+  [[nodiscard]] constexpr zobrist::hash_type king_hash() const noexcept { return zobrist_src_->get(piece_type::king, *king_.begin()); }
 
   [[nodiscard]] constexpr square_set& get_plane(const piece_type pt) noexcept { return get_member(pt, *this); }
   [[nodiscard]] constexpr const square_set& get_plane(const piece_type pt) const noexcept { return get_member(pt, *this); }
@@ -111,6 +112,7 @@ struct sided_manifest : public sided<sided_manifest, manifest> {
 
   [[nodiscard]] constexpr zobrist::hash_type hash() const noexcept { return white.hash() ^ black.hash(); }
   [[nodiscard]] constexpr zobrist::hash_type pawn_hash() const noexcept { return white.pawn_hash() ^ black.pawn_hash(); }
+  [[nodiscard]] constexpr zobrist::hash_type king_hash() const noexcept { return white.king_hash() ^ black.king_hash(); }
 
   sided_manifest() noexcept : white(&w_manifest_src), black(&b_manifest_src) {}
 };

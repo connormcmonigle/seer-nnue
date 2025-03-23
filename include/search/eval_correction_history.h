@@ -96,7 +96,8 @@ struct composite_eval_correction_history {
     return result;
   }
 
-  constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error, const depth_type& depth) noexcept {
+  constexpr void
+  update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error, const depth_type& depth) noexcept {
     if (bound == bound_type::upper && error >= 0) { return; }
     if (bound == bound_type::lower && error <= 0) { return; }
 
@@ -118,6 +119,7 @@ constexpr std::size_t eval_correction_history_num_hashes = 2;
 struct sided_eval_correction_history
     : public chess::sided<sided_eval_correction_history, composite_eval_correction_history<eval_correction_history_num_hashes>> {
   using hash_type = composite_feature_hash<eval_correction_history_num_hashes>;
+
   composite_eval_correction_history<eval_correction_history_num_hashes> white;
   composite_eval_correction_history<eval_correction_history_num_hashes> black;
 
