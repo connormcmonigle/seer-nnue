@@ -55,7 +55,10 @@ struct context {
 [[nodiscard]] inline value_type formula(const value_type& x, const value_type& gain) noexcept {
   constexpr value_type history_multiplier = 32;
   constexpr value_type history_divisor = 512;
-  return (gain * history_multiplier) - (x * std::abs(gain) / history_divisor);
+  constexpr value_type history_limit = 16384;
+
+  const value_type clamped_x = std::clamp(x, -history_limit, history_limit);
+  return (gain * history_multiplier) - (clamped_x * std::abs(gain) / history_divisor);
 }
 
 struct pawn_structure_info {
