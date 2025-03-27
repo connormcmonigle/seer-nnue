@@ -165,10 +165,13 @@ struct combined {
 
     auto single_update = [&, this](const auto& mv, const value_type& gain) {
       const value_type value = compute_value(ctxt, mv);
+      const value_type delta = formula(value, gain);
+
       util::tuple::for_each(tables_, [=](auto& tbl) {
         if (tbl.is_applicable(ctxt, mv)) {
-          const value_type updated_value = formula(value, gain) + tbl.at(ctxt, mv);
+          const value_type updated_value = delta + tbl.at(ctxt, mv);
           const value_type clamped_value = std::clamp(updated_value, constants::min_storage_limit, constants::max_storage_limit);
+
           tbl.at(ctxt, mv) = static_cast<storage_type>(clamped_value);
         }
       });
