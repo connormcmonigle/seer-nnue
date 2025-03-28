@@ -32,6 +32,7 @@ namespace search {
 namespace history {
 
 using value_type = search::counter_type;
+using storage_type = std::int16_t;
 
 namespace constants {
 
@@ -42,6 +43,9 @@ constexpr std::size_t num_threat_states = 2;
 constexpr std::size_t num_pawn_states = 512;
 constexpr std::size_t pawn_hash_mask = num_pawn_states - 1;
 static_assert((num_pawn_states & pawn_hash_mask) == 0);
+
+constexpr value_type min_storage_limit = std::numeric_limits<storage_type>::min();
+constexpr value_type max_storage_limit = std::numeric_limits<storage_type>::max();
 
 }  // namespace constants
 
@@ -138,16 +142,17 @@ struct capture_info {
 
 template <typename T>
 struct table {
-  std::array<value_type, T::N> data_{};
+  std::array<storage_type, T::N> data_{};
 
   [[nodiscard]] constexpr bool is_applicable(const context& ctxt, const chess::move& mv) const noexcept { return T::is_applicable(ctxt, mv); }
 
-  [[nodiscard]] constexpr const value_type& at(const context& ctxt, const chess::move& mv) const noexcept {
+  [[nodiscard]] constexpr const storage_type& at(const context& ctxt, const chess::move& mv) const noexcept {
     return data_[T::compute_index(ctxt, mv)];
   }
-  [[nodiscard]] constexpr value_type& at(const context& ctxt, const chess::move& mv) noexcept { return data_[T::compute_index(ctxt, mv)]; }
 
-  constexpr void clear() noexcept { data_.fill(value_type{}); }
+  [[nodiscard]] constexpr storage_type& at(const context& ctxt, const chess::move& mv) noexcept { return data_[T::compute_index(ctxt, mv)]; }
+
+  constexpr void clear() noexcept { data_.fill(storage_type{}); }
 };
 
 template <typename... Ts>
@@ -160,8 +165,15 @@ struct combined {
 
     auto single_update = [&, this](const auto& mv, const value_type& gain) {
       const value_type value = compute_value(ctxt, mv);
+      const value_type delta = formula(value, gain);
+
       util::tuple::for_each(tables_, [=](auto& tbl) {
-        if (tbl.is_applicable(ctxt, mv)) { tbl.at(ctxt, mv) += formula(value, gain); }
+        if (tbl.is_applicable(ctxt, mv)) {
+          const value_type updated_value = delta + tbl.at(ctxt, mv);
+          const value_type clamped_value = std::clamp(updated_value, constants::min_storage_limit, constants::max_storage_limit);
+
+          tbl.at(ctxt, mv) = static_cast<storage_type>(clamped_value);
+        }
       });
     };
 
