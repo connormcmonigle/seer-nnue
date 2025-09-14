@@ -20,6 +20,7 @@
 #include <chess/move.h>
 #include <nnue/eval.h>
 #include <nnue/feature_reset_cache.h>
+#include <search/adaptive_reduction_history.h>
 #include <search/eval_cache.h>
 #include <search/eval_correction_history.h>
 #include <search/history_heuristic.h>
@@ -37,6 +38,7 @@ struct search_worker_internal_state {
   sided_history_heuristic hh{};
   eval_cache cache{};
   sided_eval_correction_history correction{};
+  sided_adaptive_reduction_history reduction{};
   std::unordered_map<chess::move, std::size_t, chess::move_hash> node_distribution{};
 
   std::atomic_bool go{false};
@@ -63,6 +65,7 @@ struct search_worker_internal_state {
     hh.clear();
     cache.clear();
     correction.clear();
+    reduction.clear();
     node_distribution.clear();
 
     go.store(false);

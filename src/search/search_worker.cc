@@ -434,6 +434,11 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
         lmr_depth = std::max(1, next_depth - reduction);
         zw_score = zero_width(lmr_depth);
+
+        if (zw_score <= alpha && lmr_depth + 1 < next_depth && internal.reduction.us(bd.turn()).should_reduce_less(depth)) {
+          zw_score = zero_width(lmr_depth + 1);
+          internal.reduction.us(bd.turn()).update(depth, zw_score > alpha);
+        }
       }
 
       // search again at full depth if necessary
