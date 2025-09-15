@@ -319,11 +319,13 @@ pv_search_result_t<is_root> search_worker::pv_search(
   score_type best_score = ss.loss_score();
   chess::move best_move = chess::move::null();
 
+  bool lm_break_deferred{false};
   bool did_double_extend{false};
   int legal_count{0};
 
   for (const auto& [idx, mv] : orderer) {
     ++legal_count;
+    if (lm_break_deferred) { break; }
     if (!internal.keep_going()) { break; }
     if (mv == ss.excluded()) { continue; }
 
@@ -338,7 +340,11 @@ pv_search_result_t<is_root> search_worker::pv_search(
     if (try_pruning) {
       const bool lm_prune = !bd_.is_check() && depth <= external.constants->lmp_depth() && idx > external.constants->lmp_count(improving, depth);
 
-      if (lm_prune) { break; }
+      if (lm_prune && !internal.lmphist.us(bd.turn()).should_defer_lm_prune(depth)) {
+        break;
+      } else if (lm_prune) {
+        lm_break_deferred = true;
+      }
 
       const bool futility_prune =
           mv.is_quiet() && depth <= external.constants->futility_prune_depth() && value + external.constants->futility_margin(depth) < alpha;
@@ -434,11 +440,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
         lmr_depth = std::max(1, next_depth - reduction);
         zw_score = zero_width(lmr_depth);
-
-        if (zw_score <= alpha && lmr_depth + 1 < next_depth && internal.reduction.us(bd.turn()).should_reduce_less(depth)) {
-          zw_score = zero_width(lmr_depth + 1);
-          internal.reduction.us(bd.turn()).update(depth, zw_score > alpha);
-        }
       }
 
       // search again at full depth if necessary
@@ -448,6 +449,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
       return (is_pv && (alpha < zw_score && zw_score < beta)) ? full_width() : zw_score;
     }();
 
+    if (lm_break_deferred) { internal.lmphist.us(bd.turn()).update(depth, score >= beta); }
     if (score < beta && (mv.is_quiet() || !bd.see_gt(mv, 0))) { moves_tried.push(mv); }
 
     if (score > best_score) {
