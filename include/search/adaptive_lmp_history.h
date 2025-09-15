@@ -27,10 +27,10 @@
 #include <iostream>
 
 namespace search {
-using probability_type = std::uint32_t;
+using probability_type = std::uint64_t;
 
 struct filter_config {
-  static constexpr probability_type filter_divisor = 256;
+  static constexpr probability_type filter_divisor = 32768;
 
   probability_type alpha;
   probability_type c_alpha;
@@ -42,25 +42,24 @@ struct filter_config {
   }
 };
 
-constexpr filter_config success_filter_config = filter_config::make<8>();
-constexpr filter_config failure_filter_config = filter_config::make<1>();
+constexpr filter_config success_filter_config = filter_config::make<1>();
+constexpr filter_config failure_filter_config = filter_config::make<8>();
 
 struct adaptive_lmp_history {
   static constexpr depth_type depth_limit = 16;
-  static constexpr probability_type filter_divisor = 256;
-  static constexpr probability_type filter_alpha = 1;
-  static constexpr probability_type filter_c_alpha = 255;
 
-  static constexpr probability_type probability_divisor = 1024;
+  static constexpr probability_type probability_divisor = 131072;
   static constexpr probability_type probability_mask = probability_divisor - 1;
-  static constexpr probability_type probability_epsilon = 16;
+
+  static constexpr probability_type probability_lower_bound = 0;
+  static constexpr probability_type probability_upper_bound = 98304;
 
   static_assert((probability_divisor & probability_mask) == 0);
 
   zobrist::xorshift_generator xorshift_generator_;
   std::array<probability_type, depth_limit + 1> reduce_less_probabilities_;
 
-  [[nodiscard]] constexpr bool should_defer_lm_prune(const depth_type& depth) noexcept {
+  [[nodiscard]] constexpr bool should_early_lm_prune(const depth_type& depth) noexcept {
     const depth_type limited_depth = std::min(depth_limit, depth);
     const zobrist::half_hash_type uniform_random_number = zobrist::lower_half(xorshift_generator_.next());
 
@@ -74,17 +73,17 @@ struct adaptive_lmp_history {
     const probability_type target_probability = success ? probability_divisor : 0;
     probability_type& probability = reduce_less_probabilities_[limited_depth];
 
-    probability = (config.alpha * target_probability + config.c_alpha * probability) / filter_divisor;
-    probability = std::max(probability_epsilon, probability);
+    probability = (config.alpha * target_probability + config.c_alpha * probability) / filter_config::filter_divisor;
+    probability = std::clamp(probability, probability_lower_bound, probability_upper_bound);
   }
 
   void clear() noexcept {
     xorshift_generator_ = zobrist::xorshift_generator{zobrist::entropy_0};
-    reduce_less_probabilities_.fill(probability_epsilon);
+    reduce_less_probabilities_.fill(probability_lower_bound);
   }
 
   adaptive_lmp_history() noexcept : xorshift_generator_{zobrist::entropy_0}, reduce_less_probabilities_{} {
-    reduce_less_probabilities_.fill(probability_epsilon);
+    reduce_less_probabilities_.fill(probability_lower_bound);
   }
 };
 
