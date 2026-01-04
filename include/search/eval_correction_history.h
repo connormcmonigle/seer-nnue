@@ -114,7 +114,7 @@ struct composite_eval_correction_history {
   }
 };
 
-constexpr std::size_t eval_correction_history_num_hashes = 2;
+constexpr std::size_t eval_correction_history_num_hashes = 3;
 struct sided_eval_correction_history
     : public chess::sided<sided_eval_correction_history, composite_eval_correction_history<eval_correction_history_num_hashes>> {
   using hash_type = composite_feature_hash<eval_correction_history_num_hashes>;
