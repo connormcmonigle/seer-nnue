@@ -73,10 +73,20 @@ template <std::size_t N>
 struct composite_eval_correction_history {
   static constexpr depth_type lookup_table_size = 32;
 
-  static constexpr std::array<score_type, lookup_table_size> alpha_lookup_table = [] {
+  static constexpr std::array<score_type, lookup_table_size> nonpv_alpha_lookup_table = [] {
     std::array<score_type, lookup_table_size> result{};
     for (depth_type depth{1}; depth < lookup_table_size; ++depth) {
       const double alpha_value = 1.0 - 1.0 / (1.0 + static_cast<double>(depth) / 8.0);
+      result[depth] = static_cast<depth_type>(16.0 * alpha_value);
+    }
+
+    return result;
+  }();
+
+  static constexpr std::array<score_type, lookup_table_size> pv_alpha_lookup_table = [] {
+    std::array<score_type, lookup_table_size> result{};
+    for (depth_type depth{1}; depth < lookup_table_size; ++depth) {
+      const double alpha_value = 1.0 - 1.0 / (1.0 + static_cast<double>(depth) / 4.0);
       result[depth] = static_cast<depth_type>(16.0 * alpha_value);
     }
 
@@ -96,11 +106,14 @@ struct composite_eval_correction_history {
     return result;
   }
 
+  template <bool is_pv>
   constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error, const depth_type& depth) noexcept {
     if (bound == bound_type::upper && error >= 0) { return; }
     if (bound == bound_type::lower && error <= 0) { return; }
 
     constexpr depth_type last_idx = lookup_table_size - 1;
+    constexpr auto& alpha_lookup_table = is_pv ? pv_alpha_lookup_table : nonpv_alpha_lookup_table;
+
     const score_type alpha = alpha_lookup_table[std::min(last_idx, depth)];
 
     for (std::size_t i(0); i < N; ++i) {
