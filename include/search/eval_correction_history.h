@@ -72,7 +72,16 @@ template <typename... Ts>
 template <std::size_t N>
 struct composite_eval_correction_history {
   static constexpr depth_type lookup_table_size = 32;
-  static constexpr score_type saturation_threshold = 1280;
+
+  static constexpr score_type lower_saturation_threshold = 1024;
+  static constexpr score_type upper_saturation_threshold = 2048;
+
+  static constexpr score_type smooth_saturate(const score_type& score) noexcept {
+    const score_type lower_saturated_score = std::clamp(score, -lower_saturation_threshold, lower_saturation_threshold);
+    const score_type upper_saturated_score = std::clamp(score, -upper_saturation_threshold, upper_saturation_threshold);
+
+    return lower_saturated_score + (upper_saturated_score - lower_saturated_score) / 2;
+  }
 
   static constexpr std::array<score_type, lookup_table_size> alpha_lookup_table = [] {
     std::array<score_type, lookup_table_size> result{};
@@ -98,9 +107,7 @@ struct composite_eval_correction_history {
   }
 
   constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& expected, const score_type& actual, const depth_type& depth) noexcept {
-    const score_type clamped_expected = std::clamp(expected, -saturation_threshold, saturation_threshold);
-    const score_type clamped_actual = std::clamp(actual, -saturation_threshold, saturation_threshold);
-    const score_type error = clamped_expected - clamped_actual;
+    const score_type error = smooth_saturate(expected) - smooth_saturate(actual);
 
     if (bound == bound_type::upper && error >= 0) { return; }
     if (bound == bound_type::lower && error <= 0) { return; }
