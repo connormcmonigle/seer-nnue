@@ -72,6 +72,7 @@ template <typename... Ts>
 template <std::size_t N>
 struct composite_eval_correction_history {
   static constexpr depth_type lookup_table_size = 32;
+  static constexpr score_type saturation_threshold = 2048;
 
   static constexpr std::array<score_type, lookup_table_size> alpha_lookup_table = [] {
     std::array<score_type, lookup_table_size> result{};
@@ -96,7 +97,11 @@ struct composite_eval_correction_history {
     return result;
   }
 
-  constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error, const depth_type& depth) noexcept {
+  constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& expected, const score_type& actual, const depth_type& depth) noexcept {
+    const score_type clamped_expected = std::clamp(expected, -saturation_threshold, saturation_threshold);
+    const score_type clamped_actual = std::clamp(actual, -saturation_threshold, saturation_threshold);
+    const score_type error = clamped_expected - clamped_actual;
+
     if (bound == bound_type::upper && error >= 0) { return; }
     if (bound == bound_type::lower && error <= 0) { return; }
 
