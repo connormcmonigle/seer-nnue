@@ -22,14 +22,14 @@
 
 namespace chess {
 
-template <bool include_captured_type>
+template <bool include_source_square>
 struct move_zobrist_hasher_impl {
   static constexpr std::size_t num_pieces = 6;
   static constexpr std::size_t num_squares = 64;
 
-  std::array<zobrist::hash_type, num_pieces> captured_{};
   std::array<zobrist::hash_type, num_pieces> piece_{};
   std::array<zobrist::hash_type, num_squares> to_{};
+  std::array<zobrist::hash_type, num_squares> from_{};
 
   constexpr zobrist::hash_type compute_hash(const move& mv) const noexcept {
     const auto piece_index = static_cast<std::size_t>(mv.piece());
@@ -37,25 +37,23 @@ struct move_zobrist_hasher_impl {
 
     zobrist::hash_type hash = piece_[piece_index] ^ to_[to_index];
 
-    if constexpr (include_captured_type) {
-      if (mv.is_capture()) {
-        const auto captured_index = static_cast<std::size_t>(mv.captured());
-        hash ^= captured_[captured_index];
-      }
+    if constexpr (include_source_square) {
+        const auto from_index = static_cast<std::size_t>(mv.from().index());
+        hash ^= from_[from_index];
     }
 
     return hash;
   }
 
   constexpr move_zobrist_hasher_impl(zobrist::xorshift_generator generator) noexcept {
-    for (auto& elem : captured_) { elem = generator.next(); }
     for (auto& elem : piece_) { elem = generator.next(); }
     for (auto& elem : to_) { elem = generator.next(); }
+    for (auto& elem : from_) { elem = generator.next(); }
   }
 };
 
-template <zobrist::hash_type entropy, bool include_captured_type>
-inline constexpr move_zobrist_hasher_impl move_zobrist_hasher = move_zobrist_hasher_impl<include_captured_type>(zobrist::xorshift_generator(entropy));
+template <zobrist::hash_type entropy, bool include_source_square>
+inline constexpr move_zobrist_hasher_impl move_zobrist_hasher = move_zobrist_hasher_impl<include_source_square>(zobrist::xorshift_generator(entropy));
 
 constexpr move_zobrist_hasher_impl counter_move_zobrist_hasher = move_zobrist_hasher<zobrist::entropy_0, true>;
 constexpr move_zobrist_hasher_impl follow_move_zobrist_hasher = move_zobrist_hasher<zobrist::entropy_1, false>;
