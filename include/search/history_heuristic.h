@@ -222,7 +222,7 @@ struct combined {
 
 using history_heuristic = history::combined<
     history::threat_info,
-    history::pawn_structure_info,
+    /*history::pawn_structure_info,*/
     history::eval_feature_info,
     history::counter_info,
     history::follow_info,
