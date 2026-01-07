@@ -32,6 +32,7 @@ namespace search {
 
 struct stack_entry {
   score_type eval_{};
+  zobrist::quarter_hash_type eval_feature_hash_{};
 
   chess::move played_{chess::move::null()};
   chess::move killer_{chess::move::null()};
@@ -83,6 +84,11 @@ struct stack_view {
     return bd.upcoming_cycle_exists(height_, view_->history_);
   }
 
+  [[nodiscard]] constexpr zobrist::quarter_hash_type counter_eval_feature_hash() const noexcept {
+    if (height_ <= 0) { return zobrist::quarter_hash_type{}; }
+    return view_->at(height_ - 1).eval_feature_hash_;
+  }
+
   [[nodiscard]] constexpr chess::move counter() const noexcept {
     if (height_ <= 0) { return chess::move::null(); }
     return view_->at(height_ - 1).played_;
@@ -112,6 +118,11 @@ struct stack_view {
 
   [[maybe_unused]] constexpr const stack_view& set_eval(const score_type& eval) const noexcept {
     view_->at(height_).eval_ = eval;
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr const stack_view& set_eval_feature_hash(const zobrist::quarter_hash_type& eval_feature_hash) const noexcept {
+    view_->at(height_).eval_feature_hash_ = eval_feature_hash;
     return *this;
   }
 

@@ -54,8 +54,9 @@ inline evaluate_info search_worker::evaluate(
   const auto cont_feature_hash = zobrist::lower_quarter(counter_move_hash ^ follow_move_hash);
   const auto pawn_feature_hash = zobrist::lower_quarter(bd.pawn_hash());
   const auto eval_feature_hash = entry.eval_feature_hash();
+  const auto counter_eval_feature_hash = ss.counter_eval_feature_hash();
 
-  const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, eval_feature_hash, cont_feature_hash);
+  const auto feature_hash = composite_feature_hash_of(cont_feature_hash, pawn_feature_hash, eval_feature_hash, counter_eval_feature_hash);
   score_type static_value = entry.eval();
 
   if (!is_check) {
@@ -70,6 +71,8 @@ inline evaluate_info search_worker::evaluate(
     if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
   }
 
+  ss.set_eval(static_value);
+  ss.set_eval_feature_hash(eval_feature_hash);
   return evaluate_info{feature_hash, static_value, value};
 }
 
@@ -114,7 +117,7 @@ score_type search_worker::q_search(
   score_type best_score = value;
   chess::move best_move = chess::move::null();
 
-  ss.set_hash(bd.sided_hash()).set_eval(static_value);
+  ss.set_hash(bd.sided_hash());
   int legal_count{0};
   for (const auto& [idx, mv] : orderer) {
     ++legal_count;
@@ -235,8 +238,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
   // step 5. return static eval if max depth was reached
   if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
 
-  // step 6. add position and static eval to stack
-  ss.set_hash(bd.sided_hash()).set_eval(static_value);
+  // step 6. add position to stack
+  ss.set_hash(bd.sided_hash());
   const bool improving = !is_check && ss.improving();
   const chess::square_set threatened = bd.them_threat_mask();
 
