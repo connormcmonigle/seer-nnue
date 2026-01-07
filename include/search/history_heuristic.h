@@ -44,6 +44,10 @@ constexpr std::size_t num_pawn_states = 512;
 constexpr std::size_t pawn_hash_mask = num_pawn_states - 1;
 static_assert((num_pawn_states & pawn_hash_mask) == 0);
 
+constexpr std::size_t num_eval_feature_states = 512;
+constexpr std::size_t eval_feature_hash_mask = num_eval_feature_states - 1;
+static_assert((num_eval_feature_states & eval_feature_hash_mask) == 0);
+
 constexpr value_type min_storage_limit = std::numeric_limits<storage_type>::min();
 constexpr value_type max_storage_limit = std::numeric_limits<storage_type>::max();
 
@@ -54,6 +58,7 @@ struct context {
   chess::move counter;
   chess::square_set threatened;
   zobrist::hash_type pawn_hash;
+  zobrist::quarter_hash_type eval_feature_hash;
 };
 
 [[nodiscard]] inline value_type formula(const value_type& x, const value_type& gain) noexcept {
@@ -64,6 +69,22 @@ struct context {
   const value_type clamped_x = std::clamp(x, -history_limit, history_limit);
   return (gain * history_multiplier) - (clamped_x * std::abs(gain) / history_divisor);
 }
+
+struct eval_feature_info {
+  static constexpr std::size_t N = constants::num_eval_feature_states * constants::num_pieces * constants::num_squares;
+
+  [[nodiscard]] static constexpr bool is_applicable(const context& ctxt, const chess::move& mv) noexcept {
+    return ctxt.eval_feature_hash && mv.is_quiet();
+  }
+
+  [[nodiscard]] static constexpr std::size_t compute_index(const context& ctxt, const chess::move& mv) noexcept {
+    const auto eval_features = static_cast<std::size_t>(ctxt.eval_feature_hash & constants::eval_feature_hash_mask);
+    const auto p = static_cast<std::size_t>(mv.piece());
+    const auto to = static_cast<std::size_t>(mv.to().index());
+
+    return eval_features * constants::num_pieces * constants::num_squares + p * constants::num_squares + to;
+  }
+};
 
 struct pawn_structure_info {
   static constexpr std::size_t N = constants::num_pawn_states * constants::num_pieces * constants::num_squares;
@@ -199,8 +220,13 @@ struct combined {
 
 }  // namespace history
 
-using history_heuristic =
-    history::combined<history::threat_info, history::pawn_structure_info, history::counter_info, history::follow_info, history::capture_info>;
+using history_heuristic = history::combined<
+    history::threat_info,
+    history::pawn_structure_info,
+    history::eval_feature_info,
+    history::counter_info,
+    history::follow_info,
+    history::capture_info>;
 
 struct sided_history_heuristic : public chess::sided<sided_history_heuristic, history_heuristic> {
   history_heuristic white;

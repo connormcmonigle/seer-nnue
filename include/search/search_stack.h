@@ -32,6 +32,7 @@ namespace search {
 
 struct stack_entry {
   score_type eval_{};
+  zobrist::quarter_hash_type eval_feature_hash_{};
 
   chess::move played_{chess::move::null()};
   chess::move killer_{chess::move::null()};
@@ -105,6 +106,8 @@ struct stack_view {
 
   [[nodiscard]] constexpr bool improving() const noexcept { return (height_ >= 2) && view_->at(height_ - 2).eval_ < view_->at(height_).eval_; }
 
+  [[nodiscard]] constexpr zobrist::quarter_hash_type eval_feature_hash() const noexcept { return view_->at(height_).eval_feature_hash_; }
+
   [[maybe_unused]] constexpr const stack_view& set_hash(const chess::sided_zobrist_hash& hash) const noexcept {
     view_->history_.future_at(height_) = hash;
     return *this;
@@ -112,6 +115,11 @@ struct stack_view {
 
   [[maybe_unused]] constexpr const stack_view& set_eval(const score_type& eval) const noexcept {
     view_->at(height_).eval_ = eval;
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr const stack_view& set_eval_feature_hash(const zobrist::quarter_hash_type& eval_feature_hash) const noexcept {
+    view_->at(height_).eval_feature_hash_ = eval_feature_hash;
     return *this;
   }
 

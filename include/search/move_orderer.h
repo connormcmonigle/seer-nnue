@@ -44,6 +44,7 @@ struct move_orderer_data {
 
   chess::square_set threatened{};
   zobrist::hash_type pawn_hash{};
+  zobrist::quarter_hash_type eval_feature_hash{};
 
   const chess::board* bd;
   const history_heuristic* hh;
@@ -75,6 +76,11 @@ struct move_orderer_data {
 
   [[maybe_unused]] constexpr move_orderer_data& set_pawn_hash(const zobrist::hash_type& hash) noexcept {
     pawn_hash = hash;
+    return *this;
+  }
+
+  [[maybe_unused]] constexpr move_orderer_data& set_eval_feature_hash(const zobrist::quarter_hash_type& hash) noexcept {
+    eval_feature_hash = hash;
     return *this;
   }
 

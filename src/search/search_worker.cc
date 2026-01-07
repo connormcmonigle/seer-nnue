@@ -55,7 +55,7 @@ inline evaluate_info search_worker::evaluate(
   const auto pawn_feature_hash = zobrist::lower_quarter(bd.pawn_hash());
   const auto eval_feature_hash = entry.eval_feature_hash();
 
-  const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, eval_feature_hash, cont_feature_hash);
+  const auto feature_hash = composite_feature_hash_of(cont_feature_hash, pawn_feature_hash, eval_feature_hash);
   score_type static_value = entry.eval();
 
   if (!is_check) {
@@ -70,6 +70,8 @@ inline evaluate_info search_worker::evaluate(
     if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
   }
 
+  ss.set_eval(static_value);
+  ss.set_eval_feature_hash(eval_feature_hash);
   return evaluate_info{feature_hash, static_value, value};
 }
 
@@ -114,7 +116,7 @@ score_type search_worker::q_search(
   score_type best_score = value;
   chess::move best_move = chess::move::null();
 
-  ss.set_hash(bd.sided_hash()).set_eval(static_value);
+  ss.set_hash(bd.sided_hash());
   int legal_count{0};
   for (const auto& [idx, mv] : orderer) {
     ++legal_count;
@@ -235,8 +237,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
   // step 5. return static eval if max depth was reached
   if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
 
-  // step 6. add position and static eval to stack
-  ss.set_hash(bd.sided_hash()).set_eval(static_value);
+  // step 6. add position to stack
+  ss.set_hash(bd.sided_hash());
   const bool improving = !is_check && ss.improving();
   const chess::square_set threatened = bd.them_threat_mask();
 
@@ -307,13 +309,15 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const chess::move follow = ss.follow();
   const chess::move counter = ss.counter();
   const zobrist::hash_type pawn_hash = bd.pawn_hash();
+  const zobrist::quarter_hash_type eval_feature_hash = ss.eval_feature_hash();
 
   move_orderer<chess::generation_mode::all> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn()))
                                                         .set_killer(killer)
                                                         .set_follow(follow)
                                                         .set_counter(counter)
                                                         .set_threatened(threatened)
-                                                        .set_pawn_hash(pawn_hash));
+                                                        .set_pawn_hash(pawn_hash)
+                                                        .set_eval_feature_hash(eval_feature_hash));
 
   if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
 
@@ -333,7 +337,9 @@ pv_search_result_t<is_root> search_worker::pv_search(
     if (mv == ss.excluded()) { continue; }
 
     const std::size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
-    const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened, pawn_hash}, mv);
+
+    const history::context history_context = history::context{follow, counter, threatened, pawn_hash, eval_feature_hash};
+    const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history_context, mv);
 
     const chess::board bd_ = bd.forward(mv);
 
@@ -476,7 +482,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     }();
 
     if (bound == bound_type::lower && (best_move.is_quiet() || !bd.see_gt(best_move, 0))) {
-      internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened, pawn_hash}, best_move, moves_tried, depth);
+      internal.hh.us(bd.turn()).update(history::context{follow, counter, threatened, pawn_hash, eval_feature_hash}, best_move, moves_tried, depth);
       ss.set_killer(best_move);
     }
 
