@@ -100,8 +100,8 @@ struct eval : public chess::sided<eval, feature_transformer<weights::quantized_p
   [[nodiscard]] inline evaluate_data<std::invoke_result_t<F, final_output_type>>
   evaluate(const bool pov, const parameter_type& phase, F&& final_output_encoder = void_final_output_encoder{}) const noexcept {
     constexpr auto one = static_cast<parameter_type>(1.0);
-    constexpr auto mg = static_cast<parameter_type>(0.7);
-    constexpr auto eg = static_cast<parameter_type>(0.55);
+    constexpr auto mg = static_cast<parameter_type>(0.675);
+    constexpr auto eg = static_cast<parameter_type>(0.53);
 
     const auto [final_output_encoding, prediction] = propagate(pov, std::forward<F>(final_output_encoder));
     const parameter_type eval = phase * mg * prediction + (one - phase) * eg * prediction;
