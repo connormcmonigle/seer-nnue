@@ -246,6 +246,11 @@ pv_search_result_t<is_root> search_worker::pv_search(
   if (try_razor) {
     const score_type razor_score = q_search<false>(ss, eval_node, bd, alpha, alpha + 1, 0);
     if (razor_score <= alpha) { return make_result(razor_score, chess::move::null()); }
+
+    const bool should_opportunistic_prune =
+        !maybe.has_value() && razor_score > beta + external.constants->snmp_margin(improving, threatened.any(), depth) && value > ss.loss_score();
+
+    if (should_opportunistic_prune) { return make_result(beta, chess::move::null()); }
   }
 
   // step 7. static null move pruning
