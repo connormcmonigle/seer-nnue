@@ -274,6 +274,14 @@ pv_search_result_t<is_root> search_worker::pv_search(
   // step 9. probcut pruning
   const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
   const score_type probcut_beta = external.constants->probcut_beta(beta);
+  const bool prob_prune = !is_pv && !ss.has_excluded() && depth >= external.constants->probcut_depth() && maybe.has_value() &&
+                          maybe->depth() >= probcut_depth && maybe->bound() != bound_type::upper && maybe->score() >= probcut_beta;
+
+  if (prob_prune) {
+    const score_type adjusted_prob_score = (beta + maybe->score()) / 2;
+    return make_result(adjusted_prob_score, chess::move::null());
+  }
+
   const bool try_probcut = !is_pv && !ss.has_excluded() && depth >= external.constants->probcut_depth() &&
                            !(maybe.has_value() && maybe->best_move().is_quiet()) &&
                            !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
