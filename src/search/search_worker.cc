@@ -274,9 +274,9 @@ pv_search_result_t<is_root> search_worker::pv_search(
   // step 9. probcut pruning
   const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
   const score_type probcut_beta = external.constants->probcut_beta(beta);
-  const bool try_probcut = !is_pv && !ss.has_excluded() && depth >= external.constants->probcut_depth() &&
-                           !(maybe.has_value() && maybe->best_move().is_quiet()) &&
-                           !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
+  const bool try_probcut =
+      !is_pv && !ss.has_excluded() && depth >= external.constants->probcut_depth() && !(maybe.has_value() && maybe->best_move().is_quiet()) &&
+      !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->bound() == bound_type::upper && maybe->score() < probcut_beta);
 
   if (try_probcut) {
     move_orderer<chess::generation_mode::noisy_and_check> probcut_orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
