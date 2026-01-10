@@ -109,6 +109,7 @@ struct fixed_search_constants final {
   }
 
   [[nodiscard]] constexpr score_type singular_double_extension_margin() const noexcept { return 166; }
+  [[nodiscard]] constexpr score_type singular_triple_extension_margin() const noexcept { return 450; }
 
   [[nodiscard]] constexpr score_type futility_margin(const depth_type& depth) const noexcept {
     constexpr score_type m = 1544;

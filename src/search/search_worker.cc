@@ -379,9 +379,15 @@ pv_search_result_t<is_root> search_worker::pv_search(
       if (try_singular) {
         const depth_type singular_depth = external.constants->singular_search_depth(depth);
         const score_type singular_beta = external.constants->singular_beta(maybe->score(), depth);
+
         ss.set_excluded(mv);
         const score_type excluded_score = pv_search<false>(ss, eval_node, bd, singular_beta - 1, singular_beta, singular_depth, reducer);
         ss.set_excluded(chess::move::null());
+
+        if (!is_pv && !mv.is_noisy() && excluded_score + external.constants->singular_triple_extension_margin() < singular_beta) {
+          did_double_extend = true;
+          return 3;
+        }
 
         if (!is_pv && excluded_score + external.constants->singular_double_extension_margin() < singular_beta) {
           did_double_extend = true;
