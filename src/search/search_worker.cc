@@ -415,19 +415,21 @@ pv_search_result_t<is_root> search_worker::pv_search(
       const bool try_lmr = !is_check && (mv.is_quiet() || !bd.see_ge(mv, 0)) && idx >= 2 && (depth >= external.constants->reduce_depth());
       if (try_lmr) {
         depth_type reduction = external.constants->reduction(depth, idx);
+        depth_type reduction_offset = external.constants->base_reduction_offset();
 
         // adjust reduction
-        if (improving) { --reduction; }
-        if (bd_.is_check()) { --reduction; }
-        if (bd.creates_threat(mv)) { --reduction; }
-        if (mv == killer) { --reduction; }
+        if (improving) { reduction_offset -= external.constants->improving_reduction_offset(); }
+        if (bd_.is_check()) { reduction_offset -= external.constants->is_check_reduction_offset(); }
+        if (bd.creates_threat(mv)) { reduction_offset -= external.constants->creates_threat_reduction_offset(); }
+        if (mv == killer) { reduction_offset -= external.constants->is_killer_reduction_offset(); }
 
-        if (!tt_pv) { ++reduction; }
+        if (!tt_pv) { reduction_offset += external.constants->not_tt_pv_reduction_offset(); }
 
         // if our opponent is the reducing player, an errant fail low will, at worst, induce a re-search
         // this idea is at least similar (maybe equivalent) to the "cutnode idea" found in Stockfish.
-        if (is_player(reducer, !bd.turn())) { ++reduction; }
+        if (is_player(reducer, !bd.turn())) { reduction_offset += external.constants->opponent_reducer_reduction_offset(); }
 
+        reduction += reduction_offset / reduction_offset_scale;
         if (mv.is_quiet()) { reduction += external.constants->history_reduction(history_value); }
 
         reduction = std::max(0, reduction);

@@ -45,6 +45,8 @@ inline constexpr depth_type max_depth = 128;
 
 inline constexpr depth_type max_depth_margin = 8;
 
+inline constexpr depth_type reduction_offset_scale = 1024;
+
 constexpr depth_type safe_depth = max_depth + max_depth_margin;
 
 using score_type = std::int32_t;
@@ -69,7 +71,7 @@ using see_type = std::int32_t;
 
 inline constexpr std::size_t nodes_per_update = 512;
 
-struct fixed_search_constants final {
+struct fixed_search_constants {
   static constexpr bool tuning = false;
   static constexpr depth_type lmr_tbl_dim = 64;
   std::size_t thread_count_;
@@ -179,7 +181,7 @@ struct tuning_search_constants : fixed_search_constants {
   static constexpr bool tuning = true;
   static constexpr depth_type lmr_tbl_dim = 64;
 
-  template<typename T>
+  template <typename T>
   auto tuning_option_(std::string name, T& value, T a, T b, double c_end, double r_end) {
     const auto option = engine::tune_option<T>(name, value, engine::value_range(a, b)).set_c_end(c_end).set_r_end(r_end);
     return engine::option_callback(option, [this, &value](const T& x) {
@@ -201,6 +203,22 @@ struct tuning_search_constants : fixed_search_constants {
   depth_type quiet_see_prune_depth_{fixed().quiet_see_prune_depth()};
   depth_type noisy_see_prune_depth_{fixed().noisy_see_prune_depth()};
 
+  depth_type lmp_worsening_1_{fixed().lmp_count(false, 1)};
+  depth_type lmp_worsening_2_{fixed().lmp_count(false, 2)};
+  depth_type lmp_worsening_3_{fixed().lmp_count(false, 3)};
+  depth_type lmp_worsening_4_{fixed().lmp_count(false, 4)};
+  depth_type lmp_worsening_5_{fixed().lmp_count(false, 5)};
+  depth_type lmp_worsening_6_{fixed().lmp_count(false, 6)};
+  depth_type lmp_worsening_7_{fixed().lmp_count(false, 7)};
+
+  depth_type lmp_improving_1_{fixed().lmp_count(true, 1)};
+  depth_type lmp_improving_2_{fixed().lmp_count(true, 2)};
+  depth_type lmp_improving_3_{fixed().lmp_count(true, 3)};
+  depth_type lmp_improving_4_{fixed().lmp_count(true, 4)};
+  depth_type lmp_improving_5_{fixed().lmp_count(true, 5)};
+  depth_type lmp_improving_6_{fixed().lmp_count(true, 6)};
+  depth_type lmp_improving_7_{fixed().lmp_count(true, 7)};
+
   depth_type singular_extension_depth_{fixed().singular_extension_depth()};
   depth_type probcut_depth_{fixed().probcut_depth()};
   depth_type iir_depth_{fixed().iir_depth()};
@@ -211,31 +229,46 @@ struct tuning_search_constants : fixed_search_constants {
   depth_type singular_extension_depth_margin_{fixed().singular_extension_depth_margin()};
   score_type singular_double_extension_margin_{fixed().singular_double_extension_margin()};
 
-  score_type nmp_reduction_depth_b_{4};
-  score_type nmp_reduction_depth_div_{6};
-  score_type nmp_reduction_eval_delta_div_{256};
-  score_type nmp_reduction_eval_delta_based_depth_limit_{3};
+  score_type nmp_reduction_depth_b_{3};
+  score_type nmp_reduction_depth_div_{4};
+  score_type nmp_reduction_eval_delta_div_{242};
+  score_type nmp_reduction_eval_delta_based_depth_limit_{4};
 
-  score_type futility_margin_m_{1536};
+  score_type futility_margin_m_{1544};
 
-  score_type snmp_margin_m_{288};
-  score_type snmp_margin_b_{128};
+  score_type snmp_margin_depth_m_{297};
+  score_type snmp_margin_not_threats_and_improving_m_{-297};
+  score_type snmp_margin_improving_m_{0};
+  score_type snmp_margin_not_threats_m_{-112};
+  score_type snmp_margin_b_{112};
 
-  see_type quiet_see_prune_threshold_m_{-50};
-  see_type noisy_see_prune_threshold_m_{-100};
+  see_type quiet_see_prune_threshold_m_{-54};
+  see_type noisy_see_prune_threshold_m_{-111};
 
-  counter_type history_prune_threshold_m_{-1024};
-  counter_type history_reduction_div_{5000};
+  counter_type history_prune_threshold_m_{-1397};
+  counter_type history_reduction_div_{5872};
+
+  depth_type base_reduction_offset_{0};
+  depth_type improving_reduction_offset_{reduction_offset_scale};
+  depth_type is_check_reduction_offset_{reduction_offset_scale};
+  depth_type creates_threat_reduction_offset_{reduction_offset_scale};
+  depth_type is_killer_reduction_offset_{reduction_offset_scale};
+  depth_type not_tt_pv_reduction_offset_{reduction_offset_scale};
+  depth_type opponent_reducer_reduction_offset_{reduction_offset_scale};
 
   score_type delta_margin_{fixed().delta_margin()};
 
   see_type good_capture_prune_see_margin_{fixed().good_capture_prune_see_margin()};
   score_type good_capture_prune_score_margin_{fixed().good_capture_prune_score_margin()};
 
-  score_type probcut_beta_b_{320};
+  score_type probcut_search_depth_offset_{3};
+  score_type probcut_beta_b_{315};
 
-  double lmr_b_{0.75};
-  double lmr_div_{2.25};
+  depth_type razor_depth_{fixed().razor_depth()};
+  depth_type razor_margin_m_{896};
+
+  double lmr_b_{0.4711025619218822};
+  double lmr_div_{2.5650906222921046};
 
   [[nodiscard]] constexpr depth_type reduce_depth() const noexcept { return reduce_depth_; }
   [[nodiscard]] constexpr depth_type aspiration_depth() const noexcept { return aspiration_depth_; }
@@ -268,7 +301,8 @@ struct tuning_search_constants : fixed_search_constants {
   }
 
   [[nodiscard]] constexpr score_type snmp_margin(const bool& improving, const bool& threats, const depth_type& depth) const noexcept {
-    return snmp_margin_m_ * static_cast<score_type>(depth - (improving && !threats)) + (threats ? snmp_margin_b_ : 0);
+    return snmp_margin_depth_m_ * depth + snmp_margin_not_threats_and_improving_m_ * (improving && !threats) + snmp_margin_improving_m_ * improving +
+           snmp_margin_not_threats_m_ * !threats + snmp_margin_b_;
   }
 
   [[nodiscard]] constexpr see_type quiet_see_prune_threshold(const depth_type& depth) const noexcept {
@@ -282,18 +316,41 @@ struct tuning_search_constants : fixed_search_constants {
     return history_prune_threshold_m_ * static_cast<counter_type>(depth * depth);
   }
 
+  [[nodiscard]] constexpr int lmp_count(const bool& improving, const depth_type& depth) const noexcept {
+    const std::array<int, 8> improving_counts = {
+        0, lmp_improving_1_, lmp_improving_2_, lmp_improving_3_, lmp_improving_4_, lmp_improving_5_, lmp_improving_6_, lmp_improving_7_};
+    const std::array<int, 8> worsening_counts = {
+        0, lmp_worsening_1_, lmp_worsening_2_, lmp_worsening_3_, lmp_worsening_4_, lmp_worsening_5_, lmp_worsening_6_, lmp_worsening_7_};
+    return improving ? improving_counts[depth] : worsening_counts[depth];
+  }
+
   [[nodiscard]] constexpr depth_type history_reduction(const counter_type& history_value) const noexcept {
     constexpr depth_type limit = 2;
     const depth_type raw = -static_cast<depth_type>(history_value / history_reduction_div_);
     return std::clamp(raw, -limit, limit);
   }
 
+  [[nodiscard]] constexpr depth_type base_reduction_offset() const noexcept { return base_reduction_offset_; }
+  [[nodiscard]] constexpr depth_type improving_reduction_offset() const noexcept { return improving_reduction_offset_; }
+  [[nodiscard]] constexpr depth_type is_check_reduction_offset() const noexcept { return is_check_reduction_offset_; }
+  [[nodiscard]] constexpr depth_type creates_threat_reduction_offset() const noexcept { return creates_threat_reduction_offset_; }
+  [[nodiscard]] constexpr depth_type is_killer_reduction_offset() const noexcept { return is_killer_reduction_offset_; }
+  [[nodiscard]] constexpr depth_type not_tt_pv_reduction_offset() const noexcept { return not_tt_pv_reduction_offset_; }
+  [[nodiscard]] constexpr depth_type opponent_reducer_reduction_offset() const noexcept { return opponent_reducer_reduction_offset_; }
+
   [[nodiscard]] constexpr score_type delta_margin() const noexcept { return delta_margin_; }
 
   [[nodiscard]] constexpr see_type good_capture_prune_see_margin() const noexcept { return good_capture_prune_see_margin_; }
   [[nodiscard]] constexpr score_type good_capture_prune_score_margin() const noexcept { return good_capture_prune_score_margin_; }
 
+  [[nodiscard]] constexpr depth_type probcut_search_depth(const depth_type& depth) const noexcept {
+    return std::max(0, depth - probcut_search_depth_offset_);
+  }
+
   [[nodiscard]] constexpr score_type probcut_beta(const score_type& beta) const noexcept { return beta + probcut_beta_b_; }
+
+  [[nodiscard]] constexpr depth_type razor_depth() const noexcept { return razor_depth_; }
+  [[nodiscard]] constexpr depth_type razor_margin(const depth_type& depth) const noexcept { return razor_margin_m_ * depth; }
 
   [[nodiscard]] constexpr depth_type reduction(const depth_type& depth, const int& move_idx) const noexcept {
     constexpr depth_type last_idx = lmr_tbl_dim - 1;
@@ -336,20 +393,51 @@ struct tuning_search_constants : fixed_search_constants {
       INTEGRAL_OPTION(singular_double_extension_margin_, 70, 500, 10, 0.002),
 
       INTEGRAL_OPTION(futility_margin_m_, 500, 2500, 10, 0.002),
-      INTEGRAL_OPTION(snmp_margin_m_, 100, 400, 10, 0.002),
+      INTEGRAL_OPTION(snmp_margin_depth_m_, 100, 400, 10, 0.002),
+      INTEGRAL_OPTION(snmp_margin_not_threats_and_improving_m_, -512, 512, 10, 0.002),
+      INTEGRAL_OPTION(snmp_margin_not_threats_m_, -512, 512, 10, 0.002),
+      INTEGRAL_OPTION(snmp_margin_improving_m_, -512, 512, 10, 0.002),
       INTEGRAL_OPTION(snmp_margin_b_, 25, 250, 10, 0.002),
       
       INTEGRAL_OPTION(quiet_see_prune_threshold_m_, -200, -25, 25, 0.002),
       INTEGRAL_OPTION(noisy_see_prune_threshold_m_, -400, -100, 25, 0.002),
       INTEGRAL_OPTION(history_prune_threshold_m_, -2048, -512, 250, 0.002),
       
+      INTEGRAL_OPTION(lmp_improving_1_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_improving_2_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_improving_3_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_improving_4_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_improving_5_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_improving_6_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_improving_7_, 2, 75, 1, 0.002),
+
+      INTEGRAL_OPTION(lmp_worsening_1_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_worsening_2_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_worsening_3_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_worsening_4_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_worsening_5_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_worsening_6_, 2, 75, 1, 0.002),
+      INTEGRAL_OPTION(lmp_worsening_7_, 2, 75, 1, 0.002),
+
       INTEGRAL_OPTION(history_reduction_div_, 4096, 8192, 450, 0.002),
+      INTEGRAL_OPTION(base_reduction_offset_, -1024, 1024, 384, 0.002),
+      INTEGRAL_OPTION(improving_reduction_offset_, 0, 2048, 384, 0.002),
+      INTEGRAL_OPTION(is_check_reduction_offset_, 0, 2048, 384, 0.002),
+      INTEGRAL_OPTION(creates_threat_reduction_offset_, 0, 2048, 384, 0.002),
+      INTEGRAL_OPTION(is_killer_reduction_offset_, 0, 2048, 384, 0.002),
+      INTEGRAL_OPTION(not_tt_pv_reduction_offset_, 0, 2048, 384, 0.002),
+      INTEGRAL_OPTION(opponent_reducer_reduction_offset_, 0, 2048, 384, 0.002),
+
       INTEGRAL_OPTION(delta_margin_, 256, 1024, 10, 0.002),
 
       INTEGRAL_OPTION(good_capture_prune_see_margin_, 150, 1000, 50, 0.002),
       INTEGRAL_OPTION(good_capture_prune_score_margin_, 128, 1024, 10, 0.002),
       
+      INTEGRAL_OPTION(probcut_search_depth_offset_, 1, 7, 1, 0.002),
       INTEGRAL_OPTION(probcut_beta_b_, 100, 1000, 10, 0.002),
+
+      INTEGRAL_OPTION(razor_depth_, 1, 5, 1, 0.002),
+      INTEGRAL_OPTION(razor_margin_m_, 512, 1024, 10, 0.002),
 
       FLOATING_OPTION(lmr_b_, 0.0, 2.5, 0.1, 0.002),
       FLOATING_OPTION(lmr_div_, 1.0, 3.0, 0.1, 0.002)
