@@ -1,0 +1,120 @@
+setoption name reduce_depth_ value 2
+setoption name aspiration_depth_ value 3
+setoption name nmp_depth_ value 4
+setoption name snmp_depth_ value 6
+setoption name futility_prune_depth_ value 5
+setoption name quiet_see_prune_depth_ value 9
+setoption name noisy_see_prune_depth_ value 6
+setoption name singular_extension_depth_ value 5
+setoption name probcut_depth_ value 6
+setoption name iir_depth_ value 3
+setoption name aspiration_delta_ value 24
+setoption name nmp_see_threshold_ value 238
+setoption name nmp_reduction_depth_b_ value 4
+setoption name nmp_reduction_depth_div_ value 3
+setoption name nmp_reduction_eval_delta_div_ value 243
+setoption name nmp_reduction_eval_delta_based_depth_limit_ value 4
+setoption name singular_extension_depth_margin_ value 3
+setoption name singular_double_extension_margin_ value 168
+setoption name futility_margin_m_ value 1539
+setoption name snmp_margin_depth_m_ value 299
+setoption name snmp_margin_not_threats_and_improving_m_ value -292
+setoption name snmp_margin_not_threats_m_ value -113
+setoption name snmp_margin_improving_m_ value 6
+setoption name snmp_margin_b_ value 122
+setoption name quiet_see_prune_threshold_m_ value -47
+setoption name noisy_see_prune_threshold_m_ value -113
+setoption name history_prune_threshold_m_ value -1130
+setoption name lmp_improving_1_ value 6
+setoption name lmp_improving_2_ value 8
+setoption name lmp_improving_3_ value 11
+setoption name lmp_improving_4_ value 19
+setoption name lmp_improving_5_ value 30
+setoption name lmp_improving_6_ value 42
+setoption name lmp_improving_7_ value 65
+setoption name lmp_worsening_1_ value 3
+setoption name lmp_worsening_2_ value 4
+setoption name lmp_worsening_3_ value 8
+setoption name lmp_worsening_4_ value 9
+setoption name lmp_worsening_5_ value 14
+setoption name lmp_worsening_6_ value 21
+setoption name lmp_worsening_7_ value 30
+setoption name history_reduction_div_ value 5816
+setoption name base_reduction_offset_ value 240
+setoption name improving_reduction_offset_ value 1146
+setoption name is_check_reduction_offset_ value 1179
+setoption name creates_threat_reduction_offset_ value 1070
+setoption name is_killer_reduction_offset_ value 903
+setoption name not_tt_pv_reduction_offset_ value 1123
+setoption name opponent_reducer_reduction_offset_ value 1153
+setoption name delta_margin_ value 500
+setoption name good_capture_prune_see_margin_ value 258
+setoption name good_capture_prune_score_margin_ value 262
+setoption name probcut_search_depth_offset_ value 3
+setoption name probcut_beta_b_ value 311
+setoption name razor_depth_ value 3
+setoption name razor_margin_m_ value 895
+setoption name lmr_b_ value 0.5185772292595154
+setoption name lmr_div_ value 2.6502222369797455
+
+info depth 20 seldepth 34 score cp 36 nodes 1895904 nps 674939 time 2808 tbhits 0 pv e2e4 c7c5 g1f3 d7d6 f1b5 c8d7 b5d7 d8d7 e1g1 g8f6 f1e1 e7e6 c2c3 f8e7 d2d4 c5d4 c3d4 e8g8 b1c3 d6d5 e4e5 f6e8 c3e2 b8c6 h2h3 e8c7 
+info depth 20 seldepth 32 score cp 36 nodes 1277369 nps 701080 time 1821 tbhits 0 pv e2e4 c7c5 g1f3 d7d6 f1b5 c8d7 b5d7 d8d7 e1g1 g8f6 f1e1 e7e6 c2c3 b8c6 d2d4 d6d5 e4d5 d7d5 c1e3 c5d4 f3d4 f8e7 d1a4 e8g8 d4c6 d5c6 a4c6 b7c6 
+
+reduce_depth_, 2
+aspiration_depth_, 3
+nmp_depth_, 4
+snmp_depth_, 6
+futility_prune_depth_, 5
+quiet_see_prune_depth_, 9
+noisy_see_prune_depth_, 7
+singular_extension_depth_, 5
+probcut_depth_, 5
+iir_depth_, 2
+aspiration_delta_, 22
+nmp_see_threshold_, 222
+nmp_reduction_depth_b_, 4
+nmp_reduction_depth_div_, 3
+nmp_reduction_eval_delta_div_, 244
+nmp_reduction_eval_delta_based_depth_limit_, 4
+singular_extension_depth_margin_, 4
+singular_double_extension_margin_, 166
+futility_margin_m_, 1548
+snmp_margin_depth_m_, 296
+snmp_margin_not_threats_and_improving_m_, -294
+snmp_margin_not_threats_m_, -111
+snmp_margin_improving_m_, 6
+snmp_margin_b_, 119
+quiet_see_prune_threshold_m_, -31
+noisy_see_prune_threshold_m_, -128
+history_prune_threshold_m_, -1221
+lmp_improving_1_, 6
+lmp_improving_2_, 9
+lmp_improving_3_, 11
+lmp_improving_4_, 20
+lmp_improving_5_, 30
+lmp_improving_6_, 42
+lmp_improving_7_, 65
+lmp_worsening_1_, 4
+lmp_worsening_2_, 4
+lmp_worsening_3_, 7
+lmp_worsening_4_, 8
+lmp_worsening_5_, 14
+lmp_worsening_6_, 22
+lmp_worsening_7_, 30
+history_reduction_div_, 6060
+base_reduction_offset_, 229
+improving_reduction_offset_, 1108
+is_check_reduction_offset_, 1258
+creates_threat_reduction_offset_, 1097
+is_killer_reduction_offset_, 925
+not_tt_pv_reduction_offset_, 1124
+opponent_reducer_reduction_offset_, 1208
+delta_margin_, 501
+good_capture_prune_see_margin_, 239
+good_capture_prune_score_margin_, 264
+probcut_search_depth_offset_, 3
+probcut_beta_b_, 315
+razor_depth_, 4
+razor_margin_m_, 893
+lmr_b_, 0.4418546347478534
+lmr_div_, 2.6747068687027564
