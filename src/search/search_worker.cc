@@ -332,7 +332,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     if (mv == ss.excluded()) { continue; }
 
     const bool should_shallow_multicut =
-        !is_pv && idx == 0 && !ss.has_excluded() && !maybe.has_value() && value >= beta && depth <= 3 && orderer.report().see_positive_count() >= 2;
+        !is_pv && idx == 0 && !ss.has_excluded() && !maybe.has_value() && value >= beta && depth <= 3 && orderer.report().see_positive_count() >= 1;
 
     if (should_shallow_multicut) { return make_result(beta, chess::move::null()); }
 
