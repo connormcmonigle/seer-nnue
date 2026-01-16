@@ -331,6 +331,11 @@ pv_search_result_t<is_root> search_worker::pv_search(
     if (!internal.keep_going()) { break; }
     if (mv == ss.excluded()) { continue; }
 
+    const bool should_shallow_multicut =
+        !is_pv && idx == 0 && !ss.has_excluded() && !maybe.has_value() && value >= beta && depth <= 3 && orderer.report().see_positive_count() >= 2;
+
+    if (should_shallow_multicut) { return make_result(beta, chess::move::null()); }
+
     const std::size_t nodes_before = internal.nodes.load(std::memory_order_relaxed);
     const counter_type history_value = internal.hh.us(bd.turn()).compute_value(history::context{follow, counter, threatened, pawn_hash}, mv);
 

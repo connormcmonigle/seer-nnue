@@ -81,6 +81,11 @@ struct move_orderer_data {
   constexpr move_orderer_data(const chess::board* bd_, const history_heuristic* hh_) noexcept : bd{bd_}, hh{hh_} {}
 };
 
+struct initialization_report {
+  std::size_t see_positive_count_{};
+  [[nodiscard]] constexpr std::size_t see_positive_count() const noexcept { return see_positive_count_; }
+};
+
 struct move_orderer_entry {
   using value_ = util::bit_range<std::uint32_t, 0, 32>;
   using killer_ = util::next_bit_flag<value_>;
@@ -113,6 +118,7 @@ struct move_orderer_stepper {
   using entry_array_type = std::array<move_orderer_entry, chess::move_list::max_branching_factor>;
 
   bool is_initialized_{false};
+  initialization_report* report_;
 
   entry_array_type entries_;
   entry_array_type::iterator begin_;
@@ -126,7 +132,7 @@ struct move_orderer_stepper {
   inline void update_list_() const noexcept;
   void next() noexcept;
 
-  move_orderer_stepper() noexcept : begin_{entries_.begin()} {}
+  move_orderer_stepper(initialization_report* report) noexcept : report_{report}, begin_{entries_.begin()} {}
 
   move_orderer_stepper& operator=(const move_orderer_stepper& other) = delete;
   move_orderer_stepper& operator=(move_orderer_stepper&& other) = delete;
@@ -145,8 +151,8 @@ struct move_orderer_iterator {
   using iterator_category = std::input_iterator_tag;
 
   int idx{};
-  move_orderer_stepper stepper_;
   move_orderer_data data_;
+  move_orderer_stepper stepper_;
 
   [[nodiscard]] std::tuple<int, chess::move> operator*() const noexcept;
   [[maybe_unused]] move_orderer_iterator<mode>& operator++() noexcept;
@@ -162,7 +168,7 @@ struct move_orderer_iterator {
     return !(*this == other);
   }
 
-  move_orderer_iterator(const move_orderer_data& data) noexcept;
+  move_orderer_iterator(const move_orderer_data& data, initialization_report* report_) noexcept;
 };
 
 template <typename mode>
@@ -170,8 +176,11 @@ struct move_orderer {
   using iterator = move_orderer_iterator<mode>;
 
   move_orderer_data data_;
+  initialization_report report_;
 
-  [[nodiscard]] move_orderer_iterator<mode> begin() const noexcept { return move_orderer_iterator<mode>(data_); }
+  [[nodiscard]] initialization_report report() const noexcept { return report_; }
+
+  [[nodiscard]] move_orderer_iterator<mode> begin() noexcept { return move_orderer_iterator<mode>(data_, &report_); }
   [[nodiscard]] move_orderer_iterator_end_tag end() const noexcept { return move_orderer_iterator_end_tag(); }
 
   [[maybe_unused]] move_orderer& set_first(const chess::move& mv) noexcept {

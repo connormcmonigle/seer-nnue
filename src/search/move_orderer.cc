@@ -34,8 +34,13 @@ void move_orderer_stepper::next() noexcept {
 move_orderer_stepper& move_orderer_stepper::initialize(const move_orderer_data& data, const chess::move_list& list) noexcept {
   const history::context ctxt{data.follow, data.counter, data.threatened, data.pawn_hash};
 
-  end_ = std::transform(list.begin(), list.end(), entries_.begin(), [&data, &ctxt](const chess::move& mv) {
-    if (mv.is_noisy()) { return move_orderer_entry::make_noisy(mv, data.bd->see_gt(mv, 0), data.hh->compute_value(ctxt, mv)); }
+  end_ = std::transform(list.begin(), list.end(), entries_.begin(), [this, &data, &ctxt](const chess::move& mv) {
+    if (mv.is_noisy()) {
+      const bool see_positive = data.bd->see_gt(mv, 0);
+      if (see_positive) { ++report_->see_positive_count_; }
+      return move_orderer_entry::make_noisy(mv, see_positive, data.hh->compute_value(ctxt, mv));
+    }
+
     return move_orderer_entry::make_quiet(mv, data.killer, data.hh->compute_value(ctxt, mv));
   });
 
@@ -65,7 +70,8 @@ move_orderer_iterator<mode>& move_orderer_iterator<mode>::operator++() noexcept 
 }
 
 template <typename mode>
-move_orderer_iterator<mode>::move_orderer_iterator(const move_orderer_data& data) noexcept : data_{data} {
+move_orderer_iterator<mode>::move_orderer_iterator(const move_orderer_data& data, initialization_report* report) noexcept
+    : data_{data}, stepper_{report} {
   if (data.first.is_null() || !data.bd->is_legal<mode>(data.first)) { stepper_.initialize(data, data.bd->generate_moves<mode>()); }
 }
 
