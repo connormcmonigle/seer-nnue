@@ -140,8 +140,8 @@ score_type search_worker::q_search(
 
     if (score > best_score) {
       best_score = score;
-      best_move = mv;
       if (score > alpha) {
+        best_move = mv;
         if (score < beta) { alpha = score; }
         if constexpr (is_pv) { ss.prepend_to_pv(mv); }
       }
@@ -447,8 +447,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
     if (score > best_score) {
       best_score = score;
-      best_move = mv;
       if (score > alpha) {
+        best_move = mv;
         if (score < beta) { alpha = score; }
         if constexpr (is_pv) { ss.prepend_to_pv(mv); }
       }
@@ -475,7 +475,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
       ss.set_killer(best_move);
     }
 
-    if (!is_check && best_move.is_quiet()) {
+    if (!is_check && (best_move.is_null() || best_move.is_quiet())) {
       const score_type error = best_score - static_value;
       internal.correction.us(bd.turn()).update(feature_hash, bound, error, depth);
     }

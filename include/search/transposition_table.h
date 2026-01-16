@@ -49,7 +49,6 @@ struct transposition_table_entry {
   using depth_ = util::next_bit_range<best_move_, std::uint8_t>;
   using gen_ = util::next_bit_range<depth_, gen_type, gen_bits>;
   using tt_pv_ = util::next_bit_flag<gen_>;
-  using was_exact_or_lb_ = util::next_bit_flag<tt_pv_>;
 
   zobrist::hash_type key_{empty_key};
   zobrist::hash_type value_{};
@@ -62,7 +61,6 @@ struct transposition_table_entry {
   [[nodiscard]] constexpr depth_type depth() const noexcept { return static_cast<depth_type>(depth_::get(value_)); }
   [[nodiscard]] constexpr chess::move best_move() const noexcept { return chess::move{best_move_::get(value_)}; }
 
-  [[nodiscard]] constexpr bool was_exact_or_lb() const noexcept { return was_exact_or_lb_::get(value_); }
   [[nodiscard]] constexpr bool tt_pv() const noexcept { return tt_pv_::get(value_); }
 
   [[nodiscard]] constexpr bool is_empty() const noexcept { return key_ == empty_key; }
@@ -76,10 +74,9 @@ struct transposition_table_entry {
   }
 
   [[maybe_unused]] constexpr transposition_table_entry& merge(const transposition_table_entry& other) noexcept {
-    if (bound() == bound_type::upper && other.was_exact_or_lb() && key() == other.key()) {
+    if (key() == other.key() && best_move().is_null()) {
       key_ ^= value_;
       best_move_::set(value_, other.best_move().data);
-      was_exact_or_lb_::set(value_, true);
       key_ ^= value_;
     }
 
@@ -101,7 +98,6 @@ struct transposition_table_entry {
     depth_::set(value_, static_cast<depth_::type>(depth));
 
     tt_pv_::set(value_, tt_pv);
-    was_exact_or_lb_::set(value_, bound != bound_type::upper);
     key_ ^= value_;
   }
 
