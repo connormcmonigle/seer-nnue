@@ -245,7 +245,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
   if (try_razor) {
     const score_type razor_score = q_search<false>(ss, eval_node, bd, alpha, alpha + 1, 0);
-    if (razor_score <= alpha) { return make_result(razor_score, chess::move::null()); }
+    return make_result(razor_score, chess::move::null());
   }
 
   // step 7. static null move pruning
