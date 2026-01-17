@@ -115,6 +115,8 @@ struct search_worker {
       std::function<void(const search_worker&)> on_iter = [](auto&&...) {},
       std::function<void(const search_worker&)> on_update = [](auto&&...) {}) noexcept
       : external(weights, tt, constants, on_iter, on_update) {}
+
+  search_worker(const search_worker_external_state& external) noexcept : external{external} {}
 };
 
 }  // namespace search
