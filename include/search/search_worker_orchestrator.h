@@ -18,6 +18,7 @@
 #pragma once
 
 #include <search/search_worker.h>
+#include <search/search_worker_thread.h>
 #include <search/transposition_table.h>
 
 #include <functional>
@@ -36,8 +37,7 @@ struct worker_orchestrator {
 
   std::mutex access_mutex_{};
   std::atomic_bool is_searching_{};
-  std::vector<std::unique_ptr<search_worker>> workers_{};
-  std::vector<std::thread> threads_{};
+  std::vector<std::unique_ptr<search_worker_thread>> worker_threads_{};
 
   void reset() noexcept;
   void resize(const std::size_t& new_size) noexcept;
@@ -54,11 +54,9 @@ struct worker_orchestrator {
 
   worker_orchestrator(
       const nnue::quantized_weights* weights,
-      std::size_t hash_table_size,
+      const std::size_t hash_table_size,
       std::function<void(const search_worker&)> on_iter = [](auto&&...) {},
       std::function<void(const search_worker&)> on_update = [](auto&&...) {}) noexcept;
-
-  ~worker_orchestrator() noexcept;
 };
 
 }  // namespace search

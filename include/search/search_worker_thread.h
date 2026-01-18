@@ -41,7 +41,7 @@ struct search_worker_thread {
   std::unique_ptr<std::thread> worker_thread_{nullptr};
 
   search_worker_thread(const search_worker_external_state& external_state) noexcept : external_state_{external_state} {
-    worker_thread_ = std::make_unique<std::thread>([this] { run_loop_(); });
+    worker_thread_ = std::make_unique<std::thread>([this] { thread_loop_(); });
 
     {
       std::unique_lock lock(thread_to_caller_mutex_);
@@ -49,9 +49,11 @@ struct search_worker_thread {
     }
   }
 
+  [[nodiscard]] search_worker& worker() noexcept { return *worker_; }
   [[nodiscard]] const search_worker& worker() const noexcept { return *worker_; }
 
   void go(const chess::board_history& hist, const chess::board& bd, const depth_type& start_depth) noexcept {
+    stop_sync_();
     worker_->go(hist, bd, start_depth);
 
     {
@@ -61,7 +63,11 @@ struct search_worker_thread {
     }
   }
 
-  void stop() noexcept {
+  void stop() noexcept { stop_nosync_(); }
+
+  void stop_nosync_() noexcept { worker_->stop(); }
+
+  void stop_sync_() noexcept {
     worker_->stop();
 
     {
@@ -70,7 +76,7 @@ struct search_worker_thread {
     }
   }
 
-  void run_loop_() noexcept {
+  void thread_loop_() noexcept {
     {
       std::unique_lock lock(thread_to_caller_mutex_);
       worker_ = std::make_unique<search_worker>(external_state_);
@@ -96,12 +102,7 @@ struct search_worker_thread {
   }
 
   ~search_worker_thread() {
-    worker_->stop();
-
-    {
-      std::unique_lock lock(thread_to_caller_mutex_);
-      thread_to_caller_cv_.wait(lock, [this] { return thread_state_ == thread_state::pending; });
-    }
+    stop_sync_();
 
     {
       std::unique_lock lock(caller_to_thread_to_mutex_);

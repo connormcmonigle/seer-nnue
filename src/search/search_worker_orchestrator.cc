@@ -24,38 +24,36 @@ namespace search {
 
 void worker_orchestrator::reset() noexcept {
   tt_->clear();
-  for (auto& worker : workers_) { worker->internal.reset(); };
+  for (auto& worker_thread : worker_threads_) { worker_thread->worker().internal.reset(); };
 }
 
 void worker_orchestrator::resize(const std::size_t& new_size) noexcept {
   constants_->update_(new_size);
-  const std::size_t old_size = workers_.size();
-  workers_.resize(new_size);
-  for (std::size_t i(old_size); i < new_size; ++i) { workers_[i] = std::make_unique<search_worker>(weights_, tt_, constants_); }
+  
+  const std::size_t old_size = worker_threads_.size();
+  worker_threads_.resize(new_size);
+
+  for (std::size_t i(old_size); i < new_size; ++i) {
+    const search_worker_external_state external_state{weights_, tt_, constants_};
+    worker_threads_[i] = std::make_unique<search_worker_thread>(external_state);
+  }
 }
 
 void worker_orchestrator::go(const chess::board_history& hist, const chess::board& bd) noexcept {
   std::lock_guard access_lock(access_mutex_);
-  std::for_each(workers_.begin(), workers_.end(), [](auto& worker) { worker->stop(); });
-  std::for_each(threads_.begin(), threads_.end(), [](auto& thread) { thread.join(); });
-  threads_.clear();
 
   tt_->update_gen();
-  for (std::size_t i(0); i < workers_.size(); ++i) {
+  for (std::size_t i(0); i < worker_threads_.size(); ++i) {
     const depth_type start_depth = 1 + static_cast<depth_type>(i % 2);
-    workers_[i]->go(hist, bd, start_depth);
+    worker_threads_[i]->go(hist, bd, start_depth);
   }
-
-  std::transform(workers_.begin(), workers_.end(), std::back_inserter(threads_), [](auto& worker) {
-    return std::thread([&worker] { worker->iterative_deepening_loop(); });
-  });
 
   is_searching_.store(true);
 }
 
 void worker_orchestrator::stop() noexcept {
   std::lock_guard access_lock(access_mutex_);
-  std::for_each(workers_.begin(), workers_.end(), [](auto& worker) { worker->stop(); });
+  std::for_each(worker_threads_.begin(), worker_threads_.end(), [](auto& worker_thread) { worker_thread->stop(); });
   is_searching_.store(false);
 }
 
@@ -65,34 +63,30 @@ bool worker_orchestrator::is_searching() noexcept {
 }
 
 std::size_t worker_orchestrator::nodes() const noexcept {
-  return std::accumulate(workers_.begin(), workers_.end(), static_cast<std::size_t>(0), [](const std::size_t& count, const auto& worker) {
-    return count + worker->nodes();
+  return std::accumulate(worker_threads_.begin(), worker_threads_.end(), static_cast<std::size_t>(0), [](const std::size_t& count, const auto& worker_thread) {
+    return count + worker_thread->worker().nodes();
   });
 }
 
 std::size_t worker_orchestrator::tb_hits() const noexcept {
-  return std::accumulate(workers_.begin(), workers_.end(), static_cast<std::size_t>(0), [](const std::size_t& count, const auto& worker) {
-    return count + worker->tb_hits();
+  return std::accumulate(worker_threads_.begin(), worker_threads_.end(), static_cast<std::size_t>(0), [](const std::size_t& count, const auto& worker_thread) {
+    return count + worker_thread->worker().tb_hits();
   });
 }
 
-search_worker& worker_orchestrator::primary_worker() noexcept { return *workers_[primary_id]; }
+search_worker& worker_orchestrator::primary_worker() noexcept { return worker_threads_[primary_id]->worker(); }
 
 worker_orchestrator::worker_orchestrator(
     const nnue::quantized_weights* weights,
-    std::size_t hash_table_size,
+    const std::size_t hash_table_size,
     std::function<void(const search_worker&)> on_iter,
     std::function<void(const search_worker&)> on_update) noexcept {
   weights_ = weights;
   tt_ = std::make_shared<transposition_table>(hash_table_size);
   constants_ = std::make_shared<search_constants>();
-  workers_.push_back(std::make_unique<search_worker>(weights, tt_, constants_, on_iter, on_update));
-}
-
-worker_orchestrator::~worker_orchestrator() noexcept {
-  std::lock_guard access_lock(access_mutex_);
-  std::for_each(workers_.begin(), workers_.end(), [](auto& worker) { worker->stop(); });
-  std::for_each(threads_.begin(), threads_.end(), [](auto& thread) { thread.join(); });
+  
+  const search_worker_external_state external_state{weights, tt_, constants_, on_iter, on_update};
+  worker_threads_.push_back(std::make_unique<search_worker_thread>(external_state));
 }
 
 }  // namespace search
