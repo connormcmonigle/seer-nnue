@@ -25,7 +25,7 @@
 
 namespace search {
 
-enum class thread_state { initializing, pending, searching, done };
+enum class thread_state { initializing, pending, searching, exiting };
 
 struct search_worker_thread {
   search_worker_external_state external_state_;
@@ -80,7 +80,7 @@ struct search_worker_thread {
     {
       std::unique_lock lock(thread_to_caller_mutex_);
       worker_ = std::make_unique<search_worker>(external_state_);
-      thread_state_.store(thread_state::pending, std::memory_order_seq_cst);
+      thread_state_ = thread_state::pending;
       thread_to_caller_cv_.notify_one();
     }
 
@@ -90,7 +90,7 @@ struct search_worker_thread {
         caller_to_thread_cv_.wait(lock, [this] { return thread_state_ != thread_state::pending; });
       }
 
-      if (thread_state_ == thread_state::done) { break; }
+      if (thread_state_ == thread_state::exiting) { break; }
       if (thread_state_ == thread_state::searching) { worker_->iterative_deepening_loop(); }
 
       {
@@ -106,7 +106,7 @@ struct search_worker_thread {
 
     {
       std::unique_lock lock(caller_to_thread_to_mutex_);
-      thread_state_ = thread_state::done;
+      thread_state_ = thread_state::exiting;
       caller_to_thread_cv_.notify_one();
     }
 
