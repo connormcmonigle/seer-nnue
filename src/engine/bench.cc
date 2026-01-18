@@ -28,9 +28,12 @@ bench_info get_bench_info(const nnue::quantized_weights& weights) noexcept {
   std::shared_ptr<search::search_constants> constants = std::make_shared<search::search_constants>(1);
   std::shared_ptr<search::transposition_table> tt = std::make_shared<search::transposition_table>(bench_config::tt_mb_size);
 
-  std::unique_ptr<worker_type> worker = std::make_unique<worker_type>(&weights, tt, constants, [&](const auto& w) {
+  std::unique_ptr<worker_type> worker{};
+  const search::search_worker_external_state external_state(&weights, tt, constants, [&](const auto& w) {
     if (w.depth() >= bench_config::bench_depth) { worker->stop(); }
   });
+
+  worker = std::make_unique<worker_type>(external_state);
 
   simple_timer<std::chrono::milliseconds> timer{};
   std::size_t total_nodes{};

@@ -38,8 +38,8 @@ struct search_worker_external_state {
       const nnue::quantized_weights* weights_,
       std::shared_ptr<transposition_table> tt_,
       std::shared_ptr<search_constants> constants_,
-      std::function<void(const search_worker&)>& on_iter_,
-      std::function<void(const search_worker&)> on_update_) noexcept
+      std::function<void(const search_worker&)> on_iter_ = [](auto&&...) {},
+      std::function<void(const search_worker&)> on_update_ = [](auto&&...) {}) noexcept
       : weights{weights_}, tt{tt_}, constants{constants_}, on_iter{on_iter_}, on_update{on_update_} {}
 };
 
