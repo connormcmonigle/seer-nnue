@@ -15,6 +15,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <chess/move.h>
 #include <search/search_worker.h>
 
 #include <atomic>
@@ -24,18 +25,17 @@
 
 namespace search {
 
+enum class thread_state { initializing, pending, searching, done };
+
 struct search_worker_thread {
   search_worker_external_state external_state_;
+  std::atomic<thread_state> thread_state_{thread_state::initializing};
 
-  std::atomic_bool should_exit_{false};
-  std::atomic_bool is_searching_{false};
-  std::atomic_bool is_initialized_{false};
+  std::mutex thread_to_caller_mutex_{};
+  std::condition_variable thread_to_caller_cv_{};
 
-  std::mutex thread_to_orchestrator_mutex_{};
-  std::condition_variable thread_to_orchestrator_cv_{};
-
-  std::mutex orchestrator_to_thread_to_mutex_{};
-  std::condition_variable orchestrator_to_thread_cv_{};
+  std::mutex caller_to_thread_to_mutex_{};
+  std::condition_variable caller_to_thread_cv_{};
 
   std::unique_ptr<search_worker> worker_{nullptr};
   std::unique_ptr<std::thread> worker_thread_{nullptr};
@@ -43,34 +43,73 @@ struct search_worker_thread {
   search_worker_thread(const search_worker_external_state& external_state) noexcept : external_state_{external_state} {
     worker_thread_ = std::make_unique<std::thread>([this] { run_loop_(); });
 
-    std::unique_lock lock(thread_to_orchestrator_mutex_);
-    thread_to_orchestrator_cv_.wait(lock, [this] { return is_initialized_.load(std::memory_order_seq_cst); });
+    {
+      std::unique_lock lock(thread_to_caller_mutex_);
+      thread_to_caller_cv_.wait(lock, [this] { return thread_state_ == thread_state::pending; });
+    }
   }
 
-  void go(const chess::board_history& hist, const chess::board& bd, const depth_type& start_depth) noexcept {}
-  void stop() noexcept {}
+  [[nodiscard]] const search_worker& worker() const noexcept { return *worker_; }
+
+  void go(const chess::board_history& hist, const chess::board& bd, const depth_type& start_depth) noexcept {
+    worker_->go(hist, bd, start_depth);
+
+    {
+      std::unique_lock lock(caller_to_thread_to_mutex_);
+      thread_state_ = thread_state::searching;
+      caller_to_thread_cv_.notify_one();
+    }
+  }
+
+  void stop() noexcept {
+    worker_->stop();
+
+    {
+      std::unique_lock lock(thread_to_caller_mutex_);
+      thread_to_caller_cv_.wait(lock, [this] { return thread_state_ == thread_state::pending; });
+    }
+  }
 
   void run_loop_() noexcept {
     {
-      std::unique_lock lock(thread_to_orchestrator_mutex_);
+      std::unique_lock lock(thread_to_caller_mutex_);
       worker_ = std::make_unique<search_worker>(external_state_);
-
-      is_initialized_.store(true, std::memory_order_seq_cst);
-      thread_to_orchestrator_cv_.notify_one();
+      thread_state_.store(thread_state::pending, std::memory_order_seq_cst);
+      thread_to_caller_cv_.notify_one();
     }
 
-    while (!should_exit_.load(std::memory_order_seq_cst)) {
-        {
-            std::unique_lock lock(orchestrator_to_thread_to_mutex_);
-            orchestrator_to_thread_cv_.wait(lock, [this] { return is_searching_.load(std::memory_order_seq_cst); });
-        }
+    while (true) {
+      {
+        std::unique_lock lock(caller_to_thread_to_mutex_);
+        caller_to_thread_cv_.wait(lock, [this] { return thread_state_ != thread_state::pending; });
+      }
 
-        worker_->iterative_deepening_loop();
+      if (thread_state_ == thread_state::done) { break; }
+      if (thread_state_ == thread_state::searching) { worker_->iterative_deepening_loop(); }
 
-        {
-            
-        }
+      {
+        std::unique_lock lock(thread_to_caller_mutex_);
+        thread_state_ = thread_state::pending;
+        thread_to_caller_cv_.notify_one();
+      }
     }
+  }
+
+  ~search_worker_thread() {
+    worker_->stop();
+
+    {
+      std::unique_lock lock(thread_to_caller_mutex_);
+      thread_to_caller_cv_.wait(lock, [this] { return thread_state_ == thread_state::pending; });
+    }
+
+    {
+      std::unique_lock lock(caller_to_thread_to_mutex_);
+      thread_state_ = thread_state::done;
+      caller_to_thread_cv_.notify_one();
+    }
+
+    worker_thread_->join();
   }
 };
 
