@@ -47,7 +47,7 @@ struct eval_correction_history {
     auto& correction = data[hash_function(feature_hash)];
     const score_type scaled_error = error * eval_correction_scale;
 
-    correction = (correction * filter_divisor + alpha * scaled_error - 2 * alpha * correction) / filter_divisor;
+    correction = (correction * filter_divisor + 2 * alpha * scaled_error - 3 * alpha * correction) / filter_divisor;
     correction = std::clamp(correction, -score_correction_limit, score_correction_limit);
   }
 
