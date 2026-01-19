@@ -34,7 +34,7 @@ struct search_worker_thread {
   std::mutex thread_to_caller_mutex_{};
   std::condition_variable thread_to_caller_cv_{};
 
-  std::mutex caller_to_thread_to_mutex_{};
+  std::mutex caller_to_thread_mutex_{};
   std::condition_variable caller_to_thread_cv_{};
 
   std::unique_ptr<search_worker> worker_{nullptr};
@@ -57,7 +57,7 @@ struct search_worker_thread {
     worker_->go(hist, bd, start_depth);
 
     {
-      std::unique_lock lock(caller_to_thread_to_mutex_);
+      std::unique_lock lock(caller_to_thread_mutex_);
       thread_state_ = thread_state::searching;
       caller_to_thread_cv_.notify_one();
     }
@@ -86,7 +86,7 @@ struct search_worker_thread {
 
     while (true) {
       {
-        std::unique_lock lock(caller_to_thread_to_mutex_);
+        std::unique_lock lock(caller_to_thread_mutex_);
         caller_to_thread_cv_.wait(lock, [this] { return thread_state_ != thread_state::pending; });
       }
 
@@ -105,7 +105,7 @@ struct search_worker_thread {
     stop_sync_();
 
     {
-      std::unique_lock lock(caller_to_thread_to_mutex_);
+      std::unique_lock lock(caller_to_thread_mutex_);
       thread_state_ = thread_state::exiting;
       caller_to_thread_cv_.notify_one();
     }
