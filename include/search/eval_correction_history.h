@@ -42,15 +42,12 @@ struct eval_correction_history {
 
   constexpr void update(const zobrist::quarter_hash_type& feature_hash, const score_type& error, const score_type& alpha) noexcept {
     constexpr score_type score_correction_limit = 65536;
-    constexpr score_type filter_divisor = 256;
-
-    const score_type filter_alpha = alpha;
-    const score_type filter_c_alpha = filter_divisor - alpha;
+    constexpr score_type filter_divisor = 512;
 
     auto& correction = data[hash_function(feature_hash)];
-
     const score_type scaled_error = error * eval_correction_scale;
-    correction = (correction * filter_c_alpha + scaled_error * filter_alpha) / filter_divisor;
+
+    correction = (correction * filter_divisor + alpha * scaled_error - 2 * alpha * correction) / filter_divisor;
     correction = std::clamp(correction, -score_correction_limit, score_correction_limit);
   }
 
@@ -96,7 +93,8 @@ struct composite_eval_correction_history {
     return result;
   }
 
-  constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error, const depth_type& depth) noexcept {
+  constexpr void
+  update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error, const depth_type& depth) noexcept {
     if (bound == bound_type::upper && error >= 0) { return; }
     if (bound == bound_type::lower && error <= 0) { return; }
 
