@@ -56,21 +56,22 @@ inline evaluate_info search_worker::evaluate(
   const auto eval_feature_hash = entry.eval_feature_hash();
 
   const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, eval_feature_hash, cont_feature_hash);
-  score_type static_value = entry.eval();
+  const score_type static_value = entry.eval();
+  score_type corrected_value = static_value;
 
   if (!is_check) {
     internal.cache.insert(bd.hash(), entry);
-    static_value += internal.correction.us(bd.turn()).correction_for(feature_hash);
+    corrected_value += internal.correction.us(bd.turn()).correction_for(feature_hash);
   }
 
-  score_type value = static_value;
+  score_type value = corrected_value;
 
   if (use_tt && maybe.has_value()) {
-    if (maybe->bound() == bound_type::upper && static_value > maybe->score()) { value = maybe->score(); }
-    if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
+    if (maybe->bound() == bound_type::upper && corrected_value > maybe->score()) { value = maybe->score(); }
+    if (maybe->bound() == bound_type::lower && corrected_value < maybe->score()) { value = maybe->score(); }
   }
 
-  return evaluate_info{feature_hash, static_value, value};
+  return evaluate_info{feature_hash, static_value, corrected_value, value};
 }
 
 template <bool is_pv, bool use_tt>
@@ -102,7 +103,7 @@ score_type search_worker::q_search(
     if (use_tt && is_cutoff) { return entry.score(); }
   }
 
-  const auto [feature_hash, static_value, value] = evaluate<is_pv, use_tt>(ss, eval_node, bd, maybe);
+  const auto [feature_hash, static_value, corrected_value, value] = evaluate<is_pv, use_tt>(ss, eval_node, bd, maybe);
 
   if (!is_check && value >= beta) { return value; }
   if (ss.reached_max_height()) { return value; }
@@ -114,7 +115,7 @@ score_type search_worker::q_search(
   score_type best_score = value;
   chess::move best_move = chess::move::null();
 
-  ss.set_hash(bd.sided_hash()).set_eval(static_value);
+  ss.set_hash(bd.sided_hash()).set_eval(corrected_value);
   int legal_count{0};
   for (const auto& [idx, mv] : orderer) {
     ++legal_count;
@@ -230,13 +231,13 @@ pv_search_result_t<is_root> search_worker::pv_search(
   if (should_iir) { --depth; }
 
   // step 4. compute static eval and adjust appropriately if there's a tt hit
-  const auto [feature_hash, static_value, value] = evaluate<is_pv>(ss, eval_node, bd, maybe);
+  const auto [feature_hash, static_value, corrected_value, value] = evaluate<is_pv>(ss, eval_node, bd, maybe);
 
   // step 5. return static eval if max depth was reached
   if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
 
   // step 6. add position and static eval to stack
-  ss.set_hash(bd.sided_hash()).set_eval(static_value);
+  ss.set_hash(bd.sided_hash()).set_eval(corrected_value);
   const bool improving = !is_check && ss.improving();
   const chess::square_set threatened = bd.them_threat_mask();
 
@@ -476,8 +477,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
     }
 
     if (!is_check && best_move.is_quiet()) {
-      const score_type error = best_score - static_value;
-      internal.correction.us(bd.turn()).update(feature_hash, bound, error, depth);
+      const auto info = eval_correction_history_update_info<eval_correction_history_num_hashes>{feature_hash, static_value, best_score, bound, depth};
+      internal.correction.us(bd.turn()).update(info);
     }
 
     const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);

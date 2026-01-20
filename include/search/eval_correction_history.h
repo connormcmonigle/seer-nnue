@@ -70,6 +70,15 @@ template <typename... Ts>
 }
 
 template <std::size_t N>
+struct eval_correction_history_update_info {
+  composite_feature_hash<N> composite_hash;
+  score_type static_value;
+  score_type search_value;
+  bound_type bound;
+  depth_type depth;
+};
+
+template <std::size_t N>
 struct composite_eval_correction_history {
   static constexpr depth_type lookup_table_size = 32;
 
@@ -96,15 +105,18 @@ struct composite_eval_correction_history {
     return result;
   }
 
-  constexpr void update(const composite_feature_hash<N>& composite_hash, const bound_type& bound, const score_type& error, const depth_type& depth) noexcept {
-    if (bound == bound_type::upper && error >= 0) { return; }
-    if (bound == bound_type::lower && error <= 0) { return; }
+  constexpr void update(const eval_correction_history_update_info<N>& info) noexcept {
+    const score_type actual_value = info.static_value + correction_for(info.composite_hash);
+    const score_type error = info.search_value - actual_value;
+
+    if (info.bound == bound_type::upper && error >= 0) { return; }
+    if (info.bound == bound_type::lower && error <= 0) { return; }
 
     constexpr depth_type last_idx = lookup_table_size - 1;
-    const score_type alpha = alpha_lookup_table[std::min(last_idx, depth)];
+    const score_type alpha = alpha_lookup_table[std::min(last_idx, info.depth)];
 
     for (std::size_t i(0); i < N; ++i) {
-      const zobrist::quarter_hash_type hash = composite_hash.hash(i);
+      const zobrist::quarter_hash_type hash = info.composite_hash.hash(i);
       histories_[i].update(hash, error, alpha);
     }
   }

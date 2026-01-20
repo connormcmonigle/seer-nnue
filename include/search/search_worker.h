@@ -50,6 +50,7 @@ using pv_search_result_t = typename pv_search_result<is_root>::type;
 struct evaluate_info {
   sided_eval_correction_history::hash_type hash;
   score_type static_value;
+  score_type corrected_value;
   score_type value;
 };
 
