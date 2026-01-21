@@ -25,36 +25,11 @@
 #include <cmath>
 #include <cstdint>
 
+#include <fstream>
+
 namespace search {
 
-using fp_type = double;
 using timestamp_type = std::uint64_t;
-
-struct weight_decay {
-  static constexpr fp_type a = -0.0000005;
-  static constexpr score_type decay_divisor = 1024;
-  static constexpr timestamp_type time_delta_grain = 1024;
-
-  static constexpr std::size_t table_size = 2048;
-  static constexpr std::size_t table_last_index = table_size - 1;
-
-  static inline std::array<score_type, table_size> lookup_table = [] {
-    constexpr fp_type decay_divisor_fp = static_cast<fp_type>(decay_divisor);
-    std::array<score_type, table_size> result{};
-
-    for (std::size_t i(0); i < table_size; ++i) {
-      const fp_type decay_factor = std::exp(a * static_cast<fp_type>(i * time_delta_grain));
-      result[i] = static_cast<score_type>(std::round(decay_factor * decay_divisor_fp));
-    }
-
-    return result;
-  }();
-
-  static score_type apply_decay(const timestamp_type& time_delta, const score_type& value) noexcept {
-    const std::size_t table_index = std::min(table_last_index, static_cast<std::size_t>(time_delta / time_delta_grain));
-    return value * lookup_table[table_index] / decay_divisor;
-  }
-};
 
 struct eval_correction_history {
   static constexpr size_t N = 4096;
@@ -66,15 +41,14 @@ struct eval_correction_history {
   std::array<timestamp_type, N> timestamps{};
   timestamp_type current_timestamp{};
 
+  std::fstream file{};
+  std::string file_name{};
+
   [[nodiscard]] static constexpr std::size_t hash_function(const zobrist::quarter_hash_type& feature_hash) noexcept { return feature_hash & mask; }
 
   [[nodiscard]] score_type correction_for(const zobrist::quarter_hash_type& feature_hash) const noexcept {
-    const timestamp_type timestamp = timestamps[hash_function(feature_hash)];
-    
     const score_type raw_correction = data[hash_function(feature_hash)];
-    const score_type decayed_correction = weight_decay::apply_decay(current_timestamp - timestamp, raw_correction);
-    
-    return decayed_correction / eval_correction_scale;
+    return raw_correction / eval_correction_scale;
   }
 
   void update(const zobrist::quarter_hash_type& feature_hash, const score_type& error, const score_type& alpha) noexcept {
@@ -89,9 +63,14 @@ struct eval_correction_history {
 
     const score_type scaled_error = error * eval_correction_scale;
 
-    correction = weight_decay::apply_decay(current_timestamp - timestamp, correction);
     correction = (correction * filter_c_alpha + scaled_error * filter_alpha) / filter_divisor;
     correction = std::clamp(correction, -score_correction_limit, score_correction_limit);
+
+    if (!file.is_open()) {
+      file.open(file_name, std::ios::app | std::ios::out);
+    }
+
+    file << current_timestamp - timestamp << ", " << error << std::endl;
 
     timestamp = current_timestamp;
     ++current_timestamp;
@@ -173,7 +152,15 @@ struct sided_eval_correction_history
     black.clear();
   }
 
-  sided_eval_correction_history() : white{}, black{} {}
+  sided_eval_correction_history() : white{}, black{} {
+    white.histories_[0].file_name = "wpawn.txt";
+    white.histories_[1].file_name = "weval.txt";
+    white.histories_[2].file_name = "wcont.txt";
+
+    black.histories_[0].file_name = "bpawn.txt";
+    black.histories_[1].file_name = "beval.txt";
+    black.histories_[2].file_name = "bcont.txt";
+  }
 };
 
 }  // namespace search
