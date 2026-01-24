@@ -93,6 +93,11 @@ struct stack_view {
     return view_->at(height_ - 2).played_;
   }
 
+  [[nodiscard]] constexpr chess::move ccounter() const noexcept {
+    if (height_ <= 2) { return chess::move::null(); }
+    return view_->at(height_ - 3).played_;
+  }
+
   [[nodiscard]] constexpr chess::move killer() const noexcept { return view_->at(height_).killer_; }
 
   [[nodiscard]] constexpr chess::move excluded() const noexcept { return view_->at(height_).excluded_; }

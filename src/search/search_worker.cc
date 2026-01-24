@@ -48,14 +48,17 @@ inline evaluate_info search_worker::evaluate(
     return eval_cache_entry::make(hash, eval_feature_hash, eval);
   }();
 
+  const auto ccounter_move_hash = chess::follow_move_zobrist_hasher.compute_hash(ss.ccounter());
   const auto counter_move_hash = chess::counter_move_zobrist_hasher.compute_hash(ss.counter());
   const auto follow_move_hash = chess::follow_move_zobrist_hasher.compute_hash(ss.follow());
 
+  const auto ccont_feature_hash = zobrist::lower_quarter(counter_move_hash ^ ccounter_move_hash);
   const auto cont_feature_hash = zobrist::lower_quarter(counter_move_hash ^ follow_move_hash);
   const auto pawn_feature_hash = zobrist::lower_quarter(bd.pawn_hash());
   const auto eval_feature_hash = entry.eval_feature_hash();
 
-  const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, eval_feature_hash, cont_feature_hash);
+  const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, eval_feature_hash, cont_feature_hash, ccont_feature_hash);
+
   score_type static_value = entry.eval();
 
   if (!is_check) {
