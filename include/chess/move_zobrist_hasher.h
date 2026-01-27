@@ -46,6 +46,6 @@ template <zobrist::hash_type entropy>
 inline constexpr move_zobrist_hasher_impl move_zobrist_hasher = move_zobrist_hasher_impl(zobrist::xorshift_generator(entropy));
 
 constexpr move_zobrist_hasher_impl counter_move_zobrist_hasher = move_zobrist_hasher<zobrist::entropy_0>;
-constexpr move_zobrist_hasher_impl follow_move_zobrist_hasher = move_zobrist_hasher<zobrist::entropy_1>;
+constexpr move_zobrist_hasher_impl ancestor_move_zobrist_hasher = move_zobrist_hasher<zobrist::entropy_1>;
 
 }  // namespace chess

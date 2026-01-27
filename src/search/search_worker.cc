@@ -48,9 +48,9 @@ inline evaluate_info search_worker::evaluate(
     return eval_cache_entry::make(hash, eval_feature_hash, eval);
   }();
 
-  const auto ccounter_move_hash = chess::follow_move_zobrist_hasher.compute_hash(ss.ccounter());
+  const auto ccounter_move_hash = chess::ancestor_move_zobrist_hasher.compute_hash(ss.ccounter());
+  const auto follow_move_hash = chess::ancestor_move_zobrist_hasher.compute_hash(ss.follow());
   const auto counter_move_hash = chess::counter_move_zobrist_hasher.compute_hash(ss.counter());
-  const auto follow_move_hash = chess::follow_move_zobrist_hasher.compute_hash(ss.follow());
 
   const auto ccont_feature_hash = zobrist::lower_quarter(counter_move_hash ^ ccounter_move_hash);
   const auto cont_feature_hash = zobrist::lower_quarter(counter_move_hash ^ follow_move_hash);
