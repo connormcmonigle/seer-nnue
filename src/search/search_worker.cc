@@ -32,7 +32,7 @@ inline evaluate_info search_worker::evaluate(
 
   const eval_data_packet data_packet = [&] {
     if (is_check) { return eval_data_packet{zobrist::quarter_hash_type{}, ss.loss_score()}; }
-    // if (maybe.has_value()) { return maybe->packet(); }
+    if (maybe.has_value()) { return maybe->packet(); }
 
     const nnue::eval& evaluator = eval_node.evaluator();
     const auto [eval_feature_hash, eval] = evaluator.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>(), [](const auto& final_output) {
@@ -43,16 +43,6 @@ inline evaluate_info search_worker::evaluate(
 
     return eval_data_packet{eval_feature_hash, eval};
   }();
-
-  if (maybe.has_value()) {
-    if (maybe->eval_feature_hash() != data_packet.eval_feature_hash) {
-      std::cout << "wtf hash :: " << maybe->eval_feature_hash() << ", " << data_packet.eval_feature_hash << std::endl;
-    }
-
-    if (maybe->eval_before_adjustment() != data_packet.eval_before_adjustment) {
-      std::cout << "wtf eval :: " << maybe->eval_before_adjustment() << ", " << data_packet.eval_before_adjustment << std::endl;
-    }
-  }
 
   const auto ccounter_move_hash = chess::ancestor_move_zobrist_hasher.compute_hash(ss.ccounter());
   const auto follow_move_hash = chess::ancestor_move_zobrist_hasher.compute_hash(ss.follow());

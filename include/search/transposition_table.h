@@ -53,7 +53,7 @@ struct transposition_table_entry {
 
   // eval
   using eval_feature_hash_ = util::bit_range<zobrist::quarter_hash_type>;
-  using eval_before_adjustment_ = util::next_bit_range<eval_feature_hash_, zobrist::quarter_hash_type>;
+  using eval_before_adjustment_ = util::next_bit_range<eval_feature_hash_, std::int16_t>;
 
   // search
   using bound_ = util::bit_range<bound_type, 0, 2>;
