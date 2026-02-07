@@ -30,22 +30,17 @@ inline evaluate_info search_worker::evaluate(
     const std::optional<transposition_table_entry>& maybe) noexcept {
   const bool is_check = bd.is_check();
 
-  const eval_cache_entry entry = [&] {
-    constexpr zobrist::hash_type default_hash = zobrist::hash_type{};
-
-    if (is_check) { return eval_cache_entry::make(default_hash, default_hash, ss.loss_score()); }
-    if (const auto maybe_eval = internal.cache.find(bd.hash()); !is_pv && maybe_eval.has_value()) { return maybe_eval.value(); }
+  const eval_data_packet data_packet = [&] {
+    if (is_check) { return eval_data_packet{zobrist::quarter_hash_type{}, ss.loss_score()}; }
 
     const nnue::eval& evaluator = eval_node.evaluator();
-    const zobrist::hash_type hash = bd.hash();
-
     const auto [eval_feature_hash, eval] = evaluator.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>(), [](const auto& final_output) {
       constexpr std::size_t dimension = nnue::eval::final_output_type::dimension;
       return zobrist::zobrist_hasher<zobrist::quarter_hash_type, dimension>.compute_hash(
           [&final_output](const std::size_t& i) { return final_output.data[i] > nnue::weights::parameter_type{}; });
     });
 
-    return eval_cache_entry::make(hash, eval_feature_hash, eval);
+    return eval_data_packet{eval_feature_hash, eval};
   }();
 
   const auto ccounter_move_hash = chess::ancestor_move_zobrist_hasher.compute_hash(ss.ccounter());
@@ -55,25 +50,21 @@ inline evaluate_info search_worker::evaluate(
   const auto ccont_feature_hash = zobrist::lower_quarter(counter_move_hash ^ ccounter_move_hash);
   const auto cont_feature_hash = zobrist::lower_quarter(counter_move_hash ^ follow_move_hash);
   const auto pawn_feature_hash = zobrist::lower_quarter(bd.pawn_hash());
-  const auto eval_feature_hash = entry.eval_feature_hash();
+  const auto eval_feature_hash = data_packet.eval_feature_hash;
 
   const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, eval_feature_hash, cont_feature_hash, ccont_feature_hash);
+  score_type static_value = data_packet.eval_before_adjustment;
 
-  score_type static_value = entry.eval();
-
-  if (!is_check) {
-    internal.cache.insert(bd.hash(), entry);
-    static_value += internal.correction.us(bd.turn()).correction_for(feature_hash);
-  }
+  if (!is_check) { static_value += internal.correction.us(bd.turn()).correction_for(feature_hash); }
 
   score_type value = static_value;
 
-  if (use_tt && maybe.has_value()) {
+  if (use_tt && search_is_present(maybe)) {
     if (maybe->bound() == bound_type::upper && static_value > maybe->score()) { value = maybe->score(); }
     if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
   }
 
-  return evaluate_info{feature_hash, static_value, value};
+  return evaluate_info{data_packet, feature_hash, static_value, value};
 }
 
 template <bool is_pv, bool use_tt>
@@ -98,20 +89,20 @@ score_type search_worker::q_search(
   }
 
   const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
-  if (maybe.has_value()) {
+  if (search_is_present(maybe)) {
     const transposition_table_entry entry = maybe.value();
     const bool is_cutoff = (entry.bound() == bound_type::lower && entry.score() >= beta) || (entry.bound() == bound_type::exact) ||
                            (entry.bound() == bound_type::upper && entry.score() <= alpha);
     if (use_tt && is_cutoff) { return entry.score(); }
   }
 
-  const auto [feature_hash, static_value, value] = evaluate<is_pv, use_tt>(ss, eval_node, bd, maybe);
+  const auto [data_packet, feature_hash, static_value, value] = evaluate<is_pv, use_tt>(ss, eval_node, bd, maybe);
 
   if (!is_check && value >= beta) { return value; }
   if (ss.reached_max_height()) { return value; }
 
   move_orderer<chess::generation_mode::noisy_and_check> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
-  if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
+  if (search_is_present(maybe)) { orderer.set_first(maybe->best_move()); }
 
   alpha = std::max(alpha, value);
   score_type best_score = value;
@@ -128,7 +119,8 @@ score_type search_worker::q_search(
     const bool delta_prune = !is_pv && !is_check && !bd.see_gt(mv, 0) && ((value + external.constants->delta_margin()) < alpha);
     if (delta_prune) { break; }
 
-    const bool good_capture_prune = !is_pv && !is_check && !maybe.has_value() && bd.see_ge(mv, external.constants->good_capture_prune_see_margin()) &&
+    const bool good_capture_prune = !is_pv && !is_check && !search_is_present(maybe) &&
+                                    bd.see_ge(mv, external.constants->good_capture_prune_see_margin()) &&
                                     value + external.constants->good_capture_prune_score_margin() > beta;
     if (good_capture_prune) { return beta; }
 
@@ -136,7 +128,6 @@ score_type search_worker::q_search(
 
     const chess::board bd_ = bd.forward(mv);
     external.tt->prefetch(bd_.hash());
-    internal.cache.prefetch(bd_.hash());
     nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
     const score_type score = -q_search<is_pv, use_tt>(ss.next(), eval_node_, bd_, -beta, -alpha, elevation + 1);
@@ -158,8 +149,8 @@ score_type search_worker::q_search(
 
   if (use_tt && internal.keep_going()) {
     const bound_type bound = best_score >= beta ? bound_type::lower : bound_type::upper;
-    const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, 0);
-    external.tt->insert(entry);
+    const transposition_table_entry entry(bd.hash(), data_packet, bound, best_score, best_move, 0);
+    external.tt->insert(bd.hash(), entry);
   }
 
   return best_score;
@@ -207,7 +198,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   }
 
   const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
-  if (maybe.has_value()) {
+  if (search_is_present(maybe)) {
     const transposition_table_entry entry = maybe.value();
     const bool is_cutoff = !is_pv && entry.depth() >= depth &&
                            ((entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
@@ -216,7 +207,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   }
 
   const score_type original_alpha = alpha;
-  const bool tt_pv = is_pv || (maybe.has_value() && maybe->tt_pv());
+  const bool tt_pv = is_pv || (search_is_present(maybe) && maybe->tt_pv());
 
   if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(bd); !is_root && result.success) {
     ++internal.tb_hits;
@@ -229,11 +220,11 @@ pv_search_result_t<is_root> search_worker::pv_search(
   }
 
   // step 3. internal iterative reductions
-  const bool should_iir = !maybe.has_value() && !ss.has_excluded() && depth >= external.constants->iir_depth();
+  const bool should_iir = !search_is_present(maybe) && !ss.has_excluded() && depth >= external.constants->iir_depth();
   if (should_iir) { --depth; }
 
   // step 4. compute static eval and adjust appropriately if there's a tt hit
-  const auto [feature_hash, static_value, value] = evaluate<is_pv>(ss, eval_node, bd, maybe);
+  const auto [data_packet, feature_hash, static_value, value] = evaluate<is_pv>(ss, eval_node, bd, maybe);
 
   // step 5. return static eval if max depth was reached
   if (ss.reached_max_height()) { return make_result(value, chess::move::null()); }
@@ -261,10 +252,11 @@ pv_search_result_t<is_root> search_worker::pv_search(
   }
 
   // step 8. null move pruning
-  const bool try_nmp = !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
-                       bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
-                       (!maybe.has_value() || (maybe->bound() == bound_type::lower && bd.is_legal<chess::generation_mode::all>(maybe->best_move()) &&
-                                               !bd.see_gt(maybe->best_move(), external.constants->nmp_see_threshold())));
+  const bool try_nmp =
+      !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
+      bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
+      (!search_is_present(maybe) || (maybe->bound() == bound_type::lower && bd.is_legal<chess::generation_mode::all>(maybe->best_move()) &&
+                                     !bd.see_gt(maybe->best_move(), external.constants->nmp_see_threshold())));
 
   if (try_nmp) {
     ss.set_played(chess::move::null());
@@ -278,12 +270,12 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
   const score_type probcut_beta = external.constants->probcut_beta(beta);
   const bool try_probcut = !is_pv && !ss.has_excluded() && depth >= external.constants->probcut_depth() &&
-                           !(maybe.has_value() && maybe->best_move().is_quiet()) &&
-                           !(maybe.has_value() && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
+                           !(search_is_present(maybe) && maybe->best_move().is_quiet()) &&
+                           !(search_is_present(maybe) && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
 
   if (try_probcut) {
     move_orderer<chess::generation_mode::noisy_and_check> probcut_orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
-    if (maybe.has_value()) { probcut_orderer.set_first(maybe->best_move()); }
+    if (search_is_present(maybe)) { probcut_orderer.set_first(maybe->best_move()); }
 
     for (const auto& [idx, mv] : probcut_orderer) {
       if (!internal.keep_going()) { break; }
@@ -294,7 +286,6 @@ pv_search_result_t<is_root> search_worker::pv_search(
 
       const chess::board bd_ = bd.forward(mv);
       external.tt->prefetch(bd_.hash());
-      internal.cache.prefetch(bd_.hash());
       nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
       auto pv_score = [&] { return -pv_search<false>(ss.next(), eval_node_, bd_, -probcut_beta, -probcut_beta + 1, probcut_depth, reducer); };
@@ -318,7 +309,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
                                                         .set_threatened(threatened)
                                                         .set_pawn_hash(pawn_hash));
 
-  if (maybe.has_value()) { orderer.set_first(maybe->best_move()); }
+  if (search_is_present(maybe)) { orderer.set_first(maybe->best_move()); }
 
   // list of attempted moves for updating histories
   chess::move_list moves_tried{};
@@ -368,14 +359,13 @@ pv_search_result_t<is_root> search_worker::pv_search(
     }
 
     external.tt->prefetch(bd_.hash());
-    internal.cache.prefetch(bd_.hash());
     nnue::eval_node eval_node_ = eval_node.dirty_child(&internal.reset_cache, &bd, mv);
 
     // step 12. extensions
     bool multicut = false;
     const depth_type extension = [&, mv = mv] {
-      const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && maybe.has_value() &&
-                                mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
+      const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() &&
+                                search_is_present(maybe) && mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
                                 maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
 
       if (try_singular) {
@@ -483,8 +473,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
       internal.correction.us(bd.turn()).update(feature_hash, bound, error, depth);
     }
 
-    const transposition_table_entry entry(bd.hash(), bound, best_score, best_move, depth, tt_pv);
-    external.tt->insert(entry);
+    const transposition_table_entry entry(bd.hash(), data_packet, bound, best_score, best_move, depth, tt_pv);
+    external.tt->insert(bd.hash(), entry);
   }
 
   return make_result(best_score, best_move);
