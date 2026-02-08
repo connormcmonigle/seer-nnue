@@ -44,6 +44,11 @@ inline evaluate_info search_worker::evaluate(
     return eval_data_packet{eval_feature_hash, eval};
   }();
 
+  if (!is_check && !maybe.has_value()) {
+    const transposition_table_entry entry(bd.hash(), data_packet);
+    external.tt->insert(bd.hash(), entry);
+  }
+
   const auto ccounter_move_hash = chess::ancestor_move_zobrist_hasher.compute_hash(ss.ccounter());
   const auto follow_move_hash = chess::ancestor_move_zobrist_hasher.compute_hash(ss.follow());
   const auto counter_move_hash = chess::counter_move_zobrist_hasher.compute_hash(ss.counter());
