@@ -32,7 +32,7 @@ inline evaluate_info search_worker::evaluate(
 
   const eval_data_packet data_packet = [&] {
     if (is_check) { return eval_data_packet{zobrist::quarter_hash_type{}, ss.loss_score()}; }
-    if (maybe.has_value()) { return maybe->packet(); }
+    if (use_tt && maybe.has_value()) { return maybe->packet(); }
 
     const nnue::eval& evaluator = eval_node.evaluator();
     const auto [eval_feature_hash, eval] = evaluator.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>(), [](const auto& final_output) {
@@ -44,7 +44,7 @@ inline evaluate_info search_worker::evaluate(
     return eval_data_packet{eval_feature_hash, eval};
   }();
 
-  if (!is_check && !maybe.has_value()) {
+  if (use_tt && !is_check && !maybe.has_value()) {
     const transposition_table_entry entry(bd.hash(), data_packet);
     external.tt->insert(bd.hash(), entry);
   }
