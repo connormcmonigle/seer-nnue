@@ -32,7 +32,7 @@ inline evaluate_info search_worker::evaluate(
 
   const eval_data_packet data_packet = [&] {
     if (is_check) { return eval_data_packet{zobrist::quarter_hash_type{}, ss.loss_score()}; }
-    if (use_tt && maybe.has_value()) { return maybe->packet(); }
+    if (!is_pv && maybe.has_value()) { return maybe->packet(); }
 
     const nnue::eval& evaluator = eval_node.evaluator();
     const auto [eval_feature_hash, eval] = evaluator.evaluate(bd.turn(), bd.phase<nnue::weights::parameter_type>(), [](const auto& final_output) {
@@ -65,7 +65,7 @@ inline evaluate_info search_worker::evaluate(
 
   score_type value = static_value;
 
-  if (use_tt && search_is_present(maybe)) {
+  if (use_tt && search_present(maybe)) {
     if (maybe->bound() == bound_type::upper && static_value > maybe->score()) { value = maybe->score(); }
     if (maybe->bound() == bound_type::lower && static_value < maybe->score()) { value = maybe->score(); }
   }
@@ -95,7 +95,7 @@ score_type search_worker::q_search(
   }
 
   const std::optional<transposition_table_entry> maybe = external.tt->find(bd.hash());
-  if (search_is_present(maybe)) {
+  if (search_present(maybe)) {
     const transposition_table_entry entry = maybe.value();
     const bool is_cutoff = (entry.bound() == bound_type::lower && entry.score() >= beta) || (entry.bound() == bound_type::exact) ||
                            (entry.bound() == bound_type::upper && entry.score() <= alpha);
@@ -108,7 +108,7 @@ score_type search_worker::q_search(
   if (ss.reached_max_height()) { return value; }
 
   move_orderer<chess::generation_mode::noisy_and_check> orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
-  if (search_is_present(maybe)) { orderer.set_first(maybe->best_move()); }
+  if (search_present(maybe)) { orderer.set_first(maybe->best_move()); }
 
   alpha = std::max(alpha, value);
   score_type best_score = value;
@@ -125,7 +125,7 @@ score_type search_worker::q_search(
     const bool delta_prune = !is_pv && !is_check && !bd.see_gt(mv, 0) && ((value + external.constants->delta_margin()) < alpha);
     if (delta_prune) { break; }
 
-    const bool good_capture_prune = !is_pv && !is_check && !search_is_present(maybe) &&
+    const bool good_capture_prune = !is_pv && !is_check && !search_present(maybe) &&
                                     bd.see_ge(mv, external.constants->good_capture_prune_see_margin()) &&
                                     value + external.constants->good_capture_prune_score_margin() > beta;
     if (good_capture_prune) { return beta; }
@@ -204,7 +204,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   }
 
   const std::optional<transposition_table_entry> maybe = !ss.has_excluded() ? external.tt->find(bd.hash()) : std::nullopt;
-  if (search_is_present(maybe)) {
+  if (search_present(maybe)) {
     const transposition_table_entry entry = maybe.value();
     const bool is_cutoff = !is_pv && entry.depth() >= depth &&
                            ((entry.bound() == bound_type::lower && entry.score() >= beta) || entry.bound() == bound_type::exact ||
@@ -213,7 +213,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   }
 
   const score_type original_alpha = alpha;
-  const bool tt_pv = is_pv || (search_is_present(maybe) && maybe->tt_pv());
+  const bool tt_pv = is_pv || (search_present(maybe) && maybe->tt_pv());
 
   if (const syzygy::tb_wdl_result result = syzygy::probe_wdl(bd); !is_root && result.success) {
     ++internal.tb_hits;
@@ -226,7 +226,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   }
 
   // step 3. internal iterative reductions
-  const bool should_iir = !search_is_present(maybe) && !ss.has_excluded() && depth >= external.constants->iir_depth();
+  const bool should_iir = !search_present(maybe) && !ss.has_excluded() && depth >= external.constants->iir_depth();
   if (should_iir) { --depth; }
 
   // step 4. compute static eval and adjust appropriately if there's a tt hit
@@ -261,7 +261,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const bool try_nmp =
       !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
       bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
-      (!search_is_present(maybe) || (maybe->bound() == bound_type::lower && bd.is_legal<chess::generation_mode::all>(maybe->best_move()) &&
+      (!search_present(maybe) || (maybe->bound() == bound_type::lower && bd.is_legal<chess::generation_mode::all>(maybe->best_move()) &&
                                      !bd.see_gt(maybe->best_move(), external.constants->nmp_see_threshold())));
 
   if (try_nmp) {
@@ -276,12 +276,12 @@ pv_search_result_t<is_root> search_worker::pv_search(
   const depth_type probcut_depth = external.constants->probcut_search_depth(depth);
   const score_type probcut_beta = external.constants->probcut_beta(beta);
   const bool try_probcut = !is_pv && !ss.has_excluded() && depth >= external.constants->probcut_depth() &&
-                           !(search_is_present(maybe) && maybe->best_move().is_quiet()) &&
-                           !(search_is_present(maybe) && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
+                           !(search_present(maybe) && maybe->best_move().is_quiet()) &&
+                           !(search_present(maybe) && maybe->depth() >= probcut_depth && maybe->score() < probcut_beta);
 
   if (try_probcut) {
     move_orderer<chess::generation_mode::noisy_and_check> probcut_orderer(move_orderer_data(&bd, &internal.hh.us(bd.turn())));
-    if (search_is_present(maybe)) { probcut_orderer.set_first(maybe->best_move()); }
+    if (search_present(maybe)) { probcut_orderer.set_first(maybe->best_move()); }
 
     for (const auto& [idx, mv] : probcut_orderer) {
       if (!internal.keep_going()) { break; }
@@ -315,7 +315,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
                                                         .set_threatened(threatened)
                                                         .set_pawn_hash(pawn_hash));
 
-  if (search_is_present(maybe)) { orderer.set_first(maybe->best_move()); }
+  if (search_present(maybe)) { orderer.set_first(maybe->best_move()); }
 
   // list of attempted moves for updating histories
   chess::move_list moves_tried{};
@@ -371,7 +371,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     bool multicut = false;
     const depth_type extension = [&, mv = mv] {
       const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() &&
-                                search_is_present(maybe) && mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
+                                search_present(maybe) && mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
                                 maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
 
       if (try_singular) {

@@ -40,13 +40,8 @@ struct move {
   using enpassant_sq_ = util::next_bit_range<captured_, std::uint8_t, 6>;
   using promotion_ = util::next_bit_range<enpassant_sq_, piece_type, 3>;
 
-  using data_type = std::uint32_t;
   static constexpr std::size_t width = promotion_::last;
-  static constexpr std::uint32_t null_sentinel = [] {
-    data_type data{};
-    promotion_::set(data, piece_type::king);
-    return data;
-  }();
+  using data_type = std::uint32_t;
 
   data_type data;
 
@@ -77,7 +72,7 @@ struct move {
   [[nodiscard]] constexpr square enpassant_sq() const noexcept { return square::from_index(get_field_<enpassant_sq_>()); }
   [[nodiscard]] constexpr piece_type promotion() const noexcept { return get_field_<promotion_>(); }
 
-  [[nodiscard]] constexpr bool is_null() const noexcept { return data == null_sentinel; }
+  [[nodiscard]] constexpr bool is_null() const noexcept { return data == 0; }
   [[nodiscard]] constexpr bool is_king_move() const noexcept { return piece() == piece_type::king; }
 
   template <color c>
@@ -136,7 +131,7 @@ struct move {
         .set_field_<promotion_>(promotion);
   }
 
-  constexpr static move null() noexcept { return move{null_sentinel}; }
+  constexpr static move null() noexcept { return move{0}; }
 };
 
 constexpr bool operator==(const move& a, const move& b) { return a.data == b.data; }

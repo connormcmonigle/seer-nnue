@@ -45,10 +45,7 @@ struct eval_data_packet {
 
 struct transposition_table_entry {
   static constexpr zobrist::half_hash_type empty_key = zobrist::half_hash_type{};
-  static constexpr zobrist::half_hash_type empty_eval = zobrist::half_hash_type{};
-  static constexpr zobrist::hash_type empty_search = zobrist::hash_type{};
-
-  static constexpr std::size_t gen_bits = 6;
+  static constexpr std::size_t gen_bits = 5;
   using gen_type = std::uint8_t;
 
   // eval
@@ -56,7 +53,8 @@ struct transposition_table_entry {
   using eval_before_adjustment_ = util::next_bit_range<eval_feature_hash_, std::int16_t>;
 
   // search
-  using bound_ = util::bit_range<bound_type, 0, 2>;
+  using search_present_ = util::bit_flag<>;
+  using bound_ = util::next_bit_range<search_present_, bound_type, 2>;
   using score_ = util::next_bit_range<bound_, std::int16_t>;
   using best_move_ = util::next_bit_range<score_, chess::move::data_type, chess::move::width>;
   using depth_ = util::next_bit_range<best_move_, std::uint8_t>;
@@ -65,8 +63,8 @@ struct transposition_table_entry {
   using was_exact_or_lb_ = util::next_bit_flag<tt_pv_>;
 
   zobrist::half_hash_type key_{empty_key};
-  zobrist::half_hash_type eval_{empty_eval};
-  zobrist::hash_type search_{empty_search};
+  zobrist::half_hash_type eval_{};
+  zobrist::hash_type search_{};
 
   [[nodiscard]] constexpr bool key_matches(const zobrist::hash_type& other_key) const noexcept { return key_ == zobrist::upper_half(other_key); }
   [[nodiscard]] constexpr zobrist::half_hash_type key() const noexcept { return key_; }
@@ -82,6 +80,7 @@ struct transposition_table_entry {
   }
 
   // search
+  [[nodiscard]] constexpr bool search_present() const noexcept { return search_present_::get(search_); }
   [[nodiscard]] constexpr bound_type bound() const noexcept { return bound_::get(search_); }
   [[nodiscard]] constexpr score_type score() const noexcept { return static_cast<score_type>(score_::get(search_)); }
   [[nodiscard]] constexpr gen_type gen() const noexcept { return gen_::get(search_); }
@@ -92,7 +91,6 @@ struct transposition_table_entry {
   [[nodiscard]] constexpr bool tt_pv() const noexcept { return tt_pv_::get(search_); }
 
   [[nodiscard]] constexpr bool is_empty() const noexcept { return key_ == empty_key; }
-  [[nodiscard]] constexpr bool search_is_present() const noexcept { return search_ != empty_search; }
   [[nodiscard]] constexpr bool is_current(const gen_type& gen) const noexcept { return gen == gen_::get(search_); }
 
   [[maybe_unused]] constexpr transposition_table_entry& set_gen(const gen_type& gen) noexcept {
@@ -123,6 +121,8 @@ struct transposition_table_entry {
     eval_before_adjustment_::set(eval_, static_cast<eval_before_adjustment_::type>(packet.eval_before_adjustment));
 
     // search
+    search_present_::set(search_, true);
+
     bound_::set(search_, bound);
     score_::set(search_, static_cast<score_::type>(score));
 
@@ -136,13 +136,14 @@ struct transposition_table_entry {
   constexpr transposition_table_entry(const zobrist::hash_type& key, const eval_data_packet& packet) noexcept : key_{zobrist::upper_half(key)} {
     eval_feature_hash_::set(eval_, packet.eval_feature_hash);
     eval_before_adjustment_::set(eval_, static_cast<eval_before_adjustment_::type>(packet.eval_before_adjustment));
+    search_present_::set(search_, false);
   }
 
   constexpr transposition_table_entry() noexcept = default;
 };
 
-inline constexpr bool search_is_present(const std::optional<transposition_table_entry>& maybe) {
-  return maybe.has_value() && maybe->search_is_present();
+inline constexpr bool search_present(const std::optional<transposition_table_entry>& maybe) {
+  return maybe.has_value() && maybe->search_present();
 }
 
 template <std::size_t N>
