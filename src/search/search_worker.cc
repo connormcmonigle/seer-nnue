@@ -262,7 +262,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
       !is_pv && !ss.has_excluded() && !is_check && depth >= external.constants->nmp_depth() && value > beta && ss.nmp_valid() &&
       bd.has_non_pawn_material() && (!threatened.any() || depth >= 4) &&
       (!search_present(maybe) || (maybe->bound() == bound_type::lower && bd.is_legal<chess::generation_mode::all>(maybe->best_move()) &&
-                                     !bd.see_gt(maybe->best_move(), external.constants->nmp_see_threshold())));
+                                  !bd.see_gt(maybe->best_move(), external.constants->nmp_see_threshold())));
 
   if (try_nmp) {
     ss.set_played(chess::move::null());
@@ -370,8 +370,8 @@ pv_search_result_t<is_root> search_worker::pv_search(
     // step 12. extensions
     bool multicut = false;
     const depth_type extension = [&, mv = mv] {
-      const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() &&
-                                search_present(maybe) && mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
+      const bool try_singular = !is_root && !ss.has_excluded() && depth >= external.constants->singular_extension_depth() && search_present(maybe) &&
+                                mv == maybe->best_move() && maybe->bound() != bound_type::upper &&
                                 maybe->depth() + external.constants->singular_extension_depth_margin() >= depth;
 
       if (try_singular) {
