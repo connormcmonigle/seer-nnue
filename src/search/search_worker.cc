@@ -89,6 +89,8 @@ score_type search_worker::q_search(
   const bool is_check = bd.is_check();
 
   if (bd.is_trivially_drawn()) { return draw_score; }
+  if (bd.is_rule50_draw() && (!is_check || bd.generate_moves<chess::generation_mode::all>().size() != 0)) { return draw_score; }
+
   if (ss.upcoming_cycle_exists(bd)) {
     if (draw_score >= beta) { return draw_score; }
     alpha = std::max(draw_score, alpha);
@@ -194,7 +196,7 @@ pv_search_result_t<is_root> search_worker::pv_search(
     return make_result(draw_score, chess::move::null());
   }
 
-  if (!is_root && ss.upcoming_cycle_exists(bd)) {
+  if (ss.upcoming_cycle_exists(bd)) {
     if (draw_score >= beta) { return make_result(draw_score, chess::move::null()); }
     alpha = std::max(draw_score, alpha);
   }
