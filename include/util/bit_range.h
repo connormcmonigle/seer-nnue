@@ -23,7 +23,7 @@
 
 namespace util {
 
-template <typename T, std::size_t B0, std::size_t B1>
+template <typename T, std::size_t B0 = 0, std::size_t B1 = B0 + 8 * sizeof(T)>
 struct bit_range {
   static_assert(B0 < B1, "wrong bit order");
   using type = T;
@@ -31,9 +31,18 @@ struct bit_range {
   static constexpr std::size_t last = B1;
 
   template <typename I>
+  static constexpr I bit_mask = []{
+    constexpr I one = static_cast<I>(1);
+    constexpr I b0 = static_cast<I>(first);
+    constexpr I b1 = static_cast<I>(last);
+
+    return ((one << (b1 - b0)) - one) << b0;
+  }();
+
+  template <typename I>
   static constexpr T get(const I& i) noexcept {
     constexpr int num_bits = 8 * sizeof(I);
-    static_assert(B1 < num_bits, "integral type accessed by bit::range::get has insufficient bits");
+    static_assert(B1 <= num_bits, "integral type accessed by bit::range::get has insufficient bits");
     constexpr I one = static_cast<I>(1);
     constexpr I b0 = static_cast<I>(first);
     constexpr I b1 = static_cast<I>(last);
@@ -44,7 +53,7 @@ struct bit_range {
   template <typename I>
   static constexpr void set(I& i, const T& info) noexcept {
     constexpr int num_bits = 8 * sizeof(I);
-    static_assert(B1 < num_bits, "integral type accessed by bit::range::set has insufficient bits");
+    static_assert(B1 <= num_bits, "integral type accessed by bit::range::set has insufficient bits");
     constexpr I one = static_cast<I>(1);
     constexpr I b0 = static_cast<I>(first);
     constexpr I b1 = static_cast<I>(last);
@@ -55,7 +64,7 @@ struct bit_range {
   }
 };
 
-template <std::size_t B>
+template <std::size_t B = 0>
 using bit_flag = bit_range<bool, B, B + 1>;
 
 template <typename R>

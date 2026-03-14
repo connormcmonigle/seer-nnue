@@ -37,14 +37,13 @@ void transposition_table::update_gen() noexcept {
 // clang-format off
 
 __attribute__((no_sanitize("thread")))
-transposition_table& transposition_table::insert(const transposition_table_entry& entry) noexcept {
+transposition_table& transposition_table::insert(const zobrist::hash_type& key, const transposition_table_entry& entry) noexcept {
   constexpr depth_type offset = 2;
   const transposition_table_entry::gen_type gen = current_gen.load(std::memory_order_relaxed);
-
-  transposition_table_entry* to_replace = data[hash_function(entry.key())].to_replace(gen, entry.key());
+  transposition_table_entry* to_replace = data[hash_function(key)].to_replace(gen, key);
 
   const bool should_replace =
-      (entry.bound() == bound_type::exact) || (entry.key() != to_replace->key()) || ((entry.depth() + offset) >= to_replace->depth());
+      (entry.bound() == bound_type::exact) || (!to_replace->key_matches(key)) || ((entry.depth() + offset) >= to_replace->depth());
 
   if (should_replace) { *to_replace = transposition_table_entry(entry).set_gen(gen).merge(*to_replace); }
 

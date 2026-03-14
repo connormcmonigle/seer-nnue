@@ -47,7 +47,10 @@ struct pv_search_result<true> {
 template <bool is_root>
 using pv_search_result_t = typename pv_search_result<is_root>::type;
 
+
+
 struct evaluate_info {
+  eval_data_packet raw_data;
   sided_eval_correction_history::hash_type hash;
   score_type static_value;
   score_type value;
