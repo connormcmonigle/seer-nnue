@@ -19,6 +19,7 @@
 
 #include <nnue/aligned_slice.h>
 #include <nnue/simd.h>
+#include <util/huge_pages.h>
 
 #include <cstddef>
 
@@ -102,7 +103,7 @@ struct sparse_affine_layer {
   }
 
   sparse_affine_layer(const sparse_affine_layer<T, dim0, dim1>& other) {
-    W = static_cast<T*>(simd::aligned_alloc(simd::alignment, sizeof(T) * W_numel));
+    W = static_cast<T*>(util::huge_page_aligned_alloc(sizeof(T) * W_numel));
 #pragma omp simd
     for (std::size_t i = 0; i < W_numel; ++i) { W[i] = other.W[i]; }
     for (std::size_t i = 0; i < b_numel; ++i) { b[i] = other.b[i]; }
@@ -113,9 +114,9 @@ struct sparse_affine_layer {
     std::swap(b, other.b);
   }
 
-  sparse_affine_layer() { W = static_cast<T*>(simd::aligned_alloc(simd::alignment, sizeof(T) * W_numel)); }
+  sparse_affine_layer() { W = static_cast<T*>(util::huge_page_aligned_alloc(sizeof(T) * W_numel)); }
   ~sparse_affine_layer() {
-    if (W != nullptr) { simd::aligned_free(W); }
+    if (W != nullptr) { util::huge_page_aligned_free(W); }
   }
 };
 

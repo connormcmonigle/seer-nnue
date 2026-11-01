@@ -19,6 +19,7 @@
 
 #include <x86intrin.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -137,6 +138,11 @@ inline void crelu255_matrix_vector_product(const T0* matrix, const T1* input, T2
   for (std::size_t i = 0; i < dim1; ++i) {
     for (std::size_t j = 0; j < dim0; ++j) { output[i] += static_cast<T2>(std::min(std::max(input[j], T1{0}), T1{255})) * static_cast<T2>((matrix + i * dim0)[j]); }
   }
+}
+
+template <std::size_t dim0, std::size_t dim1, typename T>
+inline void crelu255_matrix_layout(const T* matrix, T* result) noexcept {
+  std::copy(matrix, matrix + dim0 * dim1, result);
 }
 
 #if defined(__AVX2__)
@@ -366,11 +372,26 @@ struct float_relu_matrix_vector_product_x8_x8 {
 template <std::size_t dim0, std::size_t dim1>
 struct int16_crelu255_matrix_vector_product_x32_x8 {
   static constexpr std::size_t num_units = 8;
-  static constexpr bool available = divides<dim1, num_units> && divides<dim0, per_unit<vector_256, std::int8_t>>;
+  static constexpr std::size_t block_size = per_unit<vector_256, std::int8_t>;
+  static constexpr bool available = divides<dim1, num_units> && divides<dim0, block_size>;
 
-  static inline __m256i mm256_maddubs_epi16_coalesced(const __m256i& a, const __m256i& b) {
-    return _mm256_madd_epi16(_mm256_set1_epi16(1), _mm256_maddubs_epi16(a, b));
+
+  static inline void accumulate_(__m256i& sum, const __m256i& a, const std::int8_t* b) noexcept {
+    sum = _mm256_add_epi32(sum, _mm256_madd_epi16(_mm256_set1_epi16(1), _mm256_maddubs_epi16(a, _mm256_load_si256((__m256i*)b))));
+    asm("" : "+x"(sum));
   }
+
+  static inline void layout(const std::int8_t* matrix, std::int8_t* result) noexcept {
+    for (std::size_t i(0); i < dim1; i += num_units) {
+      for (std::size_t j(0); j < dim0; j += block_size) {
+        for (std::size_t k(0); k < num_units; ++k, result += block_size) {
+          const __m256i weights = _mm256_loadu_si256((const __m256i*)(matrix + (i + k) * dim0 + j));
+          _mm256_storeu_si256((__m256i*)result, _mm256_permute4x64_epi64(weights, 0b11011000));
+        }
+      }
+    }
+  }
+
 
   static inline void f(const std::int8_t* matrix, const std::int16_t* input, std::int32_t* output) noexcept {
     __m256i* v_output = (__m256i*)output;
@@ -385,19 +406,19 @@ struct int16_crelu255_matrix_vector_product_x32_x8 {
       __m256i sum_6 = _mm256_setzero_si256();
       __m256i sum_7 = _mm256_setzero_si256();
 
-      for (std::size_t j(0); j < dim0; j += per_unit<vector_256, std::uint8_t>) {
+      for (std::size_t j(0); j < dim0; j += block_size, matrix += num_units * block_size) {
         const __m256i input_region_0 = _mm256_load_si256((__m256i*)(input + j + 0 * per_unit<vector_256, std::int16_t>));
         const __m256i input_region_1 = _mm256_load_si256((__m256i*)(input + j + 1 * per_unit<vector_256, std::int16_t>));
-        const __m256i input_region =  _mm256_permute4x64_epi64(_mm256_packus_epi16(input_region_0, input_region_1), 0b11011000);
+        const __m256i input_region = _mm256_packus_epi16(input_region_0, input_region_1);
 
-        sum_0 = _mm256_add_epi32(mm256_maddubs_epi16_coalesced(input_region, _mm256_load_si256((__m256i*)(matrix + (i + 0) * dim0 + j))), sum_0);
-        sum_1 = _mm256_add_epi32(mm256_maddubs_epi16_coalesced(input_region, _mm256_load_si256((__m256i*)(matrix + (i + 1) * dim0 + j))), sum_1);
-        sum_2 = _mm256_add_epi32(mm256_maddubs_epi16_coalesced(input_region, _mm256_load_si256((__m256i*)(matrix + (i + 2) * dim0 + j))), sum_2);
-        sum_3 = _mm256_add_epi32(mm256_maddubs_epi16_coalesced(input_region, _mm256_load_si256((__m256i*)(matrix + (i + 3) * dim0 + j))), sum_3);
-        sum_4 = _mm256_add_epi32(mm256_maddubs_epi16_coalesced(input_region, _mm256_load_si256((__m256i*)(matrix + (i + 4) * dim0 + j))), sum_4);
-        sum_5 = _mm256_add_epi32(mm256_maddubs_epi16_coalesced(input_region, _mm256_load_si256((__m256i*)(matrix + (i + 5) * dim0 + j))), sum_5);
-        sum_6 = _mm256_add_epi32(mm256_maddubs_epi16_coalesced(input_region, _mm256_load_si256((__m256i*)(matrix + (i + 6) * dim0 + j))), sum_6);
-        sum_7 = _mm256_add_epi32(mm256_maddubs_epi16_coalesced(input_region, _mm256_load_si256((__m256i*)(matrix + (i + 7) * dim0 + j))), sum_7);
+        accumulate_(sum_0, input_region, matrix + 0 * block_size);
+        accumulate_(sum_1, input_region, matrix + 1 * block_size);
+        accumulate_(sum_2, input_region, matrix + 2 * block_size);
+        accumulate_(sum_3, input_region, matrix + 3 * block_size);
+        accumulate_(sum_4, input_region, matrix + 4 * block_size);
+        accumulate_(sum_5, input_region, matrix + 5 * block_size);
+        accumulate_(sum_6, input_region, matrix + 6 * block_size);
+        accumulate_(sum_7, input_region, matrix + 7 * block_size);
       }
 
       const __m256i sum_01 = _mm256_hadd_epi32(sum_0, sum_1);
@@ -425,6 +446,17 @@ inline void relu_matrix_vector_product(const float* matrix, const float* input, 
 template <std::size_t dim0, std::size_t dim1>
 inline void crelu255_matrix_vector_product(const std::int8_t* matrix, const std::int16_t* input, std::int32_t* output) noexcept {
   return overload_set<int16_crelu255_matrix_vector_product_x32_x8<dim0, dim1>>::f(matrix, input, output);
+}
+
+template <std::size_t dim0, std::size_t dim1>
+inline void crelu255_matrix_layout(const std::int8_t* matrix, std::int8_t* result) noexcept {
+  using kernel = int16_crelu255_matrix_vector_product_x32_x8<dim0, dim1>;
+
+  if constexpr (kernel::available) {
+    kernel::layout(matrix, result);
+  } else {
+    std::copy(matrix, matrix + dim0 * dim1, result);
+  }
 }
 
 #elif defined(__SSSE3__)

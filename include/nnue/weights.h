@@ -70,8 +70,8 @@ struct weights {
     quantized.fc0 =
         fc0.quantized<half_quantized_parameter_type, quantized_parameter_type>(fc0_weight_quantization_scale, fc0_bias_quantization_scale);
 
-    quantized.white_fc0 = quantized.fc0;
-    quantized.black_fc0 = quantized.white_fc0.half_input_flipped();
+    quantized.white_fc0 = quantized.fc0.crelu255_layout();
+    quantized.black_fc0 = quantized.fc0.half_input_flipped().crelu255_layout();
 
     quantized.fc1 = fc1;
     quantized.fc2 = fc2;
@@ -132,8 +132,8 @@ struct quantized_weights {
     fc2.load_(streamer);
     fc3.load_(streamer);
 
-    white_fc0 = fc0;
-    black_fc0 = white_fc0.half_input_flipped();
+    white_fc0 = fc0.crelu255_layout();
+    black_fc0 = fc0.half_input_flipped().crelu255_layout();
 
     return *this;
   }

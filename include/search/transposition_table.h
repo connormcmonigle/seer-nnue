@@ -20,6 +20,7 @@
 #include <chess/move.h>
 #include <search/search_constants.h>
 #include <util/bit_range.h>
+#include <util/huge_pages.h>
 #include <zobrist/util.h>
 
 #include <atomic>
@@ -187,7 +188,7 @@ struct transposition_table {
   static_assert(sizeof(bucket_type) == cache_line_size && alignof(bucket_type) == cache_line_size, "bucket_type must be cache_line_size aligned");
 
   std::atomic<transposition_table_entry::gen_type> current_gen{0};
-  std::vector<bucket_type> data;
+  std::vector<bucket_type, util::huge_page_allocator<bucket_type>> data;
 
   [[nodiscard]] inline std::size_t hash_function(const zobrist::hash_type& hash) const noexcept { return hash % data.size(); }
   inline void prefetch(const zobrist::hash_type& key) const noexcept { __builtin_prefetch(data.data() + hash_function(key)); }
