@@ -86,6 +86,12 @@ struct dense_relu_affine_layer {
     return result;
   }
 
+  [[nodiscard]] dense_relu_affine_layer<dim0, dim1, T, I, O> crelu255_layout() const noexcept {
+    dense_relu_affine_layer<dim0, dim1, T, I, O> result = *this;
+    simd::crelu255_matrix_layout<dim0, dim1>(W, result.W);
+    return result;
+  }
+
   template <typename Q, typename QI = Q, typename QO = dot_type<QI>>
   [[nodiscard]] dense_relu_affine_layer<dim0, dim1, Q, QI, QO> quantized(const T& weight_scale, const T& bias_scale) const noexcept {
     static_assert(std::is_floating_point_v<T> && std::is_integral_v<Q> && std::is_integral_v<QI> && std::is_integral_v<QO>);

@@ -25,6 +25,7 @@
 #include <search/search_stack.h>
 #include <search/search_worker_external_state.h>
 #include <search/search_worker_internal_state.h>
+#include <util/huge_pages.h>
 
 #include <functional>
 #include <memory>
@@ -110,6 +111,16 @@ struct search_worker {
   }
 
   void stop() noexcept { internal.go.store(false); }
+
+  [[nodiscard]] static void* operator new(std::size_t size) {
+    void* ptr = util::huge_page_aligned_alloc(size);
+    if (ptr == nullptr) { throw std::bad_alloc(); }
+    return ptr;
+  }
+
+  [[nodiscard]] static void* operator new(std::size_t size, std::align_val_t) { return operator new(size); }
+  static void operator delete(void* ptr) noexcept { util::huge_page_aligned_free(ptr); }
+  static void operator delete(void* ptr, std::align_val_t) noexcept { util::huge_page_aligned_free(ptr); }
 
   search_worker(const search_worker_external_state& external) noexcept : external{external} {}
 };
