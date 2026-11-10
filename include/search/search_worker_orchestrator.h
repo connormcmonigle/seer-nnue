@@ -47,6 +47,7 @@ struct worker_orchestrator {
 
   [[nodiscard]] bool is_searching() noexcept;
 
+  [[nodiscard]] std::size_t size() const noexcept;
   [[nodiscard]] std::size_t nodes() const noexcept;
   [[nodiscard]] std::size_t tb_hits() const noexcept;
 

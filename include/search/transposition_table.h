@@ -30,9 +30,9 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <string_view>
-#include <vector>
 
 namespace search {
 
@@ -143,9 +143,7 @@ struct transposition_table_entry {
   constexpr transposition_table_entry() noexcept = default;
 };
 
-inline constexpr bool search_present(const std::optional<transposition_table_entry>& maybe) {
-  return maybe.has_value() && maybe->search_present();
-}
+inline constexpr bool search_present(const std::optional<transposition_table_entry>& maybe) { return maybe.has_value() && maybe->search_present(); }
 
 template <std::size_t N>
 struct alignas(cache_line_size) bucket {
@@ -188,13 +186,15 @@ struct transposition_table {
   static_assert(sizeof(bucket_type) == cache_line_size && alignof(bucket_type) == cache_line_size, "bucket_type must be cache_line_size aligned");
 
   std::atomic<transposition_table_entry::gen_type> current_gen{0};
-  std::vector<bucket_type, util::huge_page_allocator<bucket_type>> data;
 
-  [[nodiscard]] inline std::size_t hash_function(const zobrist::hash_type& hash) const noexcept { return hash % data.size(); }
-  inline void prefetch(const zobrist::hash_type& key) const noexcept { __builtin_prefetch(data.data() + hash_function(key)); }
+  std::size_t size_{};
+  std::unique_ptr<bucket_type[], util::huge_page_aligned_deleter<bucket_type>> data{nullptr, util::huge_page_aligned_deleter<bucket_type>{}};
 
-  void clear() noexcept;
-  void resize(const std::size_t& size) noexcept;
+  [[nodiscard]] inline std::size_t hash_function(const zobrist::hash_type& hash) const noexcept { return hash % size_; }
+  inline void prefetch(const zobrist::hash_type& key) const noexcept { __builtin_prefetch(data.get() + hash_function(key)); }
+
+  void clear(const std::size_t& concurrency) noexcept;
+  void resize(const std::size_t& size, const std::size_t& concurrency) noexcept;
   void update_gen() noexcept;
 
   __attribute__((no_sanitize("thread"))) [[maybe_unused]] transposition_table& insert(
@@ -203,7 +203,7 @@ struct transposition_table {
 
   __attribute__((no_sanitize("thread"))) [[nodiscard]] std::optional<transposition_table_entry> find(const zobrist::hash_type& key) noexcept;
 
-  explicit transposition_table(const std::size_t& size) noexcept : data(size * one_mb) {}
+  explicit transposition_table(const std::size_t& size) noexcept { resize(size, 1u); }
 };
 
 }  // namespace search
