@@ -55,7 +55,7 @@ auto uci::options() noexcept {
 
   auto hash_size = option_callback(spin_option("Hash", default_hash_size, spin_range{1, 262144}), [this](const int size) {
     const auto new_size = static_cast<std::size_t>(size);
-    orchestrator_.tt_->resize(new_size);
+    orchestrator_.tt_->resize(new_size, orchestrator_.size());
   });
 
   auto thread_count = option_callback(spin_option("Threads", default_thread_count, spin_range{1, 512}), [this](const int count) {

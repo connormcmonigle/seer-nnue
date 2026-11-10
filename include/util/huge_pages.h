@@ -15,7 +15,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 
 #include <cstddef>
@@ -56,31 +55,8 @@ inline void huge_page_aligned_free(void* ptr) noexcept {
 }
 
 template <typename T>
-struct huge_page_allocator {
-  using value_type = T;
-
-  [[nodiscard]] T* allocate(const std::size_t n) {
-    void* ptr = huge_page_aligned_alloc(n * sizeof(T));
-    if (ptr == nullptr) { throw std::bad_alloc(); }
-    return static_cast<T*>(ptr);
-  }
-
-  void deallocate(T* ptr, const std::size_t) noexcept { huge_page_aligned_free(ptr); }
-
-  huge_page_allocator() noexcept = default;
-
-  template <typename U>
-  constexpr huge_page_allocator(const huge_page_allocator<U>&) noexcept {}
+struct huge_page_aligned_deleter {
+  void operator()(T* ptr) const noexcept { huge_page_aligned_free(ptr); }
 };
-
-template <typename T, typename U>
-[[nodiscard]] constexpr bool operator==(const huge_page_allocator<T>&, const huge_page_allocator<U>&) noexcept {
-  return true;
-}
-
-template <typename T, typename U>
-[[nodiscard]] constexpr bool operator!=(const huge_page_allocator<T>&, const huge_page_allocator<U>&) noexcept {
-  return false;
-}
 
 }  // namespace util

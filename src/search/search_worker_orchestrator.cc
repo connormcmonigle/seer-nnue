@@ -23,13 +23,13 @@
 namespace search {
 
 void worker_orchestrator::reset() noexcept {
-  tt_->clear();
+  tt_->clear(worker_threads_.size());
   for (auto& worker_thread : worker_threads_) { worker_thread->worker().internal.reset(); };
 }
 
 void worker_orchestrator::resize(const std::size_t& new_size) noexcept {
   constants_->update_(new_size);
-  
+
   const std::size_t old_size = worker_threads_.size();
   worker_threads_.resize(new_size);
 
@@ -62,16 +62,18 @@ bool worker_orchestrator::is_searching() noexcept {
   return is_searching_.load();
 }
 
+std::size_t worker_orchestrator::size() const noexcept { return worker_threads_.size(); }
+
 std::size_t worker_orchestrator::nodes() const noexcept {
-  return std::accumulate(worker_threads_.begin(), worker_threads_.end(), static_cast<std::size_t>(0), [](const std::size_t& count, const auto& worker_thread) {
-    return count + worker_thread->worker().nodes();
-  });
+  return std::accumulate(
+      worker_threads_.begin(), worker_threads_.end(), static_cast<std::size_t>(0),
+      [](const std::size_t& count, const auto& worker_thread) { return count + worker_thread->worker().nodes(); });
 }
 
 std::size_t worker_orchestrator::tb_hits() const noexcept {
-  return std::accumulate(worker_threads_.begin(), worker_threads_.end(), static_cast<std::size_t>(0), [](const std::size_t& count, const auto& worker_thread) {
-    return count + worker_thread->worker().tb_hits();
-  });
+  return std::accumulate(
+      worker_threads_.begin(), worker_threads_.end(), static_cast<std::size_t>(0),
+      [](const std::size_t& count, const auto& worker_thread) { return count + worker_thread->worker().tb_hits(); });
 }
 
 search_worker& worker_orchestrator::primary_worker() noexcept { return worker_threads_[primary_id]->worker(); }
@@ -84,7 +86,7 @@ worker_orchestrator::worker_orchestrator(
   weights_ = weights;
   tt_ = std::make_shared<transposition_table>(hash_table_size);
   constants_ = std::make_shared<search_constants>();
-  
+
   const search_worker_external_state external_state{weights, tt_, constants_, on_iter, on_update};
   worker_threads_.push_back(std::make_unique<search_worker_thread>(external_state));
 }

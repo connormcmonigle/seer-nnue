@@ -17,15 +17,35 @@
 
 #include <search/transposition_table.h>
 
+#include <algorithm>
+#include <thread>
+#include <vector>
+
 namespace search {
 
-void transposition_table::clear() noexcept {
-  for (auto& elem : data) { elem = bucket_type{}; }
+void transposition_table::clear(const std::size_t& concurrency) noexcept {
+  const std::size_t block_size = (size_ + concurrency - 1) / concurrency;
+  std::vector<std::thread> workers{};
+
+  for (std::size_t i(0); i < concurrency; ++i) {
+    const std::size_t first_idx = i * block_size;
+    const std::size_t last_idx = std::min(size_, i * block_size + block_size);
+
+    workers.emplace_back([this, first_idx, last_idx] {
+      for (std::size_t j(first_idx); j < last_idx; ++j) { new (data.get() + j) bucket_type{}; }
+    });
+  }
+
+  for (auto& worker : workers) { worker.join(); }
 }
 
-void transposition_table::resize(const std::size_t& size) noexcept {
-  clear();
-  data.resize(size * one_mb, bucket_type{});
+void transposition_table::resize(const std::size_t& size, const std::size_t& concurrency) noexcept {
+  size_ = size * one_mb;
+
+  data.reset();
+  data.reset(static_cast<bucket_type*>(util::huge_page_aligned_alloc(sizeof(bucket_type) * size_)));
+
+  clear(concurrency);
 }
 
 void transposition_table::update_gen() noexcept {
