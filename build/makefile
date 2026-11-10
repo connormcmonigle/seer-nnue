@@ -2,7 +2,7 @@ EXE = seer
 CXX = g++
 
 CXXSTANDARD = 17
-EVALFILE = weights/q0x2291e0ff.bin
+EVALFILE = weights/qs0x2291e0ff.bin
 OPSLIMIT = 1000000000
 
 CXXSRC += $(wildcard ../src/*.cc )
