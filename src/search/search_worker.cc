@@ -52,13 +52,19 @@ inline evaluate_info search_worker::evaluate(
   const auto ccounter_move_hash = chess::ancestor_move_zobrist_hasher.compute_hash(ss.ccounter());
   const auto follow_move_hash = chess::ancestor_move_zobrist_hasher.compute_hash(ss.follow());
   const auto counter_move_hash = chess::counter_move_zobrist_hasher.compute_hash(ss.counter());
+  const auto sided_non_pawn_hash = bd.sided_non_pawn_hash();
 
   const auto ccont_feature_hash = zobrist::lower_quarter(counter_move_hash ^ ccounter_move_hash);
   const auto cont_feature_hash = zobrist::lower_quarter(counter_move_hash ^ follow_move_hash);
   const auto pawn_feature_hash = zobrist::lower_quarter(bd.pawn_hash());
   const auto eval_feature_hash = data_packet.eval_feature_hash;
 
-  const auto feature_hash = composite_feature_hash_of(pawn_feature_hash, eval_feature_hash, cont_feature_hash, ccont_feature_hash);
+  const auto us_non_pawn_feature_hash = zobrist::lower_quarter(sided_non_pawn_hash.us(bd.turn()));
+  const auto them_non_pawn_feature_hash = zobrist::lower_quarter(sided_non_pawn_hash.them(bd.turn()));
+
+  const auto feature_hash = composite_feature_hash_of(
+      pawn_feature_hash, eval_feature_hash, cont_feature_hash, ccont_feature_hash, us_non_pawn_feature_hash, them_non_pawn_feature_hash);
+
   score_type static_value = data_packet.eval_before_adjustment;
 
   if (!is_check) { static_value += internal.correction.us(bd.turn()).correction_for(feature_hash); }
