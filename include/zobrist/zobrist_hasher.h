@@ -49,7 +49,7 @@ struct zobrist_hasher_impl {
   static constexpr std::size_t feature_cardinality = N;
 
   template <typename F>
-  [[nodiscard]] constexpr T compute_hash(F&& indicator_function) const noexcept {
+  [[nodiscard]] T compute_hash(F&& indicator_function) const noexcept {
     T hash = initial_hash_value;
 
 #pragma omp simd
